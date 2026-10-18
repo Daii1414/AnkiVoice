@@ -49,6 +49,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import zipfile
 
 try:
     if hasattr(sys.stdout, "reconfigure"):
@@ -705,34 +706,130 @@ def _segments(text):
 _KEEP_KATA = ("コンニチハ", "コンバンハ")
 
 
-# SudachiPy — основной «читатель» иероглифов: современный словарь UniDic
-# даёт готовое чтение каждой морфемы целиком, с окуриганой и редкими
-# терминами (高輪ゲートウェイ駅 -> タカナワゲートウェイエキ).
-# Версии привязаны: словари после 20260723 в новом формате только под
-# SudachiPy 0.7, а 0.7 требует Python >= 3.10 (движок — 3.9).
-_SUDACHI_HINT = ('%s -m pip install "sudachipy==0.6.11" "sudachidict_core==20260428"'
-                 % (PYTHON or r"runtime\python.exe"))
-_SUDACHI = None            # None — ещё не пробовали, False — недоступно
+# SudachiPy — основной «читатель» иероглифов (движок sudachi.rs): свежий
+# словарь UniDic даёт готовое чтение каждой морфемы целиком, с окуриганой
+# и редкими терминами (高輪ゲートウェイ駅 -> タカナワゲートウェイエキ).
+#
+# SudachiPy 0.7 требует Python >= 3.10, а движку GPT-SoVITS хватает 3.9,
+# поэтому разбор идёт в СВОЁМ встроенном Python (папка pyruntime рядом со
+# скриптом): долгоживущий помощник sudachi_g2p.py отвечает на JSON-строки.
+# Пользователю ставить ничего не нужно — всё лежит в репозитории.
+PYRUNTIME_DIR = os.path.join(CODE, "pyruntime")
+PYRUNTIME_PY = os.path.join(PYRUNTIME_DIR, "python.exe")
+SUDACHI_HELPER = os.path.join(CODE, "sudachi_g2p.py")
+PYRUNTIME_ZIP = os.path.join(CODE, "pyruntime.zip")
+
+_SUDACHI_PROC = None      # None — ещё не пробовали, False — недоступно
 _sudachi_warned = False
 
 
-def sudachi():
-    """Токенизатор SudachiPy или None, если библиотека не установлена."""
-    global _SUDACHI, _sudachi_warned
+def _ensure_pyruntime():
+    """Развернуть встроенный Python из pyruntime.zip, если его ещё нет."""
+    if os.path.isfile(PYRUNTIME_PY):
+        return True
+    if not os.path.isfile(PYRUNTIME_ZIP):
+        return False
+    print("-- Собираю встроенный разбор текста (pyruntime, один раз)...")
+    with zipfile.ZipFile(PYRUNTIME_ZIP) as zf:
+        zf.extractall(CODE)
+    return os.path.isfile(PYRUNTIME_PY)
+
+
+class _SudachiProc(object):
+    """Долгоживущий помощник SudachiPy на встроенном Python.
+
+    Один процесс на весь запуск: словарь загружается один раз, каждый
+    запрос/ответ — одна строка JSON. При сбое процесс перезапускается
+    один раз, дальше — None (тогда читает pyopenjtalk).
+    """
+
+    def __init__(self):
+        self.proc = None
+        self.version = None
+        self.dictver = None
+
+    def start(self):
+        if not (os.path.isfile(SUDACHI_HELPER) and _ensure_pyruntime()):
+            return False
+        env = dict(os.environ)
+        env["PYTHONUTF8"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
+        try:
+            self.proc = subprocess.Popen(
+                [PYRUNTIME_PY, SUDACHI_HELPER], cwd=CODE,
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL, env=env,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            hello = self.proc.stdout.readline()   # приветствие = словарь загружен
+            msg = json.loads(hello.decode("utf-8")) if hello else {}
+            if not msg.get("ok"):
+                self.proc = None
+                return False
+            self.version = msg.get("version") or "?"
+            self.dictver = msg.get("dict") or "?"
+            return True
+        except Exception:
+            self.proc = None
+            return False
+
+    def tokenize(self, text):
+        """[(поверхность, нормализация, чтение)] или None при сбое."""
+        for _ in range(2):                    # при сбое — перезапуск и ещё раз
+            if self.proc is None and not self.start():
+                return None
+            try:
+                req = (json.dumps({"id": 1, "text": text},
+                                  ensure_ascii=False) + "\n").encode("utf-8")
+                self.proc.stdin.write(req)
+                self.proc.stdin.flush()
+                line = self.proc.stdout.readline()
+                if not line:                  # помощник умер — перезапуск
+                    self.proc = None
+                    continue
+                msg = json.loads(line.decode("utf-8"))
+                if "error" in msg:
+                    return None
+                return [tuple(t) for t in msg["tokens"]]
+            except Exception:
+                self.proc = None
+        return None
+
+
+def sudachi_client():
+    """Помощник Sudachi (встроенный Python) или None, если недоступен."""
+    global _SUDACHI_PROC, _sudachi_warned
+    if _SUDACHI_PROC is None:
+        proc = _SudachiProc()
+        _SUDACHI_PROC = proc if proc.start() else False
+    if _SUDACHI_PROC is False:
+        if not _sudachi_warned:
+            print("-- Встроенный Sudachi недоступен — иероглифы читает "
+                  "pyopenjtalk (словарь постарее).")
+            print("   Проверь, что рядом со скриптом лежат pyruntime.zip "
+                  "и sudachidict.zip.")
+            _sudachi_warned = True
+        return None
+    return _SUDACHI_PROC
+
+
+_SUDACHI = None            # запасной ход: Sudachi прямо в интерпретаторе движка
+
+
+def sudachi_local():
+    """Токенизатор SudachiPy ИМЕННО в интерпретаторе движка или None.
+
+    Используется, если пользователь сам поставил туда SudachiPy (любой
+    версии) — тогда встроенный Python не нужен.
+    """
+    global _SUDACHI
     if _SUDACHI is None:
         try:
             from sudachipy import dictionary
-            _SUDACHI = dictionary.Dictionary(dict="core").create()
+            d = dictionary.Dictionary(dict="core")
+            _SUDACHI = d.tokenizer() if hasattr(d, "tokenizer") else d.create()
         except Exception:
             _SUDACHI = False
-    if _SUDACHI is False:
-        if not _sudachi_warned:
-            print("-- SudachiPy не установлен — иероглифы читает pyopenjtalk "
-                  "(словарь постарее).")
-            print("   Для качественного чтения: %s" % _SUDACHI_HINT)
-            _sudachi_warned = True
-        return None
-    return _SUDACHI
+    return _SUDACHI if _SUDACHI else None
 
 
 def _pyopenjtalk_g2p(text):
@@ -765,14 +862,20 @@ def g2p_kana(text):
     (в отличие от старого пути «весь текст через MeCab», который мог
     переписать частицы).
     """
-    tok = sudachi()
-    if tok is None:
+    toks = None
+    client = sudachi_client()
+    if client is not None:
+        toks = client.tokenize(text)
+    if toks is None:                       # запасной ход: Sudachi в движке
+        loc = sudachi_local()
+        if loc is not None:
+            toks = [(m.surface(), m.normalized_form(), m.reading_form())
+                    for m in loc.tokenize(text)]
+    if toks is None:
         return _pyopenjtalk_g2p(text)
     out = []
-    for m in tok.tokenize(text):
-        s = m.surface()
+    for s, nf, r in toks:
         if KANJI_RE.search(s):
-            r = m.reading_form()
             if r and r != "?" and not KANJI_RE.search(r):
                 out.append(r)
             else:
@@ -780,7 +883,6 @@ def g2p_kana(text):
         elif any(c.isdigit() for c in s):
             out.append(_pyopenjtalk_g2p(s))
         else:
-            nf = m.normalized_form()
             # катакановые ляпсусы словаря сглаживаем: シュミレーション
             # -> シミュレーション (только если нормализация — чистая катакана)
             if nf != s and _KATA_ONLY.match(s or "") and _KATA_ONLY.match(nf):
@@ -1405,11 +1507,14 @@ def cmd_selftest(args):
         ok("pyopenjtalk (запасной ход): %s" % r)
     except Exception as e:
         fail("pyopenjtalk: %s" % e)
-    if sudachi():
-        ok("Sudachi (чтение из словаря): %s" % kanaize(u"高輪ゲートウェイ駅"))
+    client = sudachi_client()
+    if client is not None:
+        ok("Sudachi (встроенный, %s, словарь %s): %s"
+           % (client.version, client.dictver, kanaize(u"高輪ゲートウェイ駅")))
     else:
-        print("  --   SudachiPy не установлен — иероглифы читает pyopenjtalk;")
-        print("       качественное чтение: %s" % _SUDACHI_HINT)
+        print("  --   Встроенный Sudachi недоступен — иероглифы читает "
+              "pyopenjtalk;")
+        print("       нужны pyruntime.zip и sudachidict.zip рядом со скриптом.")
 
     # текст -> хирагана: проверяем сложные случаи (полукатакана, полноразмерная
     # латиница, ヴ-серия, словарные замены, длинная глагольная форма)

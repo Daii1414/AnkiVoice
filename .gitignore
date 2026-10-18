@@ -1,4 +1,4 @@
-# --- Python ---
+﻿# --- Python ---
 __pycache__/
 *.py[cod]
 
@@ -28,3 +28,6 @@ Thumbs.db
 
 # --- Служебное ---
 __pycache__/
+
+# --- Встроенный Python для Sudachi (разворачивается из pyruntime.zip) ---
+pyruntime/
