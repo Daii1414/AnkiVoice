@@ -988,17 +988,17 @@ def run_gui(open_tab=None):
                 self._field_cbs[attr] = cb
             body.columnconfigure(1, weight=1)
             body.columnconfigure(3, weight=1)
-            # источник чтения необычного слова: авто-фуригана / отключено / поле
-            self.READ_AUTO = "Авто (фуригана карточки)"
-            self.READ_OFF = "Не подставлять (MeCab сам)"
+            # источник чтения необычного слова: отключено / конкретное поле
+            # (поле может содержать простое чтение либо фуриганную разметку)
+            self.READ_OFF = "Не подставлять (движок сам)"
             tk.Label(body, text="Чтение слова ← источник", font=F_SMALL,
                      bg=C["card"], fg=C["sub"]
                      ).grid(row=2, column=0, sticky="w", padx=(0, 8), pady=4)
-            self.var_reading = tk.StringVar(value=self.READ_AUTO)
+            self.var_reading = tk.StringVar(value=self.READ_OFF)
             self.cmb_reading = ttk.Combobox(body, textvariable=self.var_reading,
                                             state="normal")
             self.cmb_reading.grid(row=2, column=1, sticky="we", padx=(0, 20), pady=4)
-            self.cmb_reading["values"] = [self.READ_AUTO, self.READ_OFF]
+            self.cmb_reading["values"] = [self.READ_OFF]
             ttk.Button(body, text="Подставить поля выбранной колоды",
                        command=self._autofill_fields).grid(
                 row=3, column=0, columnspan=4, sticky="w", pady=(8, 0))
@@ -1403,7 +1403,7 @@ def run_gui(open_tab=None):
             for attr, cb in self._field_cbs.items():
                 cb["values"] = fl
             # в списке источников чтения — ещё и поля самой колоды
-            self.cmb_reading["values"] = [self.READ_AUTO, self.READ_OFF] + list(fl)
+            self.cmb_reading["values"] = [self.READ_OFF] + list(fl)
             self.var_sent_src.set(guess["sentence_src"])
             self.var_sent_audio.set(guess["sentence_audio"])
             self.var_word_src.set(guess["word_src"])
@@ -1450,9 +1450,7 @@ def run_gui(open_tab=None):
         def _reading_value(self):
             """GUI-значение источника чтения -> аргумент --reading пайплайна."""
             v = self.var_reading.get().strip()
-            if v == self.READ_AUTO:
-                return ""
-            if v == self.READ_OFF:
+            if not v or v == self.READ_OFF:
                 return "off"
             return v            # пользователь ввёл/выбрал имя поля с чтением
 

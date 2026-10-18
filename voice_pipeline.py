@@ -24,7 +24,8 @@ GitHub), а движок GPT-SoVITS может стоять где угодно.
 Что делает автоматически:
   * поднимает API-сервер GPT-SoVITS, если он не запущен;
   * переключает веса голоса на лету (при нехватке памяти — перезапуск и повтор);
-  * переводит текст карточек в хирагану (pyopenjtalk), латиницу IEC/ISO/I形 -> катакана,
+  * переводит текст карточек в хирагану (SudachiPy по словарю UniDic, запасной
+    ход — pyopenjtalk), латиницу IEC/ISO/I形 -> катакана,
     редкие слова — через kana_overrides.txt;
   * синтезирует слово и предложение, кладёт ogg в медиа Anki, пишет [sound:...] в поля;
   * проверяет результат (поля заполнены, файлы на месте).
@@ -85,8 +86,8 @@ DEFAULT_FIELDS = {
     "sentence_audio": "SentenceAudio",  # поле, куда писать звук предложения
     "word_src": "Expression",          # поле со словом (понимает фуригану)
     "word_audio": "ExpressionAudio",   # поле, куда писать звук слова
-    "reading": "",                     # источник чтения: "" — авто (фуригана),
-                                       # "off" — не подставлять, имя поля — строго из него
+    "reading": "off",                    # источник чтения: "off" — не подставлять
+                                        # (движок читает само), имя поля — строго из него
 }
 
 
@@ -704,7 +705,38 @@ def _segments(text):
 _KEEP_KATA = ("コンニチハ", "コンバンハ")
 
 
-def g2p_kana(text):
+# SudachiPy — основной «читатель» иероглифов: современный словарь UniDic
+# даёт готовое чтение каждой морфемы целиком, с окуриганой и редкими
+# терминами (高輪ゲートウェイ駅 -> タカナワゲートウェイエキ).
+# Версии привязаны: словари после 20260723 в новом формате только под
+# SudachiPy 0.7, а 0.7 требует Python >= 3.10 (движок — 3.9).
+_SUDACHI_HINT = ('%s -m pip install "sudachipy==0.6.11" "sudachidict_core==20260428"'
+                 % (PYTHON or r"runtime\python.exe"))
+_SUDACHI = None            # None — ещё не пробовали, False — недоступно
+_sudachi_warned = False
+
+
+def sudachi():
+    """Токенизатор SudachiPy или None, если библиотека не установлена."""
+    global _SUDACHI, _sudachi_warned
+    if _SUDACHI is None:
+        try:
+            from sudachipy import dictionary
+            _SUDACHI = dictionary.Dictionary(dict="core").create()
+        except Exception:
+            _SUDACHI = False
+    if _SUDACHI is False:
+        if not _sudachi_warned:
+            print("-- SudachiPy не установлен — иероглифы читает pyopenjtalk "
+                  "(словарь постарее).")
+            print("   Для качественного чтения: %s" % _SUDACHI_HINT)
+            _sudachi_warned = True
+        return None
+    return _SUDACHI
+
+
+def _pyopenjtalk_g2p(text):
+    """Запасной ход: Open JTalk (проверенный словарь движка)."""
     global _g2p_warned
     try:
         import pyopenjtalk
@@ -716,6 +748,48 @@ def g2p_kana(text):
                   % (PYTHON or r"runtime\python.exe"))
             _g2p_warned = True
         return text
+
+
+_KATA_ONLY = re.compile(r"^[\u30a0-\u30ff]+$")
+
+
+def g2p_kana(text):
+    """Иероглифы -> катакана: Sudachi по словарю, запасные ходы — pyopenjtalk.
+
+    Sudachi даёт чтение морфемы из современного словаря (欠き -> カキ,
+    高輪ゲートウェイ駅 -> タカナワゲートウェイエキ). Запасные ходы:
+      * слова нет в словаре Sudachi — pyopenjtalk по своему словарю;
+      * цифры — pyopenjtalk: Sudachi читает числа как даты (2024 ->
+        二月二日), а Open JTalk — как числа (二千二十四).
+    Хирагана/катакана и знаки проходят как есть — их g2p не трогает
+    (в отличие от старого пути «весь текст через MeCab», который мог
+    переписать частицы).
+    """
+    tok = sudachi()
+    if tok is None:
+        return _pyopenjtalk_g2p(text)
+    out = []
+    for m in tok.tokenize(text):
+        s = m.surface()
+        if KANJI_RE.search(s):
+            r = m.reading_form()
+            if r and r != "?" and not KANJI_RE.search(r):
+                out.append(r)
+            else:
+                out.append(_pyopenjtalk_g2p(s) or s)
+        elif any(c.isdigit() for c in s):
+            out.append(_pyopenjtalk_g2p(s))
+        else:
+            nf = m.normalized_form()
+            # катакановые ляпсусы словаря сглаживаем: シュミレーション
+            # -> シミュレーション (только если нормализация — чистая катакана)
+            if nf != s and _KATA_ONLY.match(s or "") and _KATA_ONLY.match(nf):
+                s = nf
+            out.append(s)
+    res = "".join(out)
+    if any(c.isdigit() for c in res):
+        res = _pyopenjtalk_g2p(res)      # цифры внутри чтения (第3条) -> кана
+    return res
 
 
 def kanaize(text):
@@ -814,34 +888,18 @@ def furiga_pair(text):
     return "".join(surf), "".join(read)
 
 
-def expression_reading(note):
-    """Чтение слова: ExpressionReading -> фуригана (все скобки) -> сам Expression.
-
-    Фуригана разбирается через furiga_pair (см. _base_reading о двух видах
-    разметки в колоде). Если чтения нет — берём сам Expression.
-    """
-    f = note["fields"]
-
-    def fld(name):
-        return plain(f.get(name, {}).get("value", ""))
-
-    r = fld("ExpressionReading")
-    if r:
-        return r
-    _, reading = furiga_pair(fld("ExpressionFurigana"))
-    if reading and reading.strip():
-        return reading.strip()
-    return fld("Expression")
-
-
-def expression_inject_pair(note, reading_field=None):
+def expression_inject_pair(note, reading_field):
     """(написание_слова, полное_чтение) — для подстановки в предложение.
 
     Написание — как слово стоит в предложении («相欠き継ぎ»), чтение —
-    собранное целиком («あいがきつぎ»). Источник чтения:
-      * reading_field — имя поля карточки с готовым чтением (строгий режим);
-      * иначе ExpressionFurigana (разметка) либо ExpressionReading.
-    (None, None) — подстановка невозможна.
+    собранное целиком («あいがきつぎ»). Источник чтения — ТОЛЬКО указанное
+    поле (режима «авто» больше нет):
+      * простое чтение («あいが») — берётся как есть;
+      * фуриганная разметка («相欠[あいが]き») — разбирается, берётся
+        кана целиком (удобно указывать готовое поле ExpressionFurigana).
+    (None, None) — подстановка невозможна: в Expression нет иероглифов,
+    поле пустое, разметка не совпала со словом или в «чтении» остались
+    иероглифы.
     """
     f = note["fields"]
 
@@ -851,19 +909,14 @@ def expression_inject_pair(note, reading_field=None):
     surface = re.sub(r"\[[^\[\]]*\]", "", fld("Expression")).strip()
     if not surface or not KANJI_RE.search(surface):
         return None, None                    # иероглифов нет — нечего подставлять
-    reading = ""
-    if reading_field:
-        reading = fld(reading_field)         # строгий режим: только это поле
-    else:
-        efur = fld("ExpressionFurigana")
-        if "[" in efur:
-            fur_surf, fur_read = furiga_pair(efur)
-            if fur_surf is None or fur_surf.strip() != surface:
-                return None, None            # разметка не совпала со словом — риск
-            reading = fur_read
-        else:
-            reading = fld("ExpressionReading")
-    reading = reading.strip()
+    reading = fld(reading_field).strip()
+    if not reading:
+        return None, None                    # поле пустое — подстановки нет
+    if "[" in reading:
+        fur_surf, fur_read = furiga_pair(reading)
+        if fur_surf is None or fur_surf.strip() != surface:
+            return None, None                # разметка не совпала со словом — риск
+        reading = (fur_read or "").strip()
     if not reading or reading == surface:
         return None, None
     if KANJI_RE.search(reading):
@@ -876,49 +929,23 @@ def inject_reading(sentence, note, reading=""):
 
     Идея: карточка уже содержит ПРАВИЛЬНОЕ чтение сложного слова, а API
     GPT-SoVITS принимает только текст (канала «готовое чтение» у него нет).
-    Значит, подставляем чтение прямо в текст: MeCab увидит хирагану и не
+    Значит, подставляем чтение прямо в текст: движок увидит хирагану и не
     сможет ошибиться в редком термине (合折釘, 相欠き継ぎ и т.п.).
 
-    Режим источника чтения (параметр reading):
-      * ""    — авто: SentenceFurigana (всё предложение), иначе
-                ExpressionFurigana/ExpressionReading (одно слово);
-      * "off" — подстановка отключена, MeCab читает предложение само;
+    Источник чтения (параметр reading) — только два режима:
+      * "off" или "" — подстановки нет, движок читает предложение само;
       * имя поля — чтение слова строго из этого поля (пользователь заранее
-                знает правильное чтение необычного слова).
+        знает правильное чтение необычного слова). Поле содержит простое
+        чтение либо фуриганную разметку.
     """
-    if reading == "off":
+    if not reading or reading == "off":
         return sentence
-    f = note["fields"]
-
-    def fld(name):
-        return plain(f.get(name, {}).get("value", ""))
-
-    # 0) строгий режим: чтение слова — только из указанного поля
-    if reading:
-        kanji, rd = expression_inject_pair(note, reading_field=reading)
-        if not kanji or not rd:
-            return sentence
-        if kanji not in sentence:
-            return sentence
-        return sentence.replace(kanji, kata2hira(rd.strip()))
-
-    # 1) чтение целого предложения — если оно есть
-    sfur = fld("SentenceFurigana")
-    if "[" in sfur:
-        surf, read = furiga_pair(sfur)
-        if surf and read and surf.strip() == fld("Sentence").strip():
-            r = read.strip()
-            if r and not KANJI_RE.search(r):
-                return r
-        # разметка не совпала с предложением — идём дальше, к слову
-
-    # 2) подстановка чтения слова Expression
-    kanji, reading_word = expression_inject_pair(note)
-    if not kanji or not reading_word:
+    kanji, rd = expression_inject_pair(note, reading_field=reading)
+    if not kanji or not rd:
         return sentence
     if kanji not in sentence:
         return sentence
-    return sentence.replace(kanji, kata2hira(reading_word))
+    return sentence.replace(kanji, kata2hira(rd))
 
 
 # --------------------------------------------------------------- синтез
@@ -1004,8 +1031,14 @@ def synth(v, text, seed=42, speed=1.0, _oom_retry=True):
     if blob is None:
         raise SystemExit("сервер отказал: %s" % (err or "нет ответа")[:300])
     if len(blob) < 1024:
-        # сервер ответил почти пустым телом (обрыв/уступка памяти) —
-        # такое нельзя сохранять как «озвучено»
+        # сервер ответил почти пустым телом (обрыв/уступка памяти на GPU) —
+        # такое нельзя сохранять как «озвучено»: перезапуск сервера даёт
+        # свежую память и обычно чинит ситуацию (как при CUDA OOM выше)
+        if _oom_retry:
+            print("Сервер вернул пустой звук — перезапускаю сервер и повторяю...")
+            restart_server(_tts_start_config())
+            ensure_voice(v, force=True)
+            return synth(v, text, seed=seed, speed=speed, _oom_retry=False)
         raise SystemExit("сервер вернул пустой звук (%d байт) — попробуй ещё раз"
                          % len(blob))
     return blob, "ogg" if payload["media_type"] == "ogg" else "wav"
@@ -1022,21 +1055,21 @@ def word_text(note, word_src, reading=""):
     """Текст слова из поля word_src.
 
     word_src == 'Expression' учитывает режим источника reading:
-      * ""    — чтение из фуриганы/ExpressionReading (как обычно);
-      * "off" — фуригану НЕ использовать: берём написание без разметки,
-                MeCab читает его само;
-      * имя поля — готовое чтение строго из этого поля.
+      * "off"/"" — написание без разметки, движок читает его само;
+      * имя поля — готовое чтение строго из этого поля (простое чтение
+        либо фуриганная разметка); поле пустое — как при off.
     Для произвольного поля word_src — просто текст поля."""
     if word_src == "Expression":
-        if reading == "off":
-            return re.sub(r"\[[^\[\]]*\]", "",
-                          plain(note["fields"].get("Expression", {})
-                                .get("value", ""))).strip()
-        if reading:
+        if reading and reading != "off":
             v = plain(note["fields"].get(reading, {}).get("value", ""))
+            if "[" in v:                      # поле с фуриганой -> кана целиком
+                _, v = furiga_pair(v)
+                v = (v or "").strip()
             if v:
                 return v
-        return expression_reading(note)
+        return re.sub(r"\[[^\[\]]*\]", "",
+                      plain(note["fields"].get("Expression", {})
+                            .get("value", ""))).strip()
     return plain(note["fields"].get(word_src, {}).get("value", ""), strip_media=True)
 
 
@@ -1056,8 +1089,8 @@ def build_jobs(notes, mode, force, fields=None):
         if mode in ("sentence", "both"):
             text = tgt_text(fields["sentence_src"])
             if text and (force or not tgt(fields["sentence_audio"])):
-                # вставляем чтение сложного слова в предложение (источник
-                # настраивается: авто-фуригана / отключено / конкретное поле)
+                # вставляем чтение сложного слова в предложение (источник:
+                # отключено либо конкретное поле карточки)
                 text = inject_reading(text, n, reading=fields.get("reading", ""))
                 jobs.append((n["noteId"], fields["sentence_audio"], kanaize(text)))
         if mode in ("expression", "both"):
@@ -1369,9 +1402,14 @@ def cmd_selftest(args):
     try:
         import pyopenjtalk
         r = pyopenjtalk.g2p("合釘を打ち込む", kana=True)
-        ok("pyopenjtalk: %s" % r)
+        ok("pyopenjtalk (запасной ход): %s" % r)
     except Exception as e:
         fail("pyopenjtalk: %s" % e)
+    if sudachi():
+        ok("Sudachi (чтение из словаря): %s" % kanaize(u"高輪ゲートウェイ駅"))
+    else:
+        print("  --   SudachiPy не установлен — иероглифы читает pyopenjtalk;")
+        print("       качественное чтение: %s" % _SUDACHI_HINT)
 
     # текст -> хирагана: проверяем сложные случаи (полукатакана, полноразмерная
     # латиница, ヴ-серия, словарные замены, длинная глагольная форма)
@@ -1398,8 +1436,8 @@ def cmd_selftest(args):
         print("  --   в окружении задан прокси (%s) — локальные запросы идут "
               "мимо него, не мешает" % ", ".join(proxied))
 
-    # подстановка чтения из фуриганы в предложение (см. inject_reading)
-    print("  --   подстановка чтения из карточки:")
+    # подстановка чтения из фуриганного поля в предложение (см. inject_reading)
+    print("  --   подстановка чтения из поля (фуригана слова):")
     for expr, efur, sent, want in (
             (u"相欠き", u"相欠[あいが]き",
              u"大工は交差部を相欠きにして高さを揃えた。",
@@ -1422,25 +1460,32 @@ def cmd_selftest(args):
             "ExpressionReading": {"value": ""},
             "Sentence": {"value": sent},
             "SentenceFurigana": {"value": ""}}}
-        got = inject_reading(sent, note)
+        got = inject_reading(sent, note, reading="ExpressionFurigana")
         if got == want:
             ok("подстановка: %s" % expr)
         else:
             fail("подстановка: %s -> %s (ожидалось %s)" % (expr, got, want))
         # чтение слова (для озвучки самого Expression) тоже должно быть верным
-        w = expression_reading(note)
+        w = word_text(note, "Expression", reading="ExpressionFurigana")
         if w and not KANJI_RE.search(w):
             ok("чтение слова %s: %s" % (expr, w))
         else:
             fail("чтение слова %s: %s (в чтении остались иероглифы)"
                  % (expr, w))
-    # режимы источника чтения (параметр reading)
+    # режимы источника чтения (параметр reading): только off и конкретное поле
     print("  --   режимы источника чтения:")
+    if DEFAULT_FIELDS.get("reading") == "off":
+        ok("по умолчанию: подстановки нет (off) — движок читает сам")
+    else:
+        fail("по умолчанию: reading=%r (ожидалось 'off')"
+             % DEFAULT_FIELDS.get("reading"))
     note_r = {"fields": {
         "Expression": {"value": u"相欠き"},
         "ExpressionFurigana": {"value": u"相欠[あいが]き"},
         "ExpressionReading": {"value": ""},
         u"Кана": {"value": u"あいが"},
+        u"КанаИероглифы": {"value": u"相欠き"},
+        u"Пусто": {"value": ""},
         "Sentence": {"value": u"大工は相欠きにして高さを揃えた。"},
         "SentenceFurigana": {"value": ""}}}
     sent_r = note_r["fields"]["Sentence"]["value"]
@@ -1451,7 +1496,7 @@ def cmd_selftest(args):
         fail("reading=off: ожидалась чистая строка, получено %r" % got)
     w = word_text(note_r, "Expression", reading="off")
     if w == u"相欠き":
-        ok("reading=off: слово без фуриганы (MeCab читает само)")
+        ok("reading=off: слово без фуриганы (движок читает само)")
     else:
         fail("reading=off: слово %r (ожидалось написание без разметки)" % w)
     got = inject_reading(sent_r, note_r, reading=u"Кана")
@@ -1464,16 +1509,40 @@ def cmd_selftest(args):
         ok("reading=поле: слово озвучивается чтением из поля")
     else:
         fail("reading=поле: слово %r" % w)
-    got = inject_reading(sent_r, note_r, reading=u"НетТакогоПоля")
+    # поле может содержать фуриганную разметку — указывай готовое
+    # ExpressionFurigana, карточку переписывать не нужно
+    got = inject_reading(sent_r, note_r, reading="ExpressionFurigana")
+    if got == u"大工はあいがきにして高さを揃えた。":
+        ok("reading=фуриганное поле: разметка разобрана, чтение подставлено")
+    else:
+        fail("reading=фуриганное поле: %r" % got)
+    w = word_text(note_r, "Expression", reading="ExpressionFurigana")
+    if w == u"あいがき":
+        ok("reading=фуриганное поле: слово озвучивается полным чтением")
+    else:
+        fail("reading=фуриганное поле: слово %r" % w)
+    # пустое поле — подстановки нет, авто НЕ подхватывается
+    got = inject_reading(sent_r, note_r, reading=u"Пусто")
     if got == sent_r:
         ok("reading=пустое поле: подстановки нет (авто не подхватывается)")
     else:
         fail("reading=пустое поле: %r" % got)
-    w = word_text(note_r, "Expression", reading=u"НетТакогоПоля")
-    if w == u"あいがき":
-        ok("reading=пустое поле: слово — фолбэк на фуригану")
+    w = word_text(note_r, "Expression", reading=u"Пусто")
+    if w == u"相欠き":
+        ok("reading=пустое поле: слово — написание без разметки (как off)")
     else:
         fail("reading=пустое поле: слово %r" % w)
+    got = inject_reading(sent_r, note_r, reading=u"НетТакогоПоля")
+    if got == sent_r:
+        ok("reading=нет такого поля: подстановки нет")
+    else:
+        fail("reading=нет такого поля: %r" % got)
+    # в «чтении» иероглифы — отказываемся: это не чтение
+    got = inject_reading(sent_r, note_r, reading=u"КанаИероглифы")
+    if got == sent_r:
+        ok("reading=иероглифы в поле: подстановки нет (безопасность)")
+    else:
+        fail("reading=иероглифы в поле: %r" % got)
 
     ok("GPT-SoVITS запущен") if tts_ready() else \
         print("  --   GPT-SoVITS не запущен (поднимется сам при озвучке)")
@@ -1584,10 +1653,10 @@ def main():
     p.add_argument("--sentence-audio", default=None, help="поле для звука предложения")
     p.add_argument("--word-src", default=None, help="поле со словом")
     p.add_argument("--word-audio", default=None, help="поле для звука слова")
-    p.add_argument("--reading", default="",
-                   help="источник чтения: пусто — авто (фуригана карточки), "
-                        "off — не подставлять (MeCab читает сам), "
-                        "либо имя поля с готовым чтением слова")
+    p.add_argument("--reading", default="off",
+                   help="источник чтения: off — не подставлять (движок читает "
+                        "сам), либо имя поля с готовым чтением слова "
+                        "(простое чтение или фуриганная разметка поля)")
     p.add_argument("--force", action="store_true")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--speed", type=float, default=1.0)
@@ -1602,10 +1671,10 @@ def main():
     p.add_argument("--sentence-audio", default=None, help="поле для звука предложения")
     p.add_argument("--word-src", default=None, help="поле со словом")
     p.add_argument("--word-audio", default=None, help="поле для звука слова")
-    p.add_argument("--reading", default="",
-                   help="источник чтения: пусто — авто (фуригана карточки), "
-                        "off — не подставлять (MeCab читает сам), "
-                        "либо имя поля с готовым чтением слова")
+    p.add_argument("--reading", default="off",
+                   help="источник чтения: off — не подставлять (движок читает "
+                        "сам), либо имя поля с готовым чтением слова "
+                        "(простое чтение или фуриганная разметка поля)")
     p.add_argument("--tag", default=None)
     p.add_argument("--force", action="store_true")
     p.add_argument("--seed", type=int, default=42)
