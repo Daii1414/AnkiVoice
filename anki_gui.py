@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """anki_gui.py — AnkiVoice: графическая оболочка пайплайна озвучки Anki.
 
 Программа — тонкий интерфейс поверх voice_pipeline.py. Сам exe ничего не
@@ -399,8 +399,7 @@ def _payload_problem():
     if not getattr(sys, "frozen", False):
         return None                      # запуск с диска — файлы на месте
     d = code_dir()
-    missing = [f for f in ("voice_pipeline.py", "sudachi_g2p.py", "voices.json",
-                           "kana_overrides.txt")
+    missing = [f for f in ("voice_pipeline.py", "sudachi_g2p.py", "voices.json")
                if not os.path.isfile(os.path.join(d, f))]
     if not (os.path.isfile(os.path.join(d, "pyruntime", "python.exe"))
             or os.path.isfile(os.path.join(d, "pyruntime.zip"))):
@@ -1765,3 +1764,5 @@ if __name__ == "__main__":
             pass
         out(msg)
         raise
+
+

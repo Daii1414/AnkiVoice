@@ -86,17 +86,26 @@ CASES = [
     ("我々", ["我々", "われわれ"]),
 ]
 
-ok, bad = 0, []
-for text, exps in CASES:
-    got = kanaize(text)
-    # строгое равенство: подстрока не засчитывается (иначе «あいのま»
-    # проходило бы при неверном «あいのまい»)
-    hit = got in exps
-    if hit:
-        ok += 1
-    else:
-        bad.append((text, got, exps))
+def run(cases=CASES):
+    """Прогон батареи. Возвращает (ok, bad) — bad: [(текст, получилось, ожидалось)].
 
-print(f"OK {ok}/{len(CASES)}")
-for text, got, exps in bad:
-    print(f"FAIL {text!r} -> {got!r} (ожидалось одно из: {exps})")
+    Вынесено в функцию, чтобы батареей можно было пользоваться из других
+    скриптов (например, из benchmark_g2p.py для сравнения движков чтения).
+    """
+    ok, bad = 0, []
+    for text, exps in cases:
+        got = kanaize(text)
+        # строгое равенство: подстрока не засчитывается (иначе «あいのま»
+        # проходило бы при неверном «あいのまい»)
+        if got in exps:
+            ok += 1
+        else:
+            bad.append((text, got, exps))
+    return ok, bad
+
+
+if __name__ == "__main__":
+    ok, bad = run()
+    print(f"OK {ok}/{len(CASES)}")
+    for text, got, exps in bad:
+        print(f"FAIL {text!r} -> {got!r} (ожидалось одно из: {exps})")

@@ -58,7 +58,6 @@ Source: "{#MyFiles}\sudachi_g2p.py";       DestDir: "{app}"; Flags: ignoreversio
 Source: "{#MyFiles}\kana_stress.py";       DestDir: "{app}"; Flags: ignoreversion
 ; голоса и словарь чтения
 Source: "{#MyFiles}\voices.json";          DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyFiles}\kana_overrides.txt";   DestDir: "{app}"; Flags: ignoreversion
 ; встроенный Python и словарь Sudachi (распакуются при первом запуске)
 Source: "{#MyFiles}\pyruntime.zip";        DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyFiles}\sudachidict.zip";      DestDir: "{app}"; Flags: ignoreversion

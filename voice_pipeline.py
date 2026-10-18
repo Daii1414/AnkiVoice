@@ -26,8 +26,7 @@ GitHub), а движок GPT-SoVITS может стоять где угодно.
   * поднимает API-сервер GPT-SoVITS, если он не запущен;
   * переключает веса голоса на лету (при нехватке памяти — перезапуск и повтор);
   * переводит текст карточек в хирагану (SudachiPy по словарю UniDic, запасной
-    ход — pyopenjtalk), латиницу IEC/ISO/I形 -> катакана,
-    редкие слова — через kana_overrides.txt;
+    ход — pyopenjtalk), латиницу IEC/ISO/I形 -> катакана по буквам;
   * синтезирует слово и предложение, кладёт ogg в медиа Anki, пишет [sound:...] в поля;
   * проверяет результат (поля заполнены, файлы на месте).
 
@@ -64,11 +63,10 @@ except Exception:
     pass
 
 # ------------------------------------------------------------------ константы
-# CODE  — папка самого инструмента (этот скрипт, voices.json, kana_overrides.txt).
+# CODE  — папка самого инструмента (этот скрипт, voices.json).
 # ENGINE — папка установленного GPT-SoVITS (runtime\python.exe, api_v2.py, веса).
 CODE = os.path.dirname(os.path.abspath(__file__))
 VOICES_FILE = os.path.join(CODE, "voices.json")
-OVERRIDES_FILE = os.path.join(CODE, "kana_overrides.txt")
 ENGINE_LOCAL_FILE = os.path.join(CODE, "gptsovits_path.txt")
 
 ENGINE = None             # заполняется resolve_engine() ниже
@@ -590,33 +588,7 @@ LATIN = {"A": "エー", "B": "ビー", "C": "シー", "D": "ディー", "E": "�
          "U": "ユー", "V": "ブイ", "W": "ダブリュー", "X": "エックス",
          "Y": "ワイ", "Z": "ゼット"}
 
-_overrides = None
 _g2p_warned = False
-
-
-def load_overrides():
-    global _overrides
-    if _overrides is not None:
-        return _overrides
-    _overrides = {}
-    if os.path.exists(OVERRIDES_FILE):
-        with open(OVERRIDES_FILE, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                k, val = line.split("=", 1)
-                if k.strip():
-                    _overrides[k.strip()] = val.strip()
-    return _overrides
-
-
-def apply_overrides(text):
-    ov = load_overrides()
-    for k in sorted(ov, key=len, reverse=True):
-        if k in text:
-            text = text.replace(k, ov[k])
-    return text
 
 
 def latin2kana(s):
@@ -866,6 +838,86 @@ def sudachi_local():
     return _SUDACHI if _SUDACHI else None
 
 
+# --- ядро чтения: Haqumei (основной ход), в своём встроенном Python -------
+# Читает слово В КОНТЕКСТЕ ПРЕДЛОЖЕНИЯ и возвращает готовые чтения с
+# позициями. Запасной ход при недоступности — старая цепочка Sudachi.
+CORE_HELPER = os.path.join(CODE, "g2p_core.py")
+
+_CORE_PROC = None         # None — ещё не пробовали, False — недоступно
+_core_warned = False
+
+
+class _CoreProc(object):
+    """Долгоживущий помощник-ядро (Haqumei) на встроенном Python.
+
+    Протокол как у _SudachiProc: JSON-строки, при сбое перезапуск один раз.
+    """
+
+    def __init__(self):
+        self.proc = None
+        self.version = None
+
+    def start(self):
+        if not (os.path.isfile(CORE_HELPER) and _ensure_pyruntime()):
+            return False
+        env = dict(os.environ)
+        env["PYTHONUTF8"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
+        try:
+            self.proc = subprocess.Popen(
+                [PYRUNTIME_PY, CORE_HELPER], cwd=CODE,
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL, env=env,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            hello = self.proc.stdout.readline()
+            msg = json.loads(hello.decode("utf-8")) if hello else {}
+            if not msg.get("ok"):
+                self.proc = None
+                return False
+            self.version = msg.get("version") or "?"
+            return True
+        except Exception:
+            self.proc = None
+            return False
+
+    def reads(self, text):
+        """[[поверхность, чтение, начало, конец, неизвестно], ...] или None."""
+        for _ in range(2):                    # при сбое — перезапуск и ещё раз
+            if self.proc is None and not self.start():
+                return None
+            try:
+                req = (json.dumps({"id": 1, "text": text},
+                                  ensure_ascii=False) + "\n").encode("utf-8")
+                self.proc.stdin.write(req)
+                self.proc.stdin.flush()
+                line = self.proc.stdout.readline()
+                if not line:                  # помощник умер — перезапуск
+                    self.proc = None
+                    continue
+                msg = json.loads(line.decode("utf-8"))
+                if "error" in msg:
+                    return None
+                return [list(w) for w in msg["words"]]
+            except Exception:
+                self.proc = None
+        return None
+
+
+def core_client():
+    """Помощник-ядро (Haqumei) или None, если недоступен."""
+    global _CORE_PROC, _core_warned
+    if _CORE_PROC is None:
+        proc = _CoreProc()
+        _CORE_PROC = proc if proc.start() else False
+    if _CORE_PROC is False:
+        if not _core_warned:
+            print("-- Ядро Haqumei недоступно — читает запасная цепочка "
+                  "Sudachi + pyopenjtalk.")
+            _core_warned = True
+        return None
+    return _CORE_PROC
+
+
 def _pyopenjtalk_g2p(text):
     """Запасной ход: Open JTalk (проверенный словарь движка)."""
     global _g2p_warned
@@ -884,18 +936,88 @@ def _pyopenjtalk_g2p(text):
 _KATA_ONLY = re.compile(r"^[\u30a0-\u30ff]+$")
 
 
-def g2p_kana(text):
-    """Иероглифы -> катакана: Sudachi по словарю, запасные ходы — pyopenjtalk.
+def _g2p_core(text):
+    """Чтение через ядро Haqumei. None — ядро недоступно/не справилось.
 
-    Sudachi даёт чтение морфемы из современного словаря (欠き -> カキ,
-    高輪ゲートウェイ駅 -> タカナワゲートウェイエキ). Запасные ходы:
-      * слова нет в словаре Sudachi — pyopenjtalk по своему словарю;
-      * цифры — pyopenjtalk: Sudachi читает числа как даты (2024 ->
-        二月二日), а Open JTalk — как числа (二千二十四).
+    Haqumei отдаёт слова с позициями в тексте. Важно: поле word — это
+    НОРМАЛИЗОВАННАЯ форма (3 -> 三, ﾊﾟﾋﾟｰ -> パピー), а позиция указывает
+    в ИСХОДНЫЙ текст. Поэтому исходником истины считается кусок текста
+    text[s:e], а по полю word только проверяется, что разметка легла
+    честно. Правила:
+      * кусок с иероглифами -> чтение (только если word совпал с куском —
+        иначе позиция съехала и чтение привяжется не к тому слову,
+        возвращаем None и уходим в запасную цепочку Sudachi);
+      * цифры -> чтение ядра (оно читает числа как числа: 2024 ->
+        二千二十四, а не как дату 二月二日);
+      * чистая катакана -> нормализованная форма ядра, если она есть
+        (та же защита от ляпсусов словаря, что была в цепочке Sudachi:
+        シュミレーション -> シミュレーション);
+      * всё прочее (хирагана, знаки, латиница) -> как есть, движок не трогает.
+    """
+    core = core_client()
+    if core is None:
+        return None
+    words = core.reads(text)
+    if not words:
+        return None
+    out = []
+    pos = 0
+    for w in words:
+        word, read, s, e = w[0], w[1], int(w[2]), int(w[3])
+        if not (0 <= pos <= s <= e <= len(text)):
+            return None                     # позиции вышли за текст
+        if s > pos:                         # пропуск между словами
+            gap = text[pos:s]
+            if KANJI_RE.search(gap):
+                return None                 # пропущен кусок с иероглифами
+            out.append(gap)
+        surface = text[s:e]                 # исходный текст (не нормализация)
+        if KANJI_RE.search(surface):
+            if unicodedata.normalize("NFKC", word) != \
+                    unicodedata.normalize("NFKC", surface):
+                return None                 # разметка съехала — не доверяем
+            if not read:
+                return None                 # чтения нет — вся цепочка Sudachi
+            out.append(read)
+        elif any(c.isdigit() for c in surface):
+            out.append(read or _pyopenjtalk_g2p(surface))
+        elif _KATA_ONLY.match(surface) and word != surface and \
+                _KATA_ONLY.match(word or ""):
+            out.append(word)                # ляпсус словаря катаканой
+        else:
+            out.append(surface)             # кана/знаки/латиница — как есть
+        pos = e
+    if pos < len(text):
+        tail = text[pos:]
+        if KANJI_RE.search(tail):
+            return None                     # хвост с иероглифами не покрыт
+        out.append(tail)
+    res = "".join(out)
+    if any(c.isdigit() for c in res):
+        res = _pyopenjtalk_g2p(res)         # цифры внутри чтения (第3条) -> кана
+    return res
+
+
+def g2p_kana(text):
+    """Иероглифы -> катакана: ядро Haqumei, запасная цепочка Sudachi/pyopenjtalk.
+
+    Первый ход — ядро (g2p_core.py, Haqumei): слово читается В КОНТЕКСТЕ
+    ПРЕДЛОЖЕНИЯ, словарь Haqumei свежий и широкий (высокая точность на
+    живом корпусе ROHAN). Ядро возвращает слова с позициями — в текст
+    подставляются только чтения иероглифовых кусков, всё остальное
+    (хирагана, знаки, латиница) проходит как есть.
+
+    Запасная цепочка (если ядро недоступно или ответ неполный):
+      * Sudachi по словарю — чтение морфемы (欠き -> カキ);
+      * pyopenjtalk — слова без чтения в Sudachi и цифры (Sudachi читает
+        числа как даты: 2024 -> 二月二日, а Open JTalk — как числа).
     Хирагана/катакана и знаки проходят как есть — их g2p не трогает
     (в отличие от старого пути «весь текст через MeCab», который мог
     переписать частицы).
     """
+    res = _g2p_core(text)
+    if res is not None:
+        return res
     toks = None
     client = sudachi_client()
     if client is not None:
@@ -933,23 +1055,21 @@ def kanaize(text):
     -> g2p только иероглифы -> хирагана.
 
     Главный принцип: MeCab надёжно читает иероглифы и катакану, но портит
-    уже готовую хирагану (применяет правила частиц: こんにちは -> コнничива).
-    Поэтому режем текст на сегменты и гоняем через g2p ТОЛЬКО куски с
-    иероглифами.
+    уже готовую хирагану (применяет правила частиц: こんにちは -> コンничива).
+    Поэтому ядру Haqumei подаётся текст с катеканой как есть — она даёт
+    контекст для чтения иероглифов (ビェниャク殿 -> ドノ, а не ТОНО),
+    а хирагана/цифры/знаки проходят мимо g2p без изменений.
 
     Шаги подробно (важно для сложных слов):
       1. NFKC-нормализация: полноразмерная латиница/цифры (ＡＢＣ１２３ -> ABC123),
          полукатакана с дакутеном (ｶﾞ -> ガ) и съёмные знаки (か+゙ -> ガ)
          сводятся к обычным формам — без этого MeCab видит «неразбиваемые»
          мусорные символы и ломает разбор всего предложения.
-      2. kana_overrides.txt: точечные замены слов, которые MeCab читает
-         неверно (длинные ключи раньше коротких). Замены пишем катаканой,
-         чтобы g2p разобрал их как обычное слово, а не как частицу.
-      3. Латиница -> катакана по буквам (IEC -> アイイーシー).
-      4. Текст режется на сегменты (иероглифы / катакана / прочее) и
-         гоняется через g2p ТОЛЬКО там, где есть иероглифы. Готовая
-         хирагана, цифры и знаки идут мимо g2p — их MeCab не портит.
-      5. Всё приводится к хирагане, кроме «защищённых» слов _KEEP_KATA
+      2. Латиница -> катакана по буквам (IEC -> アイイーシー).
+      3. Текст с иероглифами гоняется через g2p ТОЛЬКО там, где есть
+         иероглифы. Готовая хирагана, цифры и знаки идут мимо g2p — их
+         MeCab не портит.
+      4. Всё приводится к хирагане, кроме «защищённых» слов _KEEP_KATA
          (их хирагану MeCab читает как частицу, поэтому оставляем катаканой).
 
     Результат кэшируется: одни и те же слова повторяются между карточками,
@@ -959,9 +1079,7 @@ def kanaize(text):
     if hit is not None:
         return hit
     t = normalize_text(text)
-    t = apply_overrides(t)
     t = latin2kana(t)
-    t = kata2hira(t, keep_kata=_KEEP_KATA)
 
     if KANJI_RE.search(t):
         t = g2p_kana(t)
@@ -1532,9 +1650,6 @@ def cmd_selftest(args):
                     ok("%s: %s %s" % (name, key, ("%.1f с" % d) if d else ""))
             else:
                 fail("%s: %s не найден: %s" % (name, key, p))
-    ov = load_overrides()
-    ok("kana_overrides.txt: %d замен" % len(ov)) if ov else \
-        print("  --   kana_overrides.txt пуст (не страшно)")
     try:
         import pyopenjtalk
         r = pyopenjtalk.g2p("合釘を打ち込む", kana=True)

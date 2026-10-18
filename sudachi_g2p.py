@@ -51,8 +51,23 @@ def main():
         dict_ver = _pkgver("sudachidict_core")
     except Exception:
         dict_ver = "?"
+    # Пользовательский словарь (доменные термины колод): если рядом лежит
+    # sudachi_user.dic — подключаем его ПОВЕРХ системного словаря. Пользователь
+    # не редактирует его руками: источник — sudachi_user.csv, бинарник
+    # собирается скриптом build_userdict.py.
+    user_dict_state = None
+    udic = os.path.join(CODE, "sudachi_user.dic")
+    if os.path.isfile(udic):
+        try:
+            tk = sudachipy.Dictionary(
+                config=json.dumps({"userDict": [udic]})).tokenizer()
+            user_dict_state = os.path.basename(udic)
+        except Exception as e:
+            # старый/чужой бинарник — работаем на системном словаре
+            user_dict_state = "error: %s" % e
     print(json.dumps({"ok": True, "version": sudachipy.__version__,
-                      "dict": dict_ver}), flush=True)
+                      "dict": dict_ver, "userdict": user_dict_state}),
+          flush=True)
     for line in sys.stdin:
         line = line.strip()
         if not line:
