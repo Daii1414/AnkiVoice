@@ -36,6 +36,7 @@ GitHub), а движок GPT-SoVITS может стоять где угодно.
 import argparse
 import base64
 import hashlib
+import html
 import json
 import os
 import re
@@ -51,6 +52,11 @@ import urllib.request
 try:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+try:
+    if hasattr(sys.stdin, "reconfigure"):
+        sys.stdin.reconfigure(encoding="utf-8")
 except Exception:
     pass
 
@@ -135,17 +141,25 @@ def resolve_engine():
             cand = _norm(cand)
             if _is_engine(cand):
                 return cand
+            if cand != CODE and cand not in _BAD_ENGINES:
+                _BAD_ENGINES.append(cand)   # запоминаем: пользователь указал, но путь битый
     return None
+
+
+_BAD_ENGINES = []       # указанные, но не похожие на GPT-SoVITS пути
 
 
 def require_engine():
     if not ENGINE:
-        raise SystemExit(
-            "Не найдена папка GPT-SoVITS. Укажи её одним из способов:\n"
-            "  * переменная окружения  GPT_SOVITS_ROOT=C:\\...\\GPT-SoVITS\n"
-            "  * файл gptsovits_path.txt рядом с voice_pipeline.py (одна строка — путь)\n"
-            "  * запусти AnkiTTS.exe и выбери папку в окне (сохранится в конфиг)\n"
-            "В папке должны быть runtime\\python.exe и файл api_v2.py.")
+        msg = ("Не найдена папка GPT-SoVITS. Укажи её одним из способов:\n"
+               "  * переменная окружения  GPT_SOVITS_ROOT=C:\\...\\GPT-SoVITS\n"
+               "  * файл gptsovits_path.txt рядом с voice_pipeline.py (одна строка — путь)\n"
+               "  * запусти AnkiTTS.exe и выбери папку в окне (сохранится в конфиг)\n"
+               "В папке должны быть runtime\\python.exe и файл api_v2.py.")
+        if _BAD_ENGINES:
+            msg += ("\n\nУказанные пути НЕ подошли (нет runtime\\python.exe или api_v2.py):"
+                    + "".join("\n  * %s" % p for p in _BAD_ENGINES))
+        raise SystemExit(msg)
     return ENGINE
 
 
@@ -159,44 +173,84 @@ if ENGINE:
 
 
 # ------------------------------------------------------------ AnkiConnect
+# Все локальные запросы (AnkiConnect и GPT-SoVITS) идут МИМО системного
+# прокси: 127.0.0.1 — это localhost, а прокси-обвязка (корпоративный VPN,
+# PAC-скрипт, настройки «Интернет-свойства») только ломает такие запросы.
+_NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
 def ac(action, **params):
     payload = {"action": action, "version": 6, "params": params}
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    req = urllib.request.Request(
-        ANKI_CONNECT, data=data,
-        headers={"Content-Type": "application/json", "Origin": "http://localhost"},
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=600) as resp:
-            out = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.URLError as e:
-        raise SystemExit("AnkiConnect недоступен (%s). Открой Anki и повтори." % e)
+    for attempt in (1, 2):
+        req = urllib.request.Request(
+            ANKI_CONNECT, data=data,
+            headers={"Content-Type": "application/json", "Origin": "http://localhost"},
+        )
+        try:
+            with _NO_PROXY.open(req, timeout=120) as resp:
+                out = json.loads(resp.read().decode("utf-8"))
+            break
+        except urllib.error.URLError as e:
+            if attempt == 1:
+                time.sleep(1.0)      # Anki мог перезаписывать коллекцию — повтор разок
+                continue
+            raise SystemExit("AnkiConnect недоступен (%s). Открой Anki и повтори." % e)
     if out.get("error"):
         raise SystemExit("AnkiConnect: %s" % out["error"])
     return out["result"]
 
 
+def notes_info(ids, chunk=400):
+    """notesInfo по частям: AnkiConnect на десятках тысяч id отвечает
+    одним огромным JSON — режем на куски, стабильно и быстрее."""
+    out = []
+    for i in range(0, len(ids), chunk):
+        out.extend(ac("notesInfo", notes=ids[i:i + chunk]))
+    return out
+
+
 TAG_RE = re.compile(r"<[^>]+>")
+SOUND_TAG_RE = re.compile(r"\[(?:sound|audio):[^\]]*\]", re.IGNORECASE)
 
 
-def plain(v):
-    return TAG_RE.sub("", v or "").strip()
+def plain(v, strip_media=False):
+    """Поле карточки -> чистый текст.
+
+    strip_media=True — для ТЕКСТОВ, которые уходят на синтез: [sound:...]
+    вырезается, иначе API прочитает «звук двоеточие...» вслух. Для проверки
+    «озвучено ли поле» (check_deck, build_jobs) strip_media=False — тег должен
+    остаться видимым."""
+    s = TAG_RE.sub("", v or "")
+    if strip_media:
+        s = SOUND_TAG_RE.sub(" ", s)
+    s = html.unescape(s).replace("\xa0", " ")
+    return s.strip()
 
 
 # ----------------------------------------------------------- работа с голосами
 def load_voices():
     if not os.path.exists(VOICES_FILE):
         return {"start_config": DEFAULT_START_CONFIG, "default_voice": None, "voices": {}}
-    with open(VOICES_FILE, encoding="utf-8") as f:
-        cfg = json.load(f)
+    try:
+        with open(VOICES_FILE, encoding="utf-8") as f:
+            cfg = json.load(f)
+    except ValueError as e:
+        raise SystemExit(
+            "voices.json повреждён (сломан JSON): %s\n"
+            "Файл: %s\nПочини его или удали — голоса добавятся заново "
+            "(pipeline.bat scan --apply)." % (e, VOICES_FILE))
     cfg.setdefault("voices", {})
     cfg.setdefault("start_config", DEFAULT_START_CONFIG)
     return cfg
 
 
 def save_voices(cfg):
-    with open(VOICES_FILE, "w", encoding="utf-8") as f:
+    # запись во временный файл + атомарная замена: обрыв/вылет не портит voices.json
+    tmp = VOICES_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(cfg, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, VOICES_FILE)
 
 
 def get_voice(name=None):
@@ -399,9 +453,39 @@ def wait_port(want_up, timeout=300, what="порт"):
     return False
 
 
+def port_pid(port):
+    """PID процесса, слушающего порт (Windows/netstat), либо None."""
+    try:
+        out = subprocess.run(["netstat", "-ano"], capture_output=True,
+                             text=True, timeout=20)
+        for line in out.stdout.splitlines():
+            if "LISTENING" in line and (":%d " % port) in line:
+                return line.split()[-1]
+    except Exception:
+        pass
+    return None
+
+
+def port_process_name(pid):
+    try:
+        out = subprocess.run(["tasklist", "/FI", "PID eq %s" % pid, "/FO", "CSV", "/NH"],
+                             capture_output=True, text=True, timeout=20)
+        line = out.stdout.strip().splitlines()[0]
+        return line.split('","')[0].strip('"')
+    except Exception:
+        return "?"
+
+
 def start_server(start_config, wait=600):
     require_engine()
     if tts_ready():
+        # порт открыт — убедимся, что это НАШ сервер, а не чужая программа
+        pid = port_pid(TTS_PORT)
+        name = port_process_name(pid) if pid else ""
+        if pid and "python" not in name.lower():
+            raise SystemExit(
+                "Порт %d занят программой '%s' (PID %s) — это не GPT-SoVITS.\n"
+                "Закрой эту программу и повтори." % (TTS_PORT, name, pid))
         return
     os.makedirs(os.path.dirname(SERVER_LOG), exist_ok=True)
     env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
@@ -422,20 +506,21 @@ def restart_server(start_config, wait=600):
     """Перезапуск через /control: процесс перезапускает сам себя тем же argv."""
     print("Перезапускаю сервер (нужна свежая память)...")
     try:
-        urllib.request.urlopen(TTS_URL + "/control?command=restart", timeout=10).read()
+        _NO_PROXY.open(TTS_URL + "/control?command=restart", timeout=10).read()
     except Exception:
         pass                       # сокет обрывается — это ожидаемо
     wait_port(False, 60)
-    if tts_ready():                # не упал — убиваем по порту
+    if tts_ready():                # не упал — убиваем по порту (только python!)
+        pid = port_pid(TTS_PORT)
+        name = port_process_name(pid) if pid else ""
+        if pid and "python" not in name.lower():
+            raise SystemExit(
+                "Порт %d держит чужая программа '%s' (PID %s) — не убиваю её.\n"
+                "Закрой её сам и повтори." % (TTS_PORT, name, pid))
         try:
-            out = subprocess.run(["netstat", "-ano"], capture_output=True,
-                                 text=True, timeout=20)
-            for line in out.stdout.splitlines():
-                if (":%d" % TTS_PORT) in line and "LISTENING" in line:
-                    pid = line.split()[-1]
-                    subprocess.run(["taskkill", "/PID", pid, "/F"],
-                                   capture_output=True, timeout=20)
-                    break
+            if pid:
+                subprocess.run(["taskkill", "/PID", pid, "/F"],
+                               capture_output=True, timeout=20)
         except Exception as e:
             print("не удалось остановить старый процесс:", e)
         wait_port(False, 60)
@@ -446,7 +531,7 @@ def restart_server(start_config, wait=600):
 def _get(path, params):
     url = TTS_URL + path + "?" + urllib.parse.urlencode(params)
     try:
-        with urllib.request.urlopen(url, timeout=300) as r:
+        with _NO_PROXY.open(url, timeout=300) as r:
             return r.status == 200
     except urllib.error.HTTPError:
         return False
@@ -624,7 +709,9 @@ def g2p_kana(text):
         return pyopenjtalk.g2p(text, kana=True)
     except Exception as e:
         if not _g2p_warned:
-            print("!! pyopenjtalk недоступен (%s) — иероглифы останутся как есть" % e)
+            print("!! pyopenjtalk недоступен (%s) — иероглифы останутся как есть." % e)
+            print("   Установи в интерпретатор движка: %s -m pip install pyopenjtalk"
+                  % (PYTHON or r"runtime\python.exe"))
             _g2p_warned = True
         return text
 
@@ -652,7 +739,13 @@ def kanaize(text):
          хирагана, цифры и знаки идут мимо g2p — их MeCab не портит.
       5. Всё приводится к хирагане, кроме «защищённых» слов _KEEP_KATA
          (их хирагану MeCab читает как частицу, поэтому оставляем катаканой).
+
+    Результат кэшируется: одни и те же слова повторяются между карточками,
+    а g2p (MeCab) — самая дорогая часть конвейера.
     """
+    hit = _KANA_CACHE.get(text)
+    if hit is not None:
+        return hit
     t = normalize_text(text)
     t = apply_overrides(t)
     t = latin2kana(t)
@@ -661,7 +754,14 @@ def kanaize(text):
     if KANJI_RE.search(t):
         t = g2p_kana(t)
 
-    return kata2hira(t, keep_kata=_KEEP_KATA).strip()
+    result = kata2hira(t, keep_kata=_KEEP_KATA).strip()
+    if len(_KANA_CACHE) >= 8192:
+        _KANA_CACHE.clear()          # раздуваться бесконечно не даём
+    _KANA_CACHE[text] = result
+    return result
+
+
+_KANA_CACHE = {}
 
 
 def _base_reading(base, reading):
@@ -807,6 +907,25 @@ def _tts_start_config():
     return os.path.join(ENGINE, cfg.get("start_config") or DEFAULT_START_CONFIG)
 
 
+_RESURRECT = {"left": 3}      # сколько раз за прогон можно поднять упавший сервер
+
+
+def _resurrect(v):
+    """Сервер упал (упал при старте, убит, обрыв) — поднять заново.
+
+    Возвращает True, если сервер снова готов с нужными весами. Ограниченное
+    число попыток: если сервер падает стабильно, батчу лучше встать сразу
+    с понятной ошибкой, чем ждать по 600 с на каждой карточке."""
+    if _RESURRECT["left"] <= 0:
+        return False
+    _RESURRECT["left"] -= 1
+    print("Сервер не отвечает — поднимаю заново (осталось попыток: %d)..."
+          % (_RESURRECT["left"] + 1))
+    start_server(_tts_start_config(), wait=240)
+    ensure_voice(v, force=True)
+    return True
+
+
 def synth(v, text, seed=42, speed=1.0, _oom_retry=True):
     # Sampling defaults follow the official GPT-SoVITS webui (calmer than the raw
     # API defaults of temperature=1.0 / top_p=1.0, which sound over-expressive).
@@ -835,7 +954,7 @@ def synth(v, text, seed=42, speed=1.0, _oom_retry=True):
         req = urllib.request.Request(TTS_URL + "/tts", data=data,
                                      headers={"Content-Type": "application/json"})
         try:
-            with urllib.request.urlopen(req, timeout=600) as resp:
+            with _NO_PROXY.open(req, timeout=600) as resp:
                 return resp.read(), None
         except urllib.error.HTTPError as e:
             try:
@@ -855,6 +974,11 @@ def synth(v, text, seed=42, speed=1.0, _oom_retry=True):
         restart_server(_tts_start_config())
         ensure_voice(v, force=True)
         return synth(v, text, seed=seed, speed=speed, _oom_retry=False)
+    if blob is None and _oom_retry and err and \
+            any(s in err for s in ("10061", "refused", "urlopen error", "timed out")):
+        # сервер упал/перезагружается — поднимаем заново и повторяем разок
+        if _resurrect(v):
+            return synth(v, text, seed=seed, speed=speed, _oom_retry=False)
     if blob is None:
         blob, err = post("wav")             # ogg может не поддерживаться
     if blob is None:
@@ -879,7 +1003,7 @@ def word_text(note, word_src):
     для произвольного поля — просто текст."""
     if word_src == "Expression":
         return expression_reading(note)
-    return plain(note["fields"].get(word_src, {}).get("value", ""))
+    return plain(note["fields"].get(word_src, {}).get("value", ""), strip_media=True)
 
 
 def build_jobs(notes, mode, force, fields=None):
@@ -891,8 +1015,12 @@ def build_jobs(notes, mode, force, fields=None):
         def tgt(name):
             return plain(f.get(name, {}).get("value", ""))
 
+        def tgt_text(name):
+            # текст на синтез: [sound:...] внутри поля вырезаем
+            return plain(f.get(name, {}).get("value", ""), strip_media=True)
+
         if mode in ("sentence", "both"):
-            text = tgt(fields["sentence_src"])
+            text = tgt_text(fields["sentence_src"])
             if text and (force or not tgt(fields["sentence_audio"])):
                 # вставляем чтение сложного слова в предложение (если оно там
                 # есть и карточка даёт правильное чтение) — защита от ошибок
@@ -909,7 +1037,7 @@ def build_jobs(notes, mode, force, fields=None):
 def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
                 fields=None):
     v = get_voice(voice_name)
-    notes = ac("notesInfo", notes=ids)
+    notes = notes_info(ids)
     jobs = build_jobs(notes, mode, force, fields=fields)
     if not jobs:
         print("Всё уже озвучено (или пустой текст). --force — переделать.")
@@ -963,7 +1091,7 @@ def clone_cards(query, to_deck, limit=None, tag=None, force=False, fields=None):
         raise SystemExit("По запросу '%s' ничего не найдено." % query)
     ac("createDeck", deck=to_deck)
     created = []
-    for n in ac("notesInfo", notes=ids):
+    for n in notes_info(ids):
         nfields = {}
         for k, val in n["fields"].items():
             nfields[k] = "" if k in afs else val["value"]
@@ -980,7 +1108,9 @@ def clone_cards(query, to_deck, limit=None, tag=None, force=False, fields=None):
     return created
 
 
-def check_deck(deck, fields=None):
+def check_deck(deck, fields=None, verify_files=True):
+    """verify_files=False — быстрая проверка (только поля, без скачивания
+    аудиофайлов из Anki; на больших колодах это десятки МБ и минуты)."""
     cfg = fields or DEFAULT_FIELDS
     afs = audio_fields(cfg)
     ids = ac("findNotes", query='deck:"%s"' % deck)
@@ -988,7 +1118,7 @@ def check_deck(deck, fields=None):
         print("Колода '%s' не найдена или пуста (опечатка в имени?)." % deck)
         return False
     ok, problems = 0, []
-    for n in ac("notesInfo", notes=ids):
+    for n in notes_info(ids):
         expr = plain(n["fields"].get(cfg["word_src"], {}).get("value", ""))
         bad = []
         for fld in afs:
@@ -996,7 +1126,7 @@ def check_deck(deck, fields=None):
             m = re.search(r"\[sound:([^\]]+)\]", tag)
             if not m:
                 bad.append("%s пусто" % fld)
-            elif not ac("retrieveMediaFile", filename=m.group(1)):
+            elif verify_files and not ac("retrieveMediaFile", filename=m.group(1)):
                 bad.append("%s: файл %s пропал" % (fld, m.group(1)))
         if bad:
             problems.append((n["noteId"], expr, "; ".join(bad)))
@@ -1007,6 +1137,32 @@ def check_deck(deck, fields=None):
     for nid, expr, msg in problems:
         print("  ПРОБЛЕМА [%d] %s: %s" % (nid, expr, msg))
     return len(problems) == 0
+
+
+# --------------------------------------------------------- один экземпляр
+_LOCK_HANDLE = None
+
+
+def acquire_lock():
+    """Один экземпляр пайплайна.
+
+    Два параллельных запуска дерутся за веса и перезапуск сервера — второй
+    получает понятную ошибку вместо тихой порчи звука. Блокировка снимается
+    сама при выходе процесса (закрытие файла)."""
+    global _LOCK_HANDLE
+    require_engine()
+    lockp = os.path.join(ENGINE, "logs", "pipeline.lock")
+    os.makedirs(os.path.dirname(lockp), exist_ok=True)
+    f = open(lockp, "a+")
+    try:
+        import msvcrt
+        msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+    except OSError:
+        f.close()
+        raise SystemExit(
+            "Пайплайн уже запущен другим процессом (%s).\n"
+            "Дождись его завершения (или убой зависший процесс)." % lockp)
+    _LOCK_HANDLE = f
 
 
 # --------------------------------------------------------------- команды
@@ -1127,7 +1283,8 @@ def cmd_make_deck(args):
 
 
 def cmd_check(args):
-    return check_deck(args.deck, fields=_fields_from_args(args))
+    return check_deck(args.deck, fields=_fields_from_args(args),
+                      verify_files=not getattr(args, "fast", False))
 
 
 def cmd_selftest(args):
@@ -1200,6 +1357,12 @@ def cmd_selftest(args):
         ok("AnkiConnect отвечает")
     except SystemExit:
         fail("AnkiConnect недоступен — открой Anki")
+    proxied = [k for k in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",
+                           "http_proxy", "https_proxy", "all_proxy")
+               if os.environ.get(k)]
+    if proxied:
+        print("  --   в окружении задан прокси (%s) — локальные запросы идут "
+              "мимо него, не мешает" % ", ".join(proxied))
 
     # подстановка чтения из фуриганы в предложение (см. inject_reading)
     print("  --   подстановка чтения из карточки:")
@@ -1369,6 +1532,8 @@ def main():
     p.add_argument("--deck", required=True)
     p.add_argument("--sentence-audio", default=None, help="поле для звука предложения")
     p.add_argument("--word-audio", default=None, help="поле для звука слова")
+    p.add_argument("--fast", action="store_true",
+                   help="не качать аудиофайлы из Anki — только проверить поля")
 
     p = sub.add_parser("scan", help="найти голоса в папке движка и добавить в voices.json")
     p.add_argument("--apply", action="store_true",
@@ -1381,6 +1546,9 @@ def main():
     if not args.cmd:
         menu()
         return
+    # команды, которым нужен один работающий экземпляр (гонка за веса/сервер)
+    if args.cmd in ("serve", "test", "clone", "voice", "make-deck"):
+        acquire_lock()
     result = {"list": cmd_list, "add": cmd_add, "serve": cmd_serve, "test": cmd_test,
               "clone": cmd_clone, "voice": cmd_voice, "make-deck": cmd_make_deck,
               "check": cmd_check, "scan": cmd_scan,
