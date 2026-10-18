@@ -1,0 +1,78 @@
+{
+  "start_config": "GPT_SoVITS/configs/tts_infer.yaml",
+  "default_voice": "madara",
+  "voices": {
+    "madara": {
+      "display": "Мадара",
+      "gpt": "GPT_weights_v2ProPlus/MADARA-e50.ckpt",
+      "sovits": "SoVITS_weights_v2ProPlus/MADARA_e25_s1675.pth",
+      "ref": "ref_main_madara.wav",
+      "aux": [
+        "ref_aux_madara_60s.wav"
+      ],
+      "prompt_text": "この戦力さ、貴様ら二人がどうにかできるものではないぞ。おかしな奴だ。",
+      "prompt_lang": "ja"
+    },
+    "shohayami": {
+      "display": "Шо Хаями",
+      "gpt": "GPT_weights_v2ProPlus/ShoHayami-e50.ckpt",
+      "sovits": "SoVITS_weights_v2ProPlus/ShoHayami_e25_s925.pth",
+      "ref": "ref_main_6s.wav",
+      "aux": [
+        "ref_aux_60s.wav"
+      ],
+      "prompt_text": "無力な仲間の存在はただ足をへし折るための重りにしかなりはしないのだ",
+      "prompt_lang": "ja"
+    },
+    "kakuzu": {
+      "display": "Какузу",
+      "gpt": "GPT_weights_v2Pro/Kakuzu-e15.ckpt",
+      "sovits": "SoVITS_weights_v2Pro/Kakuzu_e8_s368.pth",
+      "ref": "C:\\Users\\daii\\Desktop\\Примеры голосов для модели\\какузу\\バルコニーから僕はその音を聞くのです僕が死んだらバルコニーは開けたままにしておいてください刈り取り人が小麦を刈る.wav",
+      "aux": [],
+      "prompt_text": "バルコニーから僕はその音を聞くのです僕が死んだらバルコニーは開けたままにしておいてください刈り取り人が小麦を刈る",
+      "prompt_lang": "ja",
+      "temperature": 0.6,
+      "top_p": 0.6,
+      "top_k": 20,
+      "speed": 1.0,
+      "seed": 42
+    },
+    "kushina": {
+      "display": "Кушина",
+      "gpt": "GPT_weights_v2Pro/Kushina_Uzumaki-e15.ckpt",
+      "sovits": "SoVITS_weights_v2Pro/Kushina_Uzumaki_e8_s376.pth",
+      "ref": "C:\\Users\\daii\\Desktop\\Примеры голосов для модели\\кушина\\Kushina _Uzumaki.mp3_0005577920_0005761920.wav",
+      "aux": [],
+      "prompt_text": "それでもなかなか見つけられなかった私は国境のマニアまで連れて行かれて",
+      "prompt_lang": "ja"
+    },
+    "mishima_v2": {
+      "display": "Mishima V2 · v2Pro",
+      "gpt": "GPT_weights_v2Pro/MISHIMA_V2-e35.ckpt",
+      "sovits": "SoVITS_weights_v2Pro/MISHIMA_V2_e24_s792.pth",
+      "ref": "",
+      "aux": [],
+      "prompt_text": "",
+      "prompt_lang": "ja"
+    },
+    "mishima_v2_v2proplus": {
+      "display": "Mishima V2 · v2Pro+",
+      "gpt": "GPT_weights_v2ProPlus/MISHIMA_V2-e50.ckpt",
+      "sovits": "SoVITS_weights_v2ProPlus/MISHIMA_V2_e24_s792.pth",
+      "ref": "",
+      "aux": [],
+      "prompt_text": "",
+      "prompt_lang": "ja"
+    },
+    "mishima_yukio": {
+      "display": "Mishima Yukio · v2Pro",
+      "gpt": "GPT_weights_v2Pro/Mishima_Yukio-e15.ckpt",
+      "sovits": "SoVITS_weights_v2Pro/Mishima_Yukio_e8_s328.pth",
+      "ref": "",
+      "aux": [],
+      "prompt_text": "",
+      "prompt_lang": "ja"
+    }
+  }
+}
