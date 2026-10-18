@@ -157,9 +157,12 @@ def validate_local():
 
 
 def find_gptsovits_automatic():
-    """Автопоиск папки GPT-SoVITS на дисках (обычно D:\\DOWNLOAD)."""
+    """Автопоиск папки GPT-SoVITS на всех дисках (обычно D:\\DOWNLOAD)."""
+    import string
+    drives = [d + ":\\" for d in string.ascii_uppercase if os.path.exists(d + ":\\")]
+    drives.sort(key=lambda p: p[0] != "D")     # D: обычно с движком
     hints = []
-    for root in ("D:\\", "C:\\", "E:\\"):
+    for root in drives:
         dl = os.path.join(root, "DOWNLOAD")
         if os.path.isdir(dl):
             hints.append(dl)
@@ -189,13 +192,17 @@ def load_voices(gpt_path=None):
 
 
 # --------------------------------------------------------------- Anki / сервер
+# локальные запросы — мимо системного прокси (см. voice_pipeline)
+_NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
 def anki_call(action, timeout=15, **params):
     payload = json.dumps({"action": action, "version": 6, "params": params},
                          ensure_ascii=False).encode("utf-8")
     req = urllib.request.Request(
         ANKI_CONNECT, data=payload,
         headers={"Content-Type": "application/json", "Origin": "http://localhost"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    with _NO_PROXY.open(req, timeout=timeout) as resp:
         out_json = json.loads(resp.read().decode("utf-8"))
     if out_json.get("error"):
         raise RuntimeError(out_json["error"])
@@ -981,9 +988,20 @@ def run_gui(open_tab=None):
                 self._field_cbs[attr] = cb
             body.columnconfigure(1, weight=1)
             body.columnconfigure(3, weight=1)
+            # источник чтения необычного слова: авто-фуригана / отключено / поле
+            self.READ_AUTO = "Авто (фуригана карточки)"
+            self.READ_OFF = "Не подставлять (MeCab сам)"
+            tk.Label(body, text="Чтение слова ← источник", font=F_SMALL,
+                     bg=C["card"], fg=C["sub"]
+                     ).grid(row=2, column=0, sticky="w", padx=(0, 8), pady=4)
+            self.var_reading = tk.StringVar(value=self.READ_AUTO)
+            self.cmb_reading = ttk.Combobox(body, textvariable=self.var_reading,
+                                            state="normal")
+            self.cmb_reading.grid(row=2, column=1, sticky="we", padx=(0, 20), pady=4)
+            self.cmb_reading["values"] = [self.READ_AUTO, self.READ_OFF]
             ttk.Button(body, text="Подставить поля выбранной колоды",
                        command=self._autofill_fields).grid(
-                row=2, column=0, columnspan=4, sticky="w", pady=(8, 0))
+                row=3, column=0, columnspan=4, sticky="w", pady=(8, 0))
 
             frm_par = card(tab, "Что озвучить")
             frm_par.pack(fill="x", pady=(14, 0))
@@ -1384,6 +1402,8 @@ def run_gui(open_tab=None):
             guess = self._guess_fields(fl)
             for attr, cb in self._field_cbs.items():
                 cb["values"] = fl
+            # в списке источников чтения — ещё и поля самой колоды
+            self.cmb_reading["values"] = [self.READ_AUTO, self.READ_OFF] + list(fl)
             self.var_sent_src.set(guess["sentence_src"])
             self.var_sent_audio.set(guess["sentence_audio"])
             self.var_word_src.set(guess["word_src"])
@@ -1426,6 +1446,15 @@ def run_gui(open_tab=None):
                 "word_src": self.var_word_src.get().strip(),
                 "word_audio": self.var_word_audio.get().strip(),
             }
+
+        def _reading_value(self):
+            """GUI-значение источника чтения -> аргумент --reading пайплайна."""
+            v = self.var_reading.get().strip()
+            if v == self.READ_AUTO:
+                return ""
+            if v == self.READ_OFF:
+                return "off"
+            return v            # пользователь ввёл/выбрал имя поля с чтением
 
         # ------------------------------------------------------------- статус
         def _poll_status(self):
@@ -1508,6 +1537,9 @@ def run_gui(open_tab=None):
                     "--mode", self.var_mode.get(),
                     "--sentence-src", f["sentence_src"], "--sentence-audio", f["sentence_audio"],
                     "--word-src", f["word_src"], "--word-audio", f["word_audio"]]
+            reading = self._reading_value()
+            if reading:
+                args += ["--reading", reading]
             try:
                 limit = int(self.var_limit.get() or 0)
             except ValueError:

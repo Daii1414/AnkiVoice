@@ -85,6 +85,8 @@ DEFAULT_FIELDS = {
     "sentence_audio": "SentenceAudio",  # поле, куда писать звук предложения
     "word_src": "Expression",          # поле со словом (понимает фуригану)
     "word_audio": "ExpressionAudio",   # поле, куда писать звук слова
+    "reading": "",                     # источник чтения: "" — авто (фуригана),
+                                       # "off" — не подставлять, имя поля — строго из него
 }
 
 
@@ -832,12 +834,14 @@ def expression_reading(note):
     return fld("Expression")
 
 
-def expression_inject_pair(note):
+def expression_inject_pair(note, reading_field=None):
     """(написание_слова, полное_чтение) — для подстановки в предложение.
 
     Написание — как слово стоит в предложении («相欠き継ぎ»), чтение —
-    собранное целиком («あいがきつぎ»). Если разметки фуриганы нет —
-    используется ExpressionReading. (None, None) — подстановка невозможна.
+    собранное целиком («あいがきつぎ»). Источник чтения:
+      * reading_field — имя поля карточки с готовым чтением (строгий режим);
+      * иначе ExpressionFurigana (разметка) либо ExpressionReading.
+    (None, None) — подстановка невозможна.
     """
     f = note["fields"]
 
@@ -848,14 +852,17 @@ def expression_inject_pair(note):
     if not surface or not KANJI_RE.search(surface):
         return None, None                    # иероглифов нет — нечего подставлять
     reading = ""
-    efur = fld("ExpressionFurigana")
-    if "[" in efur:
-        fur_surf, fur_read = furiga_pair(efur)
-        if fur_surf is None or fur_surf.strip() != surface:
-            return None, None                # разметка не совпала со словом — риск
-        reading = fur_read
+    if reading_field:
+        reading = fld(reading_field)         # строгий режим: только это поле
     else:
-        reading = fld("ExpressionReading")
+        efur = fld("ExpressionFurigana")
+        if "[" in efur:
+            fur_surf, fur_read = furiga_pair(efur)
+            if fur_surf is None or fur_surf.strip() != surface:
+                return None, None            # разметка не совпала со словом — риск
+            reading = fur_read
+        else:
+            reading = fld("ExpressionReading")
     reading = reading.strip()
     if not reading or reading == surface:
         return None, None
@@ -864,7 +871,7 @@ def expression_inject_pair(note):
     return surface, reading
 
 
-def inject_reading(sentence, note):
+def inject_reading(sentence, note, reading=""):
     """Вставить проверенное чтение в предложение вместо иероглифов.
 
     Идея: карточка уже содержит ПРАВИЛЬНОЕ чтение сложного слова, а API
@@ -872,15 +879,28 @@ def inject_reading(sentence, note):
     Значит, подставляем чтение прямо в текст: MeCab увидит хирагану и не
     сможет ошибиться в редком термине (合折釘, 相欠き継ぎ и т.п.).
 
-    Два источника чтения:
-      1. SentenceFurigana (чтение целого предложения) — если заполнено и
-         совпадает с предложением, чинит ВСЕ слова разом;
-      2. Expression/ExpressionFurigana — подстановка одного слова.
+    Режим источника чтения (параметр reading):
+      * ""    — авто: SentenceFurigana (всё предложение), иначе
+                ExpressionFurigana/ExpressionReading (одно слово);
+      * "off" — подстановка отключена, MeCab читает предложение само;
+      * имя поля — чтение слова строго из этого поля (пользователь заранее
+                знает правильное чтение необычного слова).
     """
+    if reading == "off":
+        return sentence
     f = note["fields"]
 
     def fld(name):
         return plain(f.get(name, {}).get("value", ""))
+
+    # 0) строгий режим: чтение слова — только из указанного поля
+    if reading:
+        kanji, rd = expression_inject_pair(note, reading_field=reading)
+        if not kanji or not rd:
+            return sentence
+        if kanji not in sentence:
+            return sentence
+        return sentence.replace(kanji, kata2hira(rd.strip()))
 
     # 1) чтение целого предложения — если оно есть
     sfur = fld("SentenceFurigana")
@@ -893,12 +913,12 @@ def inject_reading(sentence, note):
         # разметка не совпала с предложением — идём дальше, к слову
 
     # 2) подстановка чтения слова Expression
-    kanji, reading = expression_inject_pair(note)
-    if not kanji or not reading:
+    kanji, reading_word = expression_inject_pair(note)
+    if not kanji or not reading_word:
         return sentence
     if kanji not in sentence:
         return sentence
-    return sentence.replace(kanji, kata2hira(reading))
+    return sentence.replace(kanji, kata2hira(reading_word))
 
 
 # --------------------------------------------------------------- синтез
@@ -998,10 +1018,24 @@ def media_name(nid, field, text, ext, voice):
 
 
 # ----------------------------------------------------- операции с колодами
-def word_text(note, word_src):
-    """Текст слова из поля word_src. Для 'Expression' — полный разбор фуриганы,
-    для произвольного поля — просто текст."""
+def word_text(note, word_src, reading=""):
+    """Текст слова из поля word_src.
+
+    word_src == 'Expression' учитывает режим источника reading:
+      * ""    — чтение из фуриганы/ExpressionReading (как обычно);
+      * "off" — фуригану НЕ использовать: берём написание без разметки,
+                MeCab читает его само;
+      * имя поля — готовое чтение строго из этого поля.
+    Для произвольного поля word_src — просто текст поля."""
     if word_src == "Expression":
+        if reading == "off":
+            return re.sub(r"\[[^\[\]]*\]", "",
+                          plain(note["fields"].get("Expression", {})
+                                .get("value", ""))).strip()
+        if reading:
+            v = plain(note["fields"].get(reading, {}).get("value", ""))
+            if v:
+                return v
         return expression_reading(note)
     return plain(note["fields"].get(word_src, {}).get("value", ""), strip_media=True)
 
@@ -1022,13 +1056,12 @@ def build_jobs(notes, mode, force, fields=None):
         if mode in ("sentence", "both"):
             text = tgt_text(fields["sentence_src"])
             if text and (force or not tgt(fields["sentence_audio"])):
-                # вставляем чтение сложного слова в предложение (если оно там
-                # есть и карточка даёт правильное чтение) — защита от ошибок
-                # MeCab на редких терминах
-                text = inject_reading(text, n)
+                # вставляем чтение сложного слова в предложение (источник
+                # настраивается: авто-фуригана / отключено / конкретное поле)
+                text = inject_reading(text, n, reading=fields.get("reading", ""))
                 jobs.append((n["noteId"], fields["sentence_audio"], kanaize(text)))
         if mode in ("expression", "both"):
-            text = word_text(n, fields["word_src"])
+            text = word_text(n, fields["word_src"], reading=fields.get("reading", ""))
             if text and (force or not tgt(fields["word_audio"])):
                 jobs.append((n["noteId"], fields["word_audio"], kanaize(text)))
     return jobs
@@ -1252,6 +1285,7 @@ def _fields_from_args(args):
         sentence_audio=getattr(args, "sentence_audio", None),
         word_src=getattr(args, "word_src", None),
         word_audio=getattr(args, "word_audio", None),
+        reading=getattr(args, "reading", None),
     )
 
 
@@ -1400,6 +1434,47 @@ def cmd_selftest(args):
         else:
             fail("чтение слова %s: %s (в чтении остались иероглифы)"
                  % (expr, w))
+    # режимы источника чтения (параметр reading)
+    print("  --   режимы источника чтения:")
+    note_r = {"fields": {
+        "Expression": {"value": u"相欠き"},
+        "ExpressionFurigana": {"value": u"相欠[あいが]き"},
+        "ExpressionReading": {"value": ""},
+        u"Кана": {"value": u"あいが"},
+        "Sentence": {"value": u"大工は相欠きにして高さを揃えた。"},
+        "SentenceFurigana": {"value": ""}}}
+    sent_r = note_r["fields"]["Sentence"]["value"]
+    got = inject_reading(sent_r, note_r, reading="off")
+    if got == sent_r:
+        ok("reading=off: подстановки нет")
+    else:
+        fail("reading=off: ожидалась чистая строка, получено %r" % got)
+    w = word_text(note_r, "Expression", reading="off")
+    if w == u"相欠き":
+        ok("reading=off: слово без фуриганы (MeCab читает само)")
+    else:
+        fail("reading=off: слово %r (ожидалось написание без разметки)" % w)
+    got = inject_reading(sent_r, note_r, reading=u"Кана")
+    if got == u"大工はあいがにして高さを揃えた。":
+        ok("reading=поле: чтение подставилось из поля «Кана»")
+    else:
+        fail("reading=поле: %r" % got)
+    w = word_text(note_r, "Expression", reading=u"Кана")
+    if w == u"あいが":
+        ok("reading=поле: слово озвучивается чтением из поля")
+    else:
+        fail("reading=поле: слово %r" % w)
+    got = inject_reading(sent_r, note_r, reading=u"НетТакогоПоля")
+    if got == sent_r:
+        ok("reading=пустое поле: подстановки нет (авто не подхватывается)")
+    else:
+        fail("reading=пустое поле: %r" % got)
+    w = word_text(note_r, "Expression", reading=u"НетТакогоПоля")
+    if w == u"あいがき":
+        ok("reading=пустое поле: слово — фолбэк на фуригану")
+    else:
+        fail("reading=пустое поле: слово %r" % w)
+
     ok("GPT-SoVITS запущен") if tts_ready() else \
         print("  --   GPT-SoVITS не запущен (поднимется сам при озвучке)")
     print("\n%s" % ("Всё в порядке." if not bad else "Проблем: %d — см. FAIL выше." % bad))
@@ -1509,6 +1584,10 @@ def main():
     p.add_argument("--sentence-audio", default=None, help="поле для звука предложения")
     p.add_argument("--word-src", default=None, help="поле со словом")
     p.add_argument("--word-audio", default=None, help="поле для звука слова")
+    p.add_argument("--reading", default="",
+                   help="источник чтения: пусто — авто (фуригана карточки), "
+                        "off — не подставлять (MeCab читает сам), "
+                        "либо имя поля с готовым чтением слова")
     p.add_argument("--force", action="store_true")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--speed", type=float, default=1.0)
@@ -1523,6 +1602,10 @@ def main():
     p.add_argument("--sentence-audio", default=None, help="поле для звука предложения")
     p.add_argument("--word-src", default=None, help="поле со словом")
     p.add_argument("--word-audio", default=None, help="поле для звука слова")
+    p.add_argument("--reading", default="",
+                   help="источник чтения: пусто — авто (фуригана карточки), "
+                        "off — не подставлять (MeCab читает сам), "
+                        "либо имя поля с готовым чтением слова")
     p.add_argument("--tag", default=None)
     p.add_argument("--force", action="store_true")
     p.add_argument("--seed", type=int, default=42)
