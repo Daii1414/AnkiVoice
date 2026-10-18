@@ -387,9 +387,56 @@ def doctor(gpt_path=None, as_json=False):
 
 
 # ================================================================ интерфейс
+def _payload_problem():
+    """Понятная подсказка, если exe запущен без своих файлов.
+
+    Так бывает, когда пользователь скачал zip и запустил AnkiVoice.exe
+    прямо из окна архиватора (или оставил файлы на месте не распакованными):
+    Windows поднимает exe из временной папки, а рядом нет ни пайплайна,
+    ни встроенного рантайма. Вместо каскада непонятных ошибок — одна
+    инструкция «что сделать».
+    """
+    if not getattr(sys, "frozen", False):
+        return None                      # запуск с диска — файлы на месте
+    d = code_dir()
+    missing = [f for f in ("voice_pipeline.py", "sudachi_g2p.py", "voices.json",
+                           "kana_overrides.txt")
+               if not os.path.isfile(os.path.join(d, f))]
+    if not (os.path.isfile(os.path.join(d, "pyruntime", "python.exe"))
+            or os.path.isfile(os.path.join(d, "pyruntime.zip"))):
+        missing.append("pyruntime.zip")
+    _dic = os.path.join(d, "pyruntime", "Lib", "site-packages",
+                        "sudachidict_core", "resources", "system.dic")
+    if not (os.path.isfile(_dic)
+            or os.path.isfile(os.path.join(d, "sudachidict.zip"))):
+        missing.append("sudachidict.zip")
+    if not missing:
+        return None
+    return (
+        "AnkiVoice запущен без файлов программы — похоже, exe поднялся "
+        "прямо из архива.\n\n"
+        "Что сделать:\n"
+        "  1. Найди скачанный AnkiVoice-v1.0.zip\n"
+        "  2. Правый клик по нему -> «Извлечь всё»\n"
+        "  3. Запусти AnkiVoice.exe из распакованной папки\n\n"
+        "Не хватает файлов:\n" +
+        "".join("  * %s\n" % f for f in missing)
+    )
+
+
 def run_gui(open_tab=None):
     import tkinter as tk
     from tkinter import filedialog, messagebox, scrolledtext, ttk
+
+    _prob = _payload_problem()
+    if _prob:
+        # WinAPI-диалог вместо tkinter: он гарантированно показывается в любой
+        # ситуации (в том числе когда exe поднят из временной папки архиватора)
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(0, _prob.replace("\n", "\r\n"),
+                                         "%s — сначала распакуй zip" % APP_NAME,
+                                         0x10)      # MB_ICONERROR
+        sys.exit(1)
 
     LANGS = ["ja", "zh", "en", "ko", "yue", "ru", "de", "fr", "es"]
 
