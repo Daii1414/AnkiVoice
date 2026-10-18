@@ -31,3 +31,6 @@ __pycache__/
 
 # --- Встроенный Python для Sudachi (разворачивается из pyruntime.zip) ---
 pyruntime/
+
+# --- Релизные архивы (уходят на GitHub Releases, не в git) ---
+dist/
