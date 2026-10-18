@@ -1,4 +1,4 @@
-# AnkiTTS — озвучка колод Anki голосами GPT-SoVITS
+# AnkiVoice — озвучка колод Anki голосами GPT-SoVITS
 
 > Полное описание устройства проекта, всех функций и история исправлений —
 > в `PROJECT.md`. Здесь — практическая инструкция по использованию.
@@ -20,15 +20,15 @@
 
 1. переменная окружения `GPT_SOVITS_ROOT`
 2. файл `gptsovits_path.txt` рядом с программой (одна строка — путь); его
-   удобно создать один раз или он пишется автоматически из `AnkiTTS.exe`
-3. `%APPDATA%\AnkiTTS\config.json` → `"gptsovits_path"` (его пишет `AnkiTTS.exe`)
+   удобно создать один раз или он пишется автоматически из `AnkiVoice.exe`
+3. `%APPDATA%\AnkiVoice\config.json` → `"gptsovits_path"` (его пишет `AnkiVoice.exe`)
 4. сама папка инструмента (если положить его внутрь GPT-SoVITS — старое поведение)
 
 В папке движка должны быть `runtime\python.exe` и `api_v2.py`.
 
 ## Две точки входа
 
-### 1. `AnkiTTS.exe` — программа с интерфейсом (двойной клик)
+### 1. `AnkiVoice.exe` — программа с интерфейсом (двойной клик)
 
 Тонкая оболочка: сама находит/запоминает папку движка, читает голоса из
 `voices.json` и колоды из AnkiConnect. Вся работа (синтез, хирагана, веса,
@@ -36,10 +36,10 @@
 который стоит в папке движка. Поэтому exe лёгкий и не тащит torch.
 
 * Первый запуск: укажи папку GPT-SoVITS (обычно она находится сама на диске).
-* Дальше путь запоминается (`%APPDATA%\AnkiTTS\config.json` + `gptsovits_path.txt`).
+* Дальше путь запоминается (`%APPDATA%\AnkiVoice\config.json` + `gptsovits_path.txt`).
 * В окне **три вкладки** (современный плоский дизайн: по умолчанию **тёмная
   тема** — переключается кнопкой в шапке («Светлая тема» / «Тёмная тема»),
-  выбор сохраняется в `%APPDATA%\AnkiTTS\config.json`; статусы-чипы в шапке
+  выбор сохраняется в `%APPDATA%\AnkiVoice\config.json`; статусы-чипы в шапке
   — Anki / Сервер / число голосов, тёмный лог-терминал;
   у каждого параметра есть приписка, в какую сторону его крутить):
   * **«Голос»** — список голосов (красивые имена + индикация «файлы на месте»)
@@ -57,7 +57,7 @@
 Диагностика без интерфейса (для отладки):
 
 ```
-AnkiTTS.exe doctor
+AnkiVoice.exe doctor
 ```
 
 Если exe не запускается или ругается Windows Defender — это типовая реакция
@@ -72,7 +72,7 @@ AnkiTTS.exe doctor
 
 | Файл | Что это |
 |---|---|
-| `AnkiTTS.exe` | Программа с интерфейсом (двойной клик) |
+| `AnkiVoice.exe` | Программа с интерфейсом (двойной клик) |
 | `anki_gui.py` | Исходник этой программы (tkinter) |
 | `pipeline.bat` | Консольная точка входа (ASCII-батник, сам находит движок) |
 | `voice_pipeline.py` | Сам пайплайн (вся логика синтеза/Anki/хираганы) |
@@ -350,7 +350,7 @@ GPT-SoVITS принимает только текст (канала «готов
 set ENGINE=C:\Путь\К\GPT-SoVITS
 %ENGINE%\runtime\python.exe -m pip install pyinstaller
 %ENGINE%\runtime\python.exe -m PyInstaller --noconfirm --onefile --windowed ^
-    --name AnkiTTS --distpath . --workpath %TEMP%\pyi_build --specpath %TEMP% anki_gui.py
+    --name AnkiVoice --distpath . --workpath %TEMP%\pyi_build --specpath %TEMP% anki_gui.py
 ```
 
 Важно: пересборка НЕ трогает `voice_pipeline.py` — его правки подхватываются
@@ -359,15 +359,15 @@ set ENGINE=C:\Путь\К\GPT-SoVITS
 Отладочная консольная версия (видно traceback):
 
 ```
-%ENGINE%\runtime\python.exe -m PyInstaller --noconfirm --onefile --console --name AnkiTTS_dbg anki_gui.py
-AnkiTTS_dbg.exe doctor
+%ENGINE%\runtime\python.exe -m PyInstaller --noconfirm --onefile --console --name AnkiVoice_dbg anki_gui.py
+AnkiVoice_dbg.exe doctor
 ```
 
 ## Типовые ошибки
 
 | Сообщение | Что делать |
 |---|---|
-| `Не найдена папка GPT-SoVITS` | Указать путь: `gptsovits_path.txt`, env `GPT_SOVITS_ROOT` или через `AnkiTTS.exe` |
+| `Не найдена папка GPT-SoVITS` | Указать путь: `gptsovits_path.txt`, env `GPT_SOVITS_ROOT` или через `AnkiVoice.exe` |
 | `AnkiConnect недоступен` | Открыть Anki |
 | `Референс X с — API требует 3–10 с` | Перерезать клип |
 | `Не получилось переключить... Перезапуск` | Норма, пайплайн сам перезапустит сервер и повторит |
@@ -409,8 +409,8 @@ AnkiTTS_dbg.exe doctor
 | `README.md` | Эта инструкция |
 | `PROJECT.md` | Полное техническое описание: устройство, конвейер хираганы, подстановка чтения, история багов |
 | `voice_pipeline.py` | Вся логика: синтез, хирагана, подстановка чтения, CLI-команды |
-| `anki_gui.py` | GUI (исходник для сборки `AnkiTTS.exe`) |
-| `AnkiTTS.exe` | Готовая программа с интерфейсом (двойной клик) |
+| `anki_gui.py` | GUI (исходник для сборки `AnkiVoice.exe`) |
+| `AnkiVoice.exe` | Готовая программа с интерфейсом (двойной клик) |
 | `pipeline.bat` | Меню в консоли — запуск без exe |
 | `voices.json` | Голоса: референсы, тексты промптов, параметры сэмплинга |
 | `kana_overrides.txt` | Словарь принудильных чтений (слова с чтением точнее любого словаря) |
@@ -430,13 +430,13 @@ AnkiTTS_dbg.exe doctor
 Во вкладке **Releases** публикуется готовый инструмент — чтобы пользователь
 скачивал один архив и запускал, не собирая самому:
 
-1. Собрать zip из папки инструмента: `AnkiTTS.exe`, `voice_pipeline.py`,
+1. Собрать zip из папки инструмента: `AnkiVoice.exe`, `voice_pipeline.py`,
    `sudachi_g2p.py`, `anki_gui.py`, `pipeline.bat`, `pyruntime.zip`,
    `sudachidict.zip`, `voices.json`, `kana_overrides.txt`, `README.md`,
    `PROJECT.md`, `LICENSE` (без `pyruntime\` — она развернётся сама);
 2. GitHub → вкладка **Releases** → **Draft a new release**
-3. Тег: `v1.0`, заголовок: `AnkiTTS v1.0`
-4. В **Attach binaries** приложить zip-архив (и `AnkiTTS.exe` отдельно —
+3. Тег: `v1.0`, заголовок: `AnkiVoice v1.0`
+4. В **Attach binaries** приложить zip-архив (и `AnkiVoice.exe` отдельно —
    для тех, кто скачивал репозиторий раньше)
 5. Описать, что новое, и опубликовать
 

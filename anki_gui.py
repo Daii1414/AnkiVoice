@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""anki_gui.py — AnkiTTS: графическая оболочка пайплайна озвучки Anki.
+"""anki_gui.py — AnkiVoice: графическая оболочка пайплайна озвучки Anki.
 
 Программа — тонкий интерфейс поверх voice_pipeline.py. Сам exe ничего не
 считает: вся работа (синтез, хирагана, веса, AnkiConnect) выполняется
@@ -14,7 +14,8 @@
 Первый запуск: укажи папку GPT-SoVITS (программа сама ищет её на диске).
 Дальше всё подхватывается само: голоса из voices.json, колоды из AnkiConnect.
 
-Конфиг хранится в %APPDATA%\\AnkiTTS\\config.json.
+Конфиг хранится в %APPDATA%\\AnkiVoice\\config.json
+(старый %APPDATA%\\AnkiTTS\\config.json переносится автоматически).
 Логи и аварийные дампы — в той же папке.
 
 Headless-режимы (для отладки и сборки):
@@ -35,7 +36,8 @@ import threading
 import traceback
 import urllib.request
 
-APP_NAME = "AnkiTTS"
+APP_NAME = "AnkiVoice"
+LEGACY_APP_NAME = "AnkiTTS"   # старое имя (до переименования) — конфиг переносим
 ANKI_CONNECT = "http://127.0.0.1:8765"
 TTS_HOST, TTS_PORT = "127.0.0.1", 9880
 CREATE_NO_WINDOW = 0x08000000
@@ -76,6 +78,17 @@ def code_dir():
 CONFIG_FILE = os.path.join(appdata_dir(), "config.json")
 GUI_LOG = os.path.join(appdata_dir(), "gui.log")
 CRASH_LOG = os.path.join(appdata_dir(), "gui_crash.log")
+
+# перенос конфига со старого имени (AnkiTTS -> AnkiVoice): путь к движку
+# и тема сохраняются, пользователь ничего не настраивает заново
+try:
+    if not os.path.exists(CONFIG_FILE):
+        _legacy = os.path.join(os.environ.get("APPDATA") or "",
+                               LEGACY_APP_NAME, "config.json")
+        if os.path.isfile(_legacy):
+            shutil.copy2(_legacy, CONFIG_FILE)
+except Exception:
+    pass
 
 
 def _excepthook(t, v, tb):
@@ -715,7 +728,7 @@ def run_gui(open_tab=None):
             hdr.pack(fill="x")
             titles = tk.Frame(hdr, bg=C["card"])
             titles.pack(side="left", padx=20, pady=11)
-            tk.Label(titles, text="AnkiTTS", font=F_TITLE, bg=C["card"],
+            tk.Label(titles, text="AnkiVoice", font=F_TITLE, bg=C["card"],
                      fg=C["accent"]).pack(anchor="w")
             tk.Label(titles, text="озвучка колод Anki голосами GPT-SoVITS",
                      font=F_SMALL, bg=C["card"], fg=C["sub"]).pack(anchor="w")

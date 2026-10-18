@@ -31,7 +31,7 @@ if not exist "%ENGINE%\runtime\python.exe" (
     echo  GPT-SoVITS not found. Point to its folder in one of these ways:
     echo    * create gptsovits_path.txt next to pipeline.bat ^(one line = path^)
     echo    * or set the env var GPT_SOVITS_ROOT
-    echo    * or run AnkiTTS.exe and pick the folder there ^(saved to config^)
+    echo    * or run AnkiVoice.exe and pick the folder there ^(saved to config^)
     echo.
     pause
     exit /b 1

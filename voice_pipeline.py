@@ -6,7 +6,8 @@ GitHub), а движок GPT-SoVITS может стоять где угодно.
 в таком приоритете (первый найденный берётся):
   1. переменная окружения GPT_SOVITS_ROOT=C:\\...\\GPT-SoVITS
   2. файл gptsovits_path.txt рядом с этим скриптом (одна строка — путь)
-  3. %APPDATA%\\AnkiTTS\\config.json  ->  "gptsovits_path"  (его пишет AnkiTTS.exe)
+  3. %APPDATA%\\AnkiVoice\\config.json  ->  "gptsovits_path"  (его пишет AnkiVoice.exe;
+     старый путь %APPDATA%\\AnkiTTS\\config.json тоже читается)
   4. сама папка скрипта (если скрипт лежит внутри GPT-SoVITS — старое поведение)
 
 Быстрый старт (движок уже настроен, см. выше):
@@ -123,12 +124,18 @@ def _read_engine_local_file():
 
 
 def _read_engine_gui_config():
-    cfgp = os.path.join(os.environ.get("APPDATA") or "", "AnkiTTS", "config.json")
-    try:
-        with open(cfgp, encoding="utf-8") as f:
-            return (json.load(f) or {}).get("gptsovits_path") or None
-    except Exception:
-        return None
+    for name in ("AnkiVoice", "AnkiTTS"):      # новое имя и старое (до переименования)
+        cfgp = os.path.join(os.environ.get("APPDATA") or "", name, "config.json")
+        try:
+            with open(cfgp, encoding="utf-8") as f:
+                p = (json.load(f) or {}).get("gptsovits_path")
+                if p:
+                    return p
+        except OSError:
+            continue
+        except Exception:
+            continue
+    return None
 
 
 def _norm(p):
@@ -136,7 +143,7 @@ def _norm(p):
 
 
 def resolve_engine():
-    """Папка движка: env -> gptsovits_path.txt -> конфиг AnkiTTS.exe -> своя папка."""
+    """Папка движка: env -> gptsovits_path.txt -> конфиг AnkiVoice.exe -> своя папка."""
     for cand in (os.environ.get("GPT_SOVITS_ROOT"),
                  _read_engine_local_file(),
                  _read_engine_gui_config(),
@@ -158,7 +165,7 @@ def require_engine():
         msg = ("Не найдена папка GPT-SoVITS. Укажи её одним из способов:\n"
                "  * переменная окружения  GPT_SOVITS_ROOT=C:\\...\\GPT-SoVITS\n"
                "  * файл gptsovits_path.txt рядом с voice_pipeline.py (одна строка — путь)\n"
-               "  * запусти AnkiTTS.exe и выбери папку в окне (сохранится в конфиг)\n"
+               "  * запусти AnkiVoice.exe и выбери папку в окне (сохранится в конфиг)\n"
                "В папке должны быть runtime\\python.exe и файл api_v2.py.")
         if _BAD_ENGINES:
             msg += ("\n\nУказанные пути НЕ подошли (нет runtime\\python.exe или api_v2.py):"
@@ -1473,7 +1480,7 @@ def cmd_selftest(args):
     if ENGINE:
         ok("папка GPT-SoVITS найдена: %s" % ENGINE)
     else:
-        fail("папка GPT-SoVITS не найдена (env GPT_SOVITS_ROOT / gptsovits_path.txt / конфиг AnkiTTS.exe)")
+        fail("папка GPT-SoVITS не найдена (env GPT_SOVITS_ROOT / gptsovits_path.txt / конфиг AnkiVoice.exe)")
     if PYTHON and os.path.exists(PYTHON):
         ok("runtime\\python.exe на месте")
     else:
