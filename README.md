@@ -10,6 +10,38 @@
 Полное техническое описание (устройство, вся логика, история багов) —
 в `PROJECT.md`. Здесь — как установить и пользоваться.
 
+## На чём построено
+
+Синтез речи делает **[GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS)** —
+открытый движок few-shot TTS (лицензия MIT). AnkiVoice его код не копирует:
+движок поднимается как обычный локальный сервер на `127.0.0.1:9880`, а
+программа шлёт ему текст и забирает готовый звук. Поэтому вместе с AnkiVoice
+работает и родной веб-интерфейс GPT-SoVITS, и любые его голоса.
+
+Чем это полезно на практике: **5 секунд** референса — и голос уже говорит;
+**минута** обучающих данных — похожесть заметно выше.
+
+[![Демо few-shot в GPT-SoVITS](doc/gptsovits/gpt-sovits-demo-poster.jpg)](doc/gptsovits/gpt-sovits-demo.mp4)
+
+*Демо few-shot на незнакомом спикере (китайский и японский) —
+[видео 1:26, локально](doc/gptsovits/gpt-sovits-demo.mp4) ·
+[оригинал на GitHub](https://github.com/RVC-Boss/GPT-SoVITS/assets/129054828/05bee1fa-bdd8-4d85-9350-80c060ab47fb).*
+
+Версия, на которой собран AnkiVoice, — **v2Pro**. Скорость из их замеров:
+RTF **0.028** на RTX 4060 Ti и **0.014** на RTX 4090 (4 минуты речи примерно
+за 3 секунды), **0.526** на CPU M4.
+
+Сравнение похожести голоса на тестовом наборе SeedTTS (выше — лучше,
+синим — GPT-SoVITS):
+
+<img src="doc/gptsovits/gpt-sovits-similarity.png" width="780"
+     alt="Сравнение похожести голосов GPT-SoVITS на тестовом наборе SeedTTS">
+
+Благодарности: [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) — движок;
+[gradio](https://github.com/gradio-app/gradio) — раскладка ползунков на
+вкладке «Голос» сделана в их стиле; [Sudachi](https://github.com/WorksApplications/SudachiPy)
+и словарь UniDic — чтение иероглифов.
+
 ## Что нужно
 
 1. **Windows 10/11** и GPU с CUDA (комфортно — от 6 ГБ видеопамяти).

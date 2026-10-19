@@ -120,6 +120,26 @@ select{cursor:pointer}
 .hint{font-size:12px;color:var(--sub);margin-top:6px}
 .hint b{color:var(--text);font-weight:600}
 
+/* ------------------------------------------------- ползунки (как в Gradio)
+   Дорожка + круглая бегунок + поле числа справа — привычная раскладка
+   веба GPT-SoVITS, только в наших цветах темы. */
+.sld-row{display:flex;align-items:center;gap:10px}
+.sld-row input[type=range]{
+  flex:1 1 auto;min-width:60px;-webkit-appearance:none;appearance:none;
+  height:5px;border-radius:999px;background:var(--line);outline:none;cursor:pointer}
+.sld-row input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:15px;height:15px;border-radius:50%;
+  background:var(--accent);border:2px solid var(--card);cursor:pointer;
+  box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .12s ease}
+.sld-row input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.2)}
+.sld-row input[type=range]:active::-webkit-slider-thumb{transform:scale(1.32)}
+.sld-row input[type=range]::-moz-range-thumb{
+  width:15px;height:15px;border-radius:50%;background:var(--accent);
+  border:2px solid var(--card);cursor:pointer}
+.sld-row input[type=range]::-moz-range-track{
+  height:5px;border-radius:999px;background:var(--line)}
+.sld-row input[type=number]{width:74px;flex:none;text-align:center}
+
 .btn{display:inline-flex;align-items:center;gap:8px;justify-content:center;
   background:var(--hover);border:1px solid var(--border);color:var(--text);
   border-radius:var(--r-s);padding:9px 15px;cursor:pointer;transition:.14s;
@@ -206,6 +226,8 @@ select{cursor:pointer}
 .tbl td{padding:7px 10px;border-top:1px solid var(--line)}
 .tbl tr:hover td{background:var(--hover)}
 .tbl .k{color:var(--sub);white-space:nowrap}
+.tbl .k.wrap{white-space:normal;line-height:1.35;vertical-align:top}
+.tbl .ksub{font-size:11.5px;color:var(--sub);opacity:.85;font-weight:400;margin-top:2px}
 .tbl .v{font-weight:600}
 
 /* ---------------------------------------------------------- модалка файлов */
@@ -362,11 +384,24 @@ select{cursor:pointer}
             <tr><td class="k">Звук предложения →</td><td><select id="f_sent_aud"></select></td></tr>
             <tr><td class="k">Основное слово</td><td><select id="f_word_src"></select></td></tr>
             <tr><td class="k">Звук слова →</td><td><select id="f_word_aud"></select></td></tr>
-            <tr><td class="k">Фуригана слова ← поле</td><td><select id="f_furi"></select></td></tr>
-            <tr><td class="k">Источник чтения</td><td><select id="f_reading"></select></td></tr>
+            <tr><td class="k wrap">Фуригана слова ← поле
+                <div class="ksub">основное слово читается строго по нему</div></td>
+                <td><select id="f_furi"></select></td></tr>
+            <tr><td class="k wrap">Источник чтения
+                <div class="ksub">если не «Не подставлять» — переопределяет чтение
+                  всего предложения</div></td>
+                <td><select id="f_reading"></select></td></tr>
           </tbody>
         </table>
-        <div class="hint">Пустой выбор в колонке «→» = звук не записывать. Пустая фуригана = слово прочитается автоматически.</div>
+        <div class="hint">
+          <b>Что чем читается.</b> Основное слово — всегда по строке
+          «Фуригана слова»; если она пустая, слово читается автоматически.
+          Строка «Источник чтения» — отдельный, более старый способ: она
+          подставляет готовое чтение в <b>предложение целиком</b> и работает
+          только когда выбрана не «Не подставлять». Если выбраны обе —
+          для основного слова всё равно выигрывает фуригана.
+          <br>Пустой выбор в колонке «→» = звук не записывать.
+        </div>
       </div>
 
       <div class="card">
@@ -421,14 +456,30 @@ select{cursor:pointer}
             <button class="btn sm ghost" id="btnAux">＋ добавить файл</button>
             <div class="spacer" style="height:14px"></div>
             <div class="grid2">
-              <div><label class="f">Температура</label>
-                <input type="number" id="v_temp" step="0.01" min="0" max="2"></div>
-              <div><label class="f">top_p</label>
-                <input type="number" id="v_topp" step="0.01" min="0" max="1"></div>
-              <div><label class="f">top_k</label>
-                <input type="number" id="v_topk" step="1" min="0" max="200"></div>
-              <div><label class="f">Скорость</label>
-                <input type="number" id="v_speed" step="0.05" min="0.5" max="2"></div>
+              <div class="sld"><label class="f">Температура</label>
+                <div class="sld-row">
+                  <input type="range" id="v_temp_r" min="0" max="2" step="0.01">
+                  <input type="number" id="v_temp" step="0.01" min="0" max="2">
+                </div>
+                <div class="hint">ниже — ровнее и спокойнее</div></div>
+              <div class="sld"><label class="f">top_p</label>
+                <div class="sld-row">
+                  <input type="range" id="v_topp_r" min="0" max="1" step="0.01">
+                  <input type="number" id="v_topp" step="0.01" min="0" max="1">
+                </div>
+                <div class="hint">широта выбора слов</div></div>
+              <div class="sld"><label class="f">top_k</label>
+                <div class="sld-row">
+                  <input type="range" id="v_topk_r" min="0" max="200" step="1">
+                  <input type="number" id="v_topk" step="1" min="0" max="200">
+                </div>
+                <div class="hint">из скольких слов выбирать</div></div>
+              <div class="sld"><label class="f">Скорость</label>
+                <div class="sld-row">
+                  <input type="range" id="v_speed_r" min="0.5" max="2" step="0.05">
+                  <input type="number" id="v_speed" step="0.05" min="0.5" max="2">
+                </div>
+                <div class="hint">1.0 — как в оригинале</div></div>
             </div>
           </div>
         </div>
@@ -829,9 +880,21 @@ function openVoiceEditor(name){
   $("v_topk").value = v.top_k != null ? v.top_k : 20;
   $("v_speed").value = v.speed != null ? v.speed : 1.0;
   $("v_seed").value = v.seed != null ? v.seed : 42;
+  ["v_temp","v_topp","v_topk","v_speed"].forEach(syncSlider);
   $("v_prompt").disabled = $("v_noref").checked;
   renderAux(v.aux || []);
 }
+/* ползунок <-> поле числа: тянем бегунок — меняется число и наоборот */
+function syncSlider(id){
+  const n = $(id), r = $(id + "_r");
+  if(n && r) r.value = n.value;
+}
+["v_temp","v_topp","v_topk","v_speed"].forEach(id=>{
+  const n = $(id), r = $(id + "_r");
+  if(!n || !r) return;
+  r.oninput = ()=>{ n.value = r.value; };
+  n.oninput = ()=>{ const v = parseFloat(n.value); if(!Number.isNaN(v)) r.value = v; };
+});
 function renderAux(arr){
   $("auxList").innerHTML = arr.map((p,i)=>
     '<div class="row" data-i="'+i+'"><div class="grow"><input type="text" class="aux" value="'+esc(p)+'"></div>'+

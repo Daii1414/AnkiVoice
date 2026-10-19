@@ -41,6 +41,23 @@ def req(path, body=None, timeout=20):
         return code, {"_raw": raw[:200]}
 
 
+def probe_status(path, timeout=8):
+    """Только HTTP-код, тело не читаем.
+
+    Нужно для /api/log: это поток (SSE), который сервер сам не закрывает,
+    поэтому обычный req() на нём дойдёт до таймаута и вернёт -1 даже
+    на полностью здоровом ответе.
+    """
+    try:
+        with PROXY.open(urllib.request.Request(BASE + path),
+                        timeout=timeout) as resp:
+            return resp.status
+    except urllib.error.HTTPError as e:
+        return e.code
+    except Exception:
+        return -1
+
+
 def check(name, cond, detail=""):
     (PASS if cond else FAIL).append(name)
     print("  %-4s %s%s" % ("OK" if cond else "FAIL", name,
@@ -143,10 +160,17 @@ check("doctor -> 200", code == 200, code)
 check("doctor сообщает anki", "anki" in d, d)
 check("doctor сообщает пути", "code_dir" in d and "config_file" in d, d)
 
-print("\n=== незавершённый лог ===")
-code, j = req("/api/log?since=0", timeout=5)
-check("лог без запусков отвечает 404 со словом",
-      code == 404 and bool(j.get("error")), (code, j))
+print("\n=== лог ===")
+_, st = req("/api/state", timeout=20)
+if st.get("run") or st.get("last"):
+    # живой сервер: лог уже есть, поток обязан отвечать 200
+    code = probe_status("/api/log?since=0")
+    check("лог при существующем запуске отвечает 200", code == 200, code)
+else:
+    # свежий сервер: лога нет, нужен понятный 404, а не 500
+    code, j = req("/api/log?since=0", timeout=5)
+    check("лог без запусков отвечает 404 со словом",
+          code == 404 and bool(j.get("error")), (code, j))
 
 print("\n" + "=" * 46)
 print("Итого: %d OK, %d FAIL" % (len(PASS), len(FAIL)))
