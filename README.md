@@ -21,11 +21,9 @@
 Чем это полезно на практике: **5 секунд** референса — и голос уже говорит;
 **минута** обучающих данных — похожесть заметно выше.
 
-[![Демо few-shot в GPT-SoVITS](doc/gptsovits/gpt-sovits-demo-poster.jpg)](doc/gptsovits/gpt-sovits-demo.mp4)
+Демо few-shot на незнакомом спикере (китайский и японский):
 
-*Демо few-shot на незнакомом спикере (китайский и японский) —
-[видео 1:26, локально](doc/gptsovits/gpt-sovits-demo.mp4) ·
-[оригинал на GitHub](https://github.com/RVC-Boss/GPT-SoVITS/assets/129054828/05bee1fa-bdd8-4d85-9350-80c060ab47fb).*
+![Демо few-shot в GPT-SoVITS](doc/gptsovits/gpt-sovits-demo.mp4)
 
 Версия, на которой собран AnkiVoice, — **v2Pro**. Скорость из их замеров:
 RTF **0.028** на RTX 4060 Ti и **0.014** на RTX 4090 (4 минуты речи примерно
