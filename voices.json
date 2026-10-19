@@ -2,6 +2,15 @@
   "start_config": "GPT_SoVITS/configs/tts_infer.yaml",
   "default_voice": "madara",
   "voices": {
+    "narrator": {
+      "display": "Кубота Хитоси",
+      "gpt": "GPT_weights_v2ProPlus/Narator-e45.ckpt",
+      "sovits": "SoVITS_weights_v2ProPlus/Narator_e24_s2808.pth",
+      "ref": "E:\\TTS-проект\\голоса\\кубота хитоси\\久保田ひとしです いやー世の中の変化のスピードってのはすごいですよね何事もどんどんテンポが速くなっています.wav",
+      "aux": [],
+      "prompt_text": "久保田ひとしです いやー世の中の変化のスピードってのはすごいですよね何事もどんどんテンポが速くなっています",
+      "prompt_lang": "ja"
+    },
     "madara": {
       "display": "Мадара",
       "gpt": "GPT_weights_v2ProPlus/MADARA-e50.ckpt",

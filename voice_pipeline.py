@@ -1598,8 +1598,13 @@ def build_jobs(notes, mode, force, fields=None):
                 text = inject_reading(text, n, reading=fields.get("reading", ""))
                 # kanaize_from_fields: основное слово читается по
                 # ExpressionFurigana, остальное — автоматически
+                # (поля раскладываем в простые строки: внутри f лежит
+                #  формат AnkiConnect {"value": ...})
+                flat = {k: plain(v.get("value", ""))
+                        for k, v in f.items() if isinstance(v, dict)}
                 jobs.append((n["noteId"], fields["sentence_audio"],
-                             kanaize_from_fields(text, fields=f, field_names=fields)))
+                             kanaize_from_fields(text, fields=flat,
+                                                 field_names=fields)))
         if mode in ("expression", "both"):
             text = word_text(n, fields["word_src"], reading=fields.get("reading", ""))
             if text and (force or not tgt(fields["word_audio"])):
