@@ -1575,11 +1575,20 @@ def build_jobs(notes, mode, force, fields=None):
                 # вставляем чтение сложного слова в предложение (источник:
                 # отключено либо конкретное поле карточки)
                 text = inject_reading(text, n, reading=fields.get("reading", ""))
-                jobs.append((n["noteId"], fields["sentence_audio"], kanaize(text)))
+                # kanaize_from_fields: основное слово читается по
+                # ExpressionFurigana, остальное — автоматически
+                jobs.append((n["noteId"], fields["sentence_audio"],
+                             kanaize_from_fields(text, fields=f, field_names=fields)))
         if mode in ("expression", "both"):
             text = word_text(n, fields["word_src"], reading=fields.get("reading", ""))
             if text and (force or not tgt(fields["word_audio"])):
-                jobs.append((n["noteId"], fields["word_audio"], kanaize(text)))
+                # Фуригана для основного слова — из настраиваемого поля
+                furigana = plain(f.get(fields.get("furigana_src", "ExpressionFurigana"),
+                                       {}).get("value", ""))
+                expression = plain(f.get(fields.get("word_src", "Expression"),
+                                         {}).get("value", ""))
+                jobs.append((n["noteId"], fields["word_audio"],
+                             kanaize_card(text, expression=expression, furigana=furigana)))
     return jobs
 
 
