@@ -732,7 +732,8 @@ def run_gui(open_tab=None):
             self.default_voice = None
             self.current_voice = None
             self.fields = {"sentence_src": "Sentence", "sentence_audio": "SentenceAudio",
-                           "word_src": "Expression", "word_audio": "ExpressionAudio"}
+                           "word_src": "Expression", "word_audio": "ExpressionAudio",
+                           "furigana_src": "ExpressionFurigana"}
             self._aux_list = []
             self._build()
             self._load_initial_path()
@@ -1023,11 +1024,14 @@ def run_gui(open_tab=None):
             self.var_sent_audio = tk.StringVar()
             self.var_word_src = tk.StringVar()
             self.var_word_audio = tk.StringVar()
+            self.var_furi_src = tk.StringVar()
             rows = [
                 ("Текст предложения ← поле", "sentence_src"),
                 ("Звук предложения → поле", "sentence_audio"),
                 ("Текст слова ← поле", "word_src"),
                 ("Звук слова → поле", "word_audio"),
+                # новая схема: основное слово читается строго по этому полю
+                ("Фуригана слова ← поле", "furigana_src"),
             ]
             self._field_cbs = {}
             self._field_vars = {
@@ -1035,6 +1039,7 @@ def run_gui(open_tab=None):
                 "sentence_audio": self.var_sent_audio,
                 "word_src": self.var_word_src,
                 "word_audio": self.var_word_audio,
+                "furigana_src": self.var_furi_src,
             }
             for i, (label, attr) in enumerate(rows):
                 r, c = divmod(i, 2)
@@ -1052,15 +1057,22 @@ def run_gui(open_tab=None):
             self.READ_OFF = "Не подставлять (движок сам)"
             tk.Label(body, text="Чтение слова ← источник", font=F_SMALL,
                      bg=C["card"], fg=C["sub"]
-                     ).grid(row=2, column=0, sticky="w", padx=(0, 8), pady=4)
+                     ).grid(row=3, column=0, sticky="w", padx=(0, 8), pady=4)
             self.var_reading = tk.StringVar(value=self.READ_OFF)
             self.cmb_reading = ttk.Combobox(body, textvariable=self.var_reading,
                                             state="normal")
-            self.cmb_reading.grid(row=2, column=1, sticky="we", padx=(0, 20), pady=4)
+            self.cmb_reading.grid(row=3, column=1, sticky="we", padx=(0, 20), pady=4)
             self.cmb_reading["values"] = [self.READ_OFF]
+            # подсказка: как работает новая схема чтения
+            tk.Label(body,
+                     text="Основное слово читается строго по полю фуриганы, "
+                          "все остальные слова — автоматически.",
+                     font=F_TINY, bg=C["card"], fg=C["sub"], anchor="w"
+                     ).grid(row=4, column=0, columnspan=4, sticky="we",
+                            pady=(6, 0))
             ttk.Button(body, text="Подставить поля выбранной колоды",
                        command=self._autofill_fields).grid(
-                row=3, column=0, columnspan=4, sticky="w", pady=(8, 0))
+                row=5, column=0, columnspan=4, sticky="w", pady=(8, 0))
 
             frm_par = card(tab, "Что озвучить")
             frm_par.pack(fill="x", pady=(14, 0))
@@ -1467,9 +1479,12 @@ def run_gui(open_tab=None):
             self.var_sent_audio.set(guess["sentence_audio"])
             self.var_word_src.set(guess["word_src"])
             self.var_word_audio.set(guess["word_audio"])
+            self.var_furi_src.set(guess.get("furigana_src", ""))
             self.fields = guess
+            furi = guess.get("furigana_src", "")
             self.var_anki_tab_status.set(
-                "Поля колоды «%s»: %d. Проверь и поправь при необходимости." % (deck, len(fl)))
+                "Поля колоды «%s»: %d. Фуригана: %s. Проверь и поправь при необходимости."
+                % (deck, len(fl), furi or "нет (слово прочитается автоматически)"))
 
         def _autofill_fields(self):
             deck = self._selected_deck()
@@ -1495,8 +1510,13 @@ def run_gui(open_tab=None):
                                 and "reading" not in l and "furigana" not in l),
                             fl[0] if fl else "")
             word_aud = find(lambda l: ("expression" in l or "word" in l) and "audio" in l, "")
+            # поле фуриганы основного слова (новая схема чтения)
+            furi = find(lambda l: l == "expressionfurigana"
+                        or ("furigana" in l and "sentence" not in l)
+                        or ("reading" in l and "expression" in l), "")
             return {"sentence_src": sent_src, "sentence_audio": sent_aud,
-                    "word_src": word_src, "word_audio": word_aud}
+                    "word_src": word_src, "word_audio": word_aud,
+                    "furigana_src": furi}
 
         def _current_fields(self):
             return {
@@ -1504,6 +1524,7 @@ def run_gui(open_tab=None):
                 "sentence_audio": self.var_sent_audio.get().strip(),
                 "word_src": self.var_word_src.get().strip(),
                 "word_audio": self.var_word_audio.get().strip(),
+                "furigana_src": self.var_furi_src.get().strip(),
             }
 
         def _reading_value(self):
@@ -1594,6 +1615,8 @@ def run_gui(open_tab=None):
                     "--mode", self.var_mode.get(),
                     "--sentence-src", f["sentence_src"], "--sentence-audio", f["sentence_audio"],
                     "--word-src", f["word_src"], "--word-audio", f["word_audio"]]
+            if f["furigana_src"]:
+                args += ["--furigana-src", f["furigana_src"]]
             reading = self._reading_value()
             if reading:
                 args += ["--reading", reading]

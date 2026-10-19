@@ -1208,25 +1208,62 @@ def _normalize_furigana(furigana: str) -> str:
     return "".join(out)
 
 
-def _parse_furigana(furigana: str) -> str:
+def _parse_furigana(furigana: str, expression: str = "") -> str:
     """
-    Извлечь чистую хирагану из поля фуриганы.
+    Извлечь чистое чтение из поля фуриганы.
 
     Поддерживаемые форматы:
-      * いけばな — чистая хирагана
-      * 生花[いけばな,せいか] — иероглиф + варианты чтения в скобках (берём первое)
-      * 今日[きょう,こんにち] — то же самое
+      * いけばな — чистое чтение без разметки
+      * 生花[いけばな,せいか] — разметка на всё слово (берём первое чтение)
+      * 遠隔[えんかく]監督[かんとく]・検査[けんさ] — разметка по частям слова:
+        чтения склеиваются, сами основы-иероглифы отбрасываются
+      * 食[た]べる — разметка только на иероглифах, окуригана своя
 
-    Возвращает чистую хирагану (например, «いけばな», «きょう»).
+    expression (если передан) помогает отличить разметку на всё слово
+    (生花[いけばな] -> «いけばな») от частичной (食[た]べる -> «たべる»).
+
+    Возвращает чтение целиком: «いけばな», «えんかくかんとく・けんさ».
     """
     furigana = furigana.strip()
-    if "[" in furigana:
-        # Берём первое чтение из скобок
-        inner = furigana.split("[", 1)[1]
-        inner = inner.split("]", 1)[0]
-        first = inner.split(",", 1)[0].strip()
-        return first
-    return furigana
+    if not furigana or "[" not in furigana:
+        return furigana
+
+    segs = re.split(r"(\[[^\[\]]*\])", furigana)
+
+    def _is_br(s):
+        return len(s) > 1 and s.startswith("[") and s.endswith("]")
+
+    def _content(s):
+        return s[1:-1].split(",", 1)[0].strip()
+
+    def _concat():
+        out = []
+        for i, s in enumerate(segs):
+            if not s:
+                continue
+            if _is_br(s):
+                out.append(_content(s))
+            elif i + 1 < len(segs) and _is_br(segs[i + 1]):
+                # основа перед скобкой: её иероглифы уже покрыты чтением,
+                # кана/знаки перед ними (окуригана, «・», латиница) остаются
+                m = re.search(r"[\u3005\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff"
+                              r"\U00020000-\U0003FFFF]+$", s)
+                keep = s[:m.start()] if m else s
+                if keep:
+                    out.append(keep)
+            else:
+                out.append(s)
+        return "".join(out)
+
+    idxs = [i for i, s in enumerate(segs) if _is_br(s)]
+    if len(idxs) == 1:
+        base = segs[idxs[0] - 1] if idxs[0] > 0 else ""
+        expr = (expression or "").strip()
+        if not expr or base == expr or not re.search(
+                r"[\u3005\u3400-\u4dbf\u4e00-\u9fff]", base):
+            # разметка на всё слово (либо выражение не известно) -> одно чтение
+            return _content(segs[idxs[0]])
+    return _concat()
 
 
 def kanaize_card(text, expression=None, furigana=None):
@@ -1236,77 +1273,42 @@ def kanaize_card(text, expression=None, furigana=None):
     Параметры:
       text      — текст предложения (Sentence)
       expression — основное слово карточки (Expression)
-      furigana  — фуригана к основному слову (ExpressionFurigana), в хирагене
+      furigana  — фуригана к основному слову (ExpressionFurigana)
 
     Логика:
       * Основное слово (expression) читается строго по furigana — это
         проверенное эталонное чтение, его не угадываем через Haqumei/Sudachi.
+        Чтение подставляется ПОДСТРОЧНО: нашли написание слова в тексте и
+        заменили на готовое чтение. Поэтому работает и для иероглифов, и для
+        латиницы/цифр (PLATEAU[ぷらとー], 3D都市モデル[すりーでぃー…]).
       * Все остальные слова читаются автоматически (как kanaize).
-      * Если expression или furigana пустые — работает как обычный kanaize.
+      * Если expression или furigana пустые либо слова нет в тексте —
+        работает как обычный kanaize.
 
     Не кэшируется (разные карточки — разные фуриганы).
     """
     if not expression or not furigana:
         return kanaize(text)
 
-    # Нормализуем оба текста одинаково, чтобы сравнение surface == expression
-    # работало корректно. Фуригана приходит в хирагене (возможно с иероглифами
-    # и скобками: 生花[いけばна,せいか]) — парсим и конвертируем в катану.
+    reading = _parse_furigana(furigana, expression=expression)
+    if not reading:
+        return kanaize(text)
+
     norm_expr = normalize_text(expression)
-    norm_furi = _normalize_furigana(_parse_furigana(furigana.strip()))
+    t = normalize_text(text)
 
-    # Сначала пропускаем через kanaize без фуриганы, чтобы получить базовое
-    # чтение для всех слов (включая основное автоматически)
-    base = kanaize(text)
+    if norm_expr and norm_expr in t:
+        # проверенное чтение вместо написания основного слова
+        return kanaize(t.replace(norm_expr, reading))
 
-    # Если в тексте нет иероглифов — возвращаем базовый вариант
-    if not KANJI_RE.search(text):
-        return base
+    # латиница в предложении может отличаться регистром (PLATEAU vs plateau)
+    if norm_expr and re.search(r"[A-Za-z]", norm_expr):
+        pat = re.compile(re.escape(norm_expr), re.IGNORECASE)
+        if pat.search(t):
+            return kanaize(pat.sub(lambda _m: reading, t))
 
-    # Пересобираем через core с позициями, подставляя furigana вместо
-    # автоматического чтения основного слова
-    mods = _ensure_reading_modules()
-    core = core_client()
-    if core is not None:
-        t = normalize_text(text)
-        t = latin2kana(t)
-        words = core.reads(t)
-        if words:
-            out = []
-            pos = 0
-            for w in words:
-                word, read, s, e = w[0], w[1], int(w[2]), int(w[3])
-                if not (0 <= pos <= s <= e <= len(t)):
-                    break
-                if s > pos:
-                    gap = t[pos:s]
-                    if KANJI_RE.search(gap):
-                        break
-                    out.append(gap)
-                surface = t[s:e]
-                if KANJI_RE.search(surface):
-                    if surface == norm_expr:
-                        # Основное слово — читаем строго по фуригане
-                        out.append(norm_furi)
-                    else:
-                        out.append(read if read else surface)
-                elif any(c.isdigit() for c in surface):
-                    out.append(read or _pyopenjtalk_g2p(surface))
-                elif _KATA_ONLY.match(surface) and word != surface and \
-                        _KATA_ONLY.match(word or ""):
-                    out.append(word)
-                else:
-                    out.append(surface)
-                pos = e
-            else:
-                # Все слова обработаны без break
-                tail = t[pos:]
-                if not KANJI_RE.search(tail):
-                    out.append(tail)
-                return kata2hira("".join(out), keep_kata=_KEEP_KATA).strip()
-
-    # Fallback — обычный kanaize
-    return base
+    # основного слова в тексте нет — читаем всё автоматически
+    return kanaize(text)
 
 
 def kanaize_from_fields(text, fields=None, field_names=None):
@@ -1836,6 +1838,7 @@ def _fields_from_args(args):
         sentence_audio=getattr(args, "sentence_audio", None),
         word_src=getattr(args, "word_src", None),
         word_audio=getattr(args, "word_audio", None),
+        furigana_src=getattr(args, "furigana_src", None),
         reading=getattr(args, "reading", None),
     )
 
@@ -2171,6 +2174,10 @@ def main():
     p.add_argument("--sentence-audio", default=None, help="поле для звука предложения")
     p.add_argument("--word-src", default=None, help="поле со словом")
     p.add_argument("--word-audio", default=None, help="поле для звука слова")
+    p.add_argument("--furigana-src", default=None,
+                   help="поле с фуриганой основного слова (по умолчанию "
+                        "ExpressionFurigana); основное слово читается строго "
+                        "по нему, всё остальное — автоматически")
     p.add_argument("--reading", default="off",
                    help="источник чтения: off — не подставлять (движок читает "
                         "сам), либо имя поля с готовым чтением слова "
@@ -2189,6 +2196,9 @@ def main():
     p.add_argument("--sentence-audio", default=None, help="поле для звука предложения")
     p.add_argument("--word-src", default=None, help="поле со словом")
     p.add_argument("--word-audio", default=None, help="поле для звука слова")
+    p.add_argument("--furigana-src", default=None,
+                   help="поле с фуриганой основного слова (по умолчанию "
+                        "ExpressionFurigana)")
     p.add_argument("--reading", default="off",
                    help="источник чтения: off — не подставлять (движок читает "
                         "сам), либо имя поля с готовым чтением слова "
