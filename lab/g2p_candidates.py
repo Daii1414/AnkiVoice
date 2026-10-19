@@ -17,7 +17,16 @@ import re
 import sys
 from typing import Optional
 
-sys.path.insert(0, r"E:\TTS-проект\lab\pylibs")
+# haqumei лежит в lab/pylibs. Кладём эту папку в КОНЕЦ sys.path и только если
+# haqumei сам не нашёлся: insert(0, ...) подмешивал сюда чужой numpy 2.5.4
+# (собран под Python 3.13), и движок GPT-SoVITS на Python 3.9 переставал
+# импортировать свой numpy — из-за этого падала проверка качества синтеза.
+if "haqumei" not in sys.modules:
+    try:
+        import haqumei as _h  # noqa: F401
+    except Exception:
+        sys.path.append(r"E:\TTS-проект\lab\pylibs")
+        del _h
 
 from domain_dict import DomainDictionary, ReadingSource
 from g2p_provenance import (

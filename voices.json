@@ -4,12 +4,19 @@
   "voices": {
     "narrator": {
       "display": "Кубота Хитоси",
-      "gpt": "GPT_weights_v2ProPlus/Narator-e45.ckpt",
+      "gpt": "GPT_weights_v2ProPlus/Narator-e50.ckpt",
       "sovits": "SoVITS_weights_v2ProPlus/Narator_e24_s2808.pth",
       "ref": "E:\\TTS-проект\\голоса\\кубота хитоси\\久保田ひとしです いやー世の中の変化のスピードってのはすごいですよね何事もどんどんテンポが速くなっています.wav",
-      "aux": [],
+      "aux": [
+        "E:/TTS-проект/голоса/кубота хитоси/1.mp3"
+      ],
       "prompt_text": "久保田ひとしです いやー世の中の変化のスピードってのはすごいですよね何事もどんどんテンポが速くなっています",
-      "prompt_lang": "ja"
+      "prompt_lang": "ja",
+      "temperature": 0.29,
+      "top_p": 0.71,
+      "top_k": 5,
+      "speed": 1.0,
+      "seed": 42
     },
     "madara": {
       "display": "Мадара",
@@ -19,8 +26,13 @@
       "aux": [
         "ref_aux_madara_60s.wav"
       ],
-      "prompt_text": "この戦力さ、貴様ら二人がどうにかできるものではないぞ。おかしな奴だ。",
-      "prompt_lang": "ja"
+      "prompt_text": "この戦力さ、貴様ら二人がどうにかできるものではないぞ。おかしな奴だ。 ",
+      "prompt_lang": "ja",
+      "temperature": 0.6,
+      "top_p": 0.6,
+      "top_k": 20,
+      "speed": 1.0,
+      "seed": 42
     },
     "shohayami": {
       "display": "Шо Хаями",

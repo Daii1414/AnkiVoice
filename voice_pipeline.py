@@ -1491,7 +1491,90 @@ def _resurrect(v):
     return True
 
 
-def synth(v, text, seed=42, speed=1.0, _oom_retry=True):
+def _ffmpeg_exe():
+    """ffmpeg из папки движка (или из PATH) — для проверки качества звука."""
+    p = os.path.join(ENGINE, "runtime", "ffmpeg.exe")
+    if os.path.exists(p):
+        return p
+    try:
+        import shutil
+        return shutil.which("ffmpeg") or ""
+    except Exception:
+        return ""
+
+
+def audio_stats(blob, ext="ogg"):
+    """Разбирает синтезированный файл: (длительность с, звучащая длительность с).
+
+    Декодирует через ffmpeg в сырой PCM (16 кГц, моно) и считает, сколько
+    времени сигнал реально звучит. Нужно, чтобы ловить главный сбой
+    GPT-SoVITS: файл с 25–40 с тишины и крошечным куском речи в конце —
+    байтов он при этом нормальный, поэтому «пустой ответ» его не отловит.
+    Возвращает (0.0, 0.0), если разобрать не удалось (тогда проверка молчит).
+    """
+    ff = _ffmpeg_exe()
+    if not ff:
+        if os.environ.get("AV_DEBUG_QC"):
+            print("  [qc] ffmpeg не найден; ENGINE=%r" % (ENGINE,))
+        return 0.0, 0.0
+    import subprocess
+    cmd = [ff, "-v", "error", "-i", "pipe:0", "-f", "s16le",
+           "-ac", "1", "-ar", "16000", "pipe:1"]
+    try:
+        r = subprocess.run(cmd, input=blob, capture_output=True, timeout=120)
+        raw = r.stdout
+    except Exception as e:
+        if os.environ.get("AV_DEBUG_QC"):
+            print("  [qc] ffmpeg не запустился: %r" % (e,))
+        return 0.0, 0.0
+    if len(raw) < 4:
+        if os.environ.get("AV_DEBUG_QC"):
+            print("  [qc] ffmpeg дал %d Б (rc=%s, stderr=%r)"
+                  % (len(raw), r.returncode,
+                     r.stderr.decode("utf-8", "replace")[:200]))
+        return 0.0, 0.0
+    try:
+        import numpy as np
+        x = np.frombuffer(raw, dtype="<i2").astype("float32") / 32768.0
+    except Exception as e:
+        if os.environ.get("AV_DEBUG_QC"):
+            print("  [qc] numpy не справился: %r" % (e,))
+        return 0.0, 0.0
+    sr = 16000
+    dur = len(x) / sr
+    win = max(1, int(sr * 0.02))                 # окно 20 мс
+    n = len(x) // win
+    if n == 0:
+        return dur, 0.0
+    rms = np.array([np.sqrt((x[i*win:(i+1)*win] ** 2).mean()) for i in range(n)])
+    thr = max(float(rms.max()) * 0.05, 1e-4)
+    sounding = float((rms > thr).sum() * win / sr)
+    return dur, sounding
+
+
+def _synth_is_sane(text, dur, sounding):
+    """True, если звук похож на речь, а не на пустоту.
+
+    Норма для японского — примерно 0.15 с речи на знак. Мусорный ответ
+    сервера отличается надёжно: общая длительность в разы больше ожидаемой
+    (лишнее — тишина) либо звучащей речи почти нет.
+
+    Короткие слова (つゆ, どの) проверяем мягче: для них крохотная длительность
+    — норма, важнее доля звука в файле и отсутствие «пустого хвоста».
+    """
+    if dur == 0.0 and sounding == 0.0:
+        return True                      # разобрать не удалось — не мешаем
+    if sounding < 0.15:
+        return False                     # речи практически нет
+    expect = 0.15 * len(text)            # ожидаемая длительность речи
+    if dur > max(8.0, expect * 3):
+        return False                     # файл в разы длиннее ожидаемого
+    if dur > 6.0 and sounding < expect * 0.5:
+        return False                     # длинный файл, а речи почти нет
+    return True
+
+
+def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True):
     # Sampling defaults follow the official GPT-SoVITS webui (calmer than the raw
     # API defaults of temperature=1.0 / top_p=1.0, which sound over-expressive).
     # Any of these can be overridden per voice in voices.json.
@@ -1560,6 +1643,63 @@ def synth(v, text, seed=42, speed=1.0, _oom_retry=True):
         raise SystemExit("сервер вернул пустой звук (%d байт) — попробуй ещё раз"
                          % len(blob))
     return blob, "ogg" if payload["media_type"] == "ogg" else "wav"
+
+
+# схема спасения мусорного синтеза: (что менять, что печатать)
+_QC_ATTEMPTS = (
+    (None,      "сид",            "повторяю с другим сидом..."),
+    (None,      "сид+температура", "пробую с температурой 0.8..."),
+    ("noref",   "без промпта",    "пробую без текста референса..."),
+    ("noref2",  "без промпта+сид", "пробую без промпта и с другим сидом..."),
+)
+
+
+_QC_BLIND = [False]      # уже предупреждали, что проверить звук не удалось
+
+
+def synth(v, text, seed=42, speed=1.0, _oom_retry=True):
+    """Синтез с проверкой качества на входе в колоду.
+
+    GPT-SoVITS иногда возвращает файл, где 25–40 с тишины и крошечный
+    кусочек речи в самом конце: байтов нормально, длины хватает, но
+    слушать нечего. Такой файл раньше уходил в карточку как «озвучено».
+    Теперь проверяем звук (audio_stats) и при мусоре пробуем спасение:
+    другой сид -> другая температура -> без текста референса -> ещё раз.
+    Не помогло — ошибка, карточка остаётся неозвученной и видна в отчёте.
+    """
+    v_prompt = v.get("prompt_text", "")
+    tried = 0
+    for _, what, msg in ((None, None, None),) + _QC_ATTEMPTS:
+        if tried:
+            print("  [%s] %s: %s" % (text[:24], what, msg))
+        s, tv, nv = seed, v, v_prompt
+        if what == "сид":
+            s = seed + tried * 7 + 1
+        elif what == "сид+температура":
+            tv = dict(v); tv["temperature"] = 0.8
+        elif what == "без промпта":
+            nv = ""
+        elif what == "без промпта+сид":
+            nv = ""
+            s = seed + tried * 13 + 3
+        tv = dict(tv)
+        if nv == "":
+            tv["prompt_text"] = ""
+        blob, ext = _synth_once(tv, text, seed=s, speed=speed,
+                                _oom_retry=_oom_retry)
+        dur, sounding = audio_stats(blob, ext)
+        if dur == 0.0 and sounding == 0.0 and not _QC_BLIND[0]:
+            _QC_BLIND[0] = True
+            print("  ! проверить звук не удалось (нет ffmpeg) — "
+                  "качество не контролируется")
+        if _synth_is_sane(text, dur, sounding):
+            return blob, ext
+        tried += 1
+        print("  [%s] мусор: %.1f с файла, речь %.1f с%s"
+              % (text[:24], dur, sounding,
+                 "" if msg is None else " — " + msg))
+    raise SystemExit("после %d попыток синтез даёт тишину вместо речи — "
+                     "карточка пропущена" % tried)
 
 
 def media_name(nid, field, text, ext, voice):
