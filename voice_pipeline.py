@@ -62,6 +62,48 @@ try:
 except Exception:
     pass
 
+# ------------------------------------------------------------------ модули чтения (lab/)
+# Импортируются лениво, чтобы не падать при отсутствии lab/ (например, в
+# собранном .exe без исходников). Функции _ensure_reading_modules() /
+# _reading_modules() ниже инициализируют singleton при первом вызове.
+_READING_MODULES = None
+
+
+def _ensure_reading_modules():
+    """Загружает модули системы чтения (provenance, domain_dict, resolver) из lab/."""
+    global _READING_MODULES
+    if _READING_MODULES is not None:
+        return _READING_MODULES
+    lab_path = os.path.join(CODE, "lab")
+    if lab_path not in sys.path:
+        sys.path.insert(0, lab_path)
+    try:
+        from g2p_provenance import ReadingSource, ReadingCandidate
+        from domain_dict import DomainDictionary, ReadingSource as _RS2
+        from g2p_resolver import ReadingResolver
+        from g2p_candidates import CandidateGenerator
+        try:
+            from haqumei import Haqumei
+            h = Haqumei(revert_long_vowels=True, revert_yotsugana=True)
+        except Exception:
+            h = None
+        try:
+            from sudachi_g2p import sudachi_client as _sc
+        except Exception:
+            _sc = None
+        dd = DomainDictionary()
+        gen = CandidateGenerator(domain_dict=dd, haqumei=h, sudachi_client=_sc)
+        resolver = ReadingResolver(domain_dict=dd, generator=gen)
+        _READING_MODULES = {
+            "ReadingSource": ReadingSource,
+            "ReadingCandidate": ReadingCandidate,
+            "domain_dict": dd,
+            "resolver": resolver,
+        }
+    except Exception as e:
+        _READING_MODULES = {"_error": str(e)}
+    return _READING_MODULES
+
 # ------------------------------------------------------------------ константы
 # CODE  — папка самого инструмента (этот скрипт, voices.json).
 # ENGINE — папка установленного GPT-SoVITS (runtime\python.exe, api_v2.py, веса).
@@ -84,7 +126,8 @@ DEFAULT_START_CONFIG = os.path.join("GPT_SoVITS", "configs", "tts_infer.yaml")
 DEFAULT_FIELDS = {
     "sentence_src": "Sentence",        # поле с текстом предложения
     "sentence_audio": "SentenceAudio",  # поле, куда писать звук предложения
-    "word_src": "Expression",          # поле со словом (понимает фуригану)
+    "word_src": "Expression",          # поле со словом (основное слово карточки)
+    "furigana_src": "ExpressionFurigana",  # поле с фуриганой к основному слову
     "word_audio": "ExpressionAudio",   # поле, куда писать звук слова
     "reading": "off",                    # источник чтения: "off" — не подставлять
                                         # (движок читает само), имя поля — строго из него
@@ -998,23 +1041,78 @@ def _g2p_core(text):
     return res
 
 
-def g2p_kana(text):
-    """Иероглифы -> катакана: ядро Haqumei, запасная цепочка Sudachi/pyopenjtalk.
+def g2p_kana(text, furigana_map=None):
+    """Иероглифы -> катану: ядро Haqumei + резолвер с доменным словарём.
 
     Первый ход — ядро (g2p_core.py, Haqumei): слово читается В КОНТЕКСТЕ
-    ПРЕДЛОЖЕНИЯ, словарь Haqumei свежий и широкий (высокая точность на
-    живом корпусе ROHAN). Ядро возвращает слова с позициями — в текст
-    подставляются только чтения иероглифовых кусков, всё остальное
-    (хирагана, знаки, латиница) проходит как есть.
+    ПРЕДЛОЖЕНИЯ. Затем накладываются переопределения:
+      1. furigana_map — чтение из ExpressionFurigana (Опция 1, источник истины,
+         если прошло валидацию);
+      2. доменный словарь из колод (Опция 2, записанные пользователем чтения);
+      3. Haqumei pron (контекстная произносительная форма);
+      4. резерв Sudachi / pyopenjtalk.
 
-    Запасная цепочка (если ядро недоступно или ответ неполный):
-      * Sudachi по словарю — чтение морфемы (欠き -> カキ);
-      * pyopenjtalk — слова без чтения в Sudachi и цифры (Sudachi читает
-        числа как даты: 2024 -> 二月二日, а Open JTalk — как числа).
-    Хирагана/катакана и знаки проходят как есть — их g2p не трогает
-    (в отличие от старого пути «весь текст через MeCab», который мог
-    переписать частицы).
+    Параметр furigana_map: dict {поверхность_слова: чтение_из_фуриганы}.
+    Используется при импорте карточек (Опция 1). При отсутствии — работает
+    чистый автомат (Опция 2).
+
+    Хирагана/катакана и знаки проходят как есть — их g2p не трогает.
     """
+    mods = _ensure_reading_modules()
+    if mods is not None and "_error" not in mods:
+        domain_dict = mods["domain_dict"]
+        core = core_client()
+        if core is not None:
+            words = core.reads(text)
+            if words:
+                out = []
+                pos = 0
+                completed = True
+                for w in words:
+                    word, read, s, e = w[0], w[1], int(w[2]), int(w[3])
+                    if not (0 <= pos <= s <= e <= len(text)):
+                        completed = False
+                        break                     # позиции вышли за текст
+                    if s > pos:                   # пропуск между словами
+                        gap = text[pos:s]
+                        if KANJI_RE.search(gap):
+                            completed = False
+                            break                 # пропущен кусок с иероглифами
+                        out.append(gap)
+                    surface = text[s:e]           # исходный текст
+                    if KANJI_RE.search(surface):
+                        # 1. Фуригана (Опция 1) — источник истины, если валидна
+                        furi = furigana_map.get(surface) if furigana_map else None
+                        if furi:
+                            out.append(_normalize_furigana(furi))
+                        # 2. Доменный словарь (Опция 2) — записанные чтения
+                        elif domain_dict is not None:
+                            entry = domain_dict.lookup(surface)
+                            if entry:
+                                out.append(entry.reading)
+                            else:
+                                # 3. Чтение из ядра (уже содержит pron/сандхи
+                                #    из контекста целого предложения)
+                                out.append(read if read else surface)
+                        else:
+                            out.append(read if read else surface)
+                    elif any(c.isdigit() for c in surface):
+                        out.append(read or _pyopenjtalk_g2p(surface))
+                    elif _KATA_ONLY.match(surface) and word != surface and \
+                            _KATA_ONLY.match(word or ""):
+                        out.append(word)            # ляпсус словаря катаканой
+                    else:
+                        out.append(surface)         # кана/знаки/латиница — как есть
+                    pos = e
+                if completed:
+                    tail = text[pos:]
+                    if not KANJI_RE.search(tail):
+                        out.append(tail)
+                    res = "".join(out)
+                    if any(c.isdigit() for c in res):
+                        res = _pyopenjtalk_g2p(res)  # цифры внутри чтения
+                    return res
+    # Fallback: исходный _g2p_core без резолвера
     res = _g2p_core(text)
     if res is not None:
         return res
@@ -1039,8 +1137,6 @@ def g2p_kana(text):
         elif any(c.isdigit() for c in s):
             out.append(_pyopenjtalk_g2p(s))
         else:
-            # катакановые ляпсусы словаря сглаживаем: シュミレーション
-            # -> シミュレーション (только если нормализация — чистая катакана)
             if nf != s and _KATA_ONLY.match(s or "") and _KATA_ONLY.match(nf):
                 s = nf
             out.append(s)
@@ -1050,7 +1146,7 @@ def g2p_kana(text):
     return res
 
 
-def kanaize(text):
+def kanaize(text, furigana_map=None):
     """Текст -> хирагана: NFKC -> словарь -> латиница катаканой -> сегменты
     -> g2p только иероглифы -> хирагана.
 
@@ -1075,6 +1171,15 @@ def kanaize(text):
     Результат кэшируется: одни и те же слова повторяются между карточками,
     а g2p (MeCab) — самая дорогая часть конвейера.
     """
+    if furigana_map is not None:
+        # Не кэшируем, когда есть внешние переопределения фуриганы
+        t = normalize_text(text)
+        t = latin2kana(t)
+        if KANJI_RE.search(t):
+            t = g2p_kana(t, furigana_map=furigana_map)
+        result = kata2hira(t, keep_kata=_KEEP_KATA).strip()
+        return result
+
     hit = _KANA_CACHE.get(text)
     if hit is not None:
         return hit
@@ -1089,6 +1194,130 @@ def kanaize(text):
         _KANA_CACHE.clear()          # раздуваться бесконечно не даём
     _KANA_CACHE[text] = result
     return result
+
+
+def _normalize_furigana(furigana: str) -> str:
+    """Привести фуригану из хирагены в катану для сравнения с чтениями движков."""
+    out = []
+    for c in furigana:
+        o = ord(c)
+        if 0x3041 <= o <= 0x3096:  # хирагана -> катакана (+0x60)
+            out.append(chr(o + 0x60))
+        else:
+            out.append(c)
+    return "".join(out)
+
+
+def kanaize_card(text, expression=None, furigana=None):
+    """
+    Текст карточки -> хирагана с приоритетом фуриганы для основного слова.
+
+    Параметры:
+      text      — текст предложения (Sentence)
+      expression — основное слово карточки (Expression)
+      furigana  — фуригана к основному слову (ExpressionFurigana), в хирагене
+
+    Логика:
+      * Основное слово (expression) читается строго по furigana — это
+        проверенное эталонное чтение, его не угадываем через Haqumei/Sudachi.
+      * Все остальные слова читаются автоматически (как kanaize).
+      * Если expression или furigana пустые — работает как обычный kanaize.
+
+    Не кэшируется (разные карточки — разные фуриганы).
+    """
+    if not expression or not furigana:
+        return kanaize(text)
+
+    # Нормализуем оба текста одинаково, чтобы сравнение surface == expression
+    # работало корректно. Фуригана приходит в хирагене — конвертируем в катану,
+    # чтобы читалось движком TTS.
+    norm_expr = normalize_text(expression)
+    norm_furi = _normalize_furigana(furigana.strip())
+
+    # Сначала пропускаем через kanaize без фуриганы, чтобы получить базовое
+    # чтение для всех слов (включая основное автоматически)
+    base = kanaize(text)
+
+    # Если в тексте нет иероглифов — возвращаем базовый вариант
+    if not KANJI_RE.search(text):
+        return base
+
+    # Пересобираем через core с позициями, подставляя furigana вместо
+    # автоматического чтения основного слова
+    mods = _ensure_reading_modules()
+    core = core_client()
+    if core is not None:
+        t = normalize_text(text)
+        t = latin2kana(t)
+        words = core.reads(t)
+        if words:
+            out = []
+            pos = 0
+            for w in words:
+                word, read, s, e = w[0], w[1], int(w[2]), int(w[3])
+                if not (0 <= pos <= s <= e <= len(t)):
+                    break
+                if s > pos:
+                    gap = t[pos:s]
+                    if KANJI_RE.search(gap):
+                        break
+                    out.append(gap)
+                surface = t[s:e]
+                if KANJI_RE.search(surface):
+                    if surface == norm_expr:
+                        # Основное слово — читаем строго по фуригане
+                        out.append(norm_furi)
+                    else:
+                        out.append(read if read else surface)
+                elif any(c.isdigit() for c in surface):
+                    out.append(read or _pyopenjtalk_g2p(surface))
+                elif _KATA_ONLY.match(surface) and word != surface and \
+                        _KATA_ONLY.match(word or ""):
+                    out.append(word)
+                else:
+                    out.append(surface)
+                pos = e
+            else:
+                # Все слова обработаны без break
+                tail = t[pos:]
+                if not KANJI_RE.search(tail):
+                    out.append(tail)
+                return kata2hira("".join(out), keep_kata=_KEEP_KATA).strip()
+
+    # Fallback — обычный kanaize
+    return base
+
+
+def kanaize_from_fields(text, fields=None, field_names=None):
+    """
+    Текст карточки -> хирагана с приоритетом фуриганы для основного слова,
+    где expression и furigana берутся из полей карточки.
+
+    Параметры:
+      text       — текст предложения (Sentence)
+      fields     — dict с полями карточки (expression, furigana и т.д.)
+      field_names — набор имён полей. Если не задан, берутся из DEFAULT_FIELDS:
+                    word_src -> поле с основным словом
+                    furigana_src -> поле с фуриганой
+
+    Логика:
+      * Основное слово читается строго по furigana из указанного поля.
+      * Все остальные слова читаются автоматически.
+      * Если поля не найдены или пустые — работает как обычный kanaize.
+    """
+    if field_names is None:
+        field_names = DEFAULT_FIELDS
+
+    if fields is None:
+        return kanaize(text)
+
+    expression = fields.get(field_names.get("word_src", "Expression"), "")
+    furigana = fields.get(field_names.get("furigana_src", "ExpressionFurigana"), "")
+
+    if not expression or not furigana:
+        return kanaize(text)
+
+    return kanaize_card(text, expression=expression, furigana=furigana)
 
 
 _KANA_CACHE = {}
