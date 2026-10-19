@@ -432,17 +432,29 @@ def scan_engine_voices(engine):
     return out
 
 
+def _gpt_identity(path):
+    """Путь к весам без номера эпохи — для узнавания уже известного голоса.
+
+    'GPT_weights_v2ProPlus/Narator-e45.ckpt' и '.../Narator-e50.ckpt' —
+    это один и тот же голос (просто разные эпохи), а не два разных.
+    Сравнение по точному пути давало дубли с пустым референсом.
+    """
+    p = str(path or "").lower().replace("\\", "/")
+    return re.sub(r"[-_]e\d+(_s\d+)?\.(ckpt|pth)$", r".\2", p)
+
+
 def cmd_scan(args):
     engine = require_engine()
     found = scan_engine_voices(engine)
     cfg = load_voices()
     existing = cfg.setdefault("voices", {})
-    known_gpt = {str(v.get("gpt", "")).lower().replace("\\", "/")
-                 for v in existing.values()}
+    known_gpt = {_gpt_identity(v.get("gpt", "")) for v in existing.values()}
     added = []
     for item in found:
-        if item["gpt"].lower() in known_gpt:
-            continue                      # голос уже зарегистрирован (иначе ключей)
+        # голос уже зарегистрирован (иначе ключей) — в т.ч. той же модели,
+        # но с другой эпохой: дубликаты с пустым референсом не нужны
+        if _gpt_identity(item["gpt"]) in known_gpt:
+            continue
         existing[item["name"]] = {
             "display": item["display"],
             "gpt": item["gpt"],
@@ -452,7 +464,7 @@ def cmd_scan(args):
             "prompt_text": "",
             "prompt_lang": "ja",
         }
-        known_gpt.add(item["gpt"].lower())
+        known_gpt.add(_gpt_identity(item["gpt"]))
         added.append(item["name"])
     if added and args.apply:
         save_voices(cfg)

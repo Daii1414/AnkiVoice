@@ -806,8 +806,9 @@ def run_gui(open_tab=None):
             tk.Label(frm_path, text="GPT-SoVITS", font=F_SECT, bg=C["page"],
                      fg=C["text"]).pack(side="left", padx=(0, 12))
             self.var_path = tk.StringVar()
-            ttk.Entry(frm_path, textvariable=self.var_path).pack(
-                side="left", fill="x", expand=True)
+            ent_path = ttk.Entry(frm_path, textvariable=self.var_path)
+            ent_path.pack(side="left", fill="x", expand=True)
+            self._add_edit_menu(ent_path)
             ttk.Button(frm_path, text="Обзор…", command=self.browse_path
                        ).pack(side="left", padx=(8, 0))
             ttk.Button(frm_path, text="Проверить", command=self.check_path
@@ -876,11 +877,15 @@ def run_gui(open_tab=None):
             tk.Label(body, text="Файл", font=F_BODY, bg=C["card"], fg=C["text"]
                      ).grid(row=0, column=0, sticky="w", padx=(0, 10))
             self.var_ref = tk.StringVar()
-            ttk.Entry(body, textvariable=self.var_ref).grid(row=0, column=1, sticky="we")
+            ent_ref = ttk.Entry(body, textvariable=self.var_ref)
+            ent_ref.grid(row=0, column=1, sticky="we")
+            self._add_edit_menu(ent_ref)
             ttk.Button(body, text="Обзор…", command=self.browse_ref
                        ).grid(row=0, column=2, padx=(8, 0))
+            ttk.Button(body, text="⎘", width=3, command=self.paste_ref_path,
+                       ).grid(row=0, column=3, padx=(4, 0))
             ttk.Button(body, text="▶", width=3, command=self.play_ref,
-                       style="Accent.TButton").grid(row=0, column=3, padx=(4, 0))
+                       style="Accent.TButton").grid(row=0, column=4, padx=(4, 0))
 
             tk.Label(body, text="Текст\nреференса", font=F_SMALL, bg=C["card"],
                      fg=C["sub"]).grid(row=1, column=0, sticky="nw",
@@ -892,6 +897,8 @@ def run_gui(open_tab=None):
                 highlightcolor=C["accent"], padx=8, pady=6, spacing1=2, spacing3=2)
             self.txt_prompt.grid(row=1, column=1, columnspan=3, sticky="we",
                                  pady=(12, 0))
+            # правая кнопка мыши -> «Вставить» (в tkinter меню по умолчанию нет)
+            self._add_edit_menu(self.txt_prompt)
 
             tk.Label(body, text="Язык", font=F_BODY, bg=C["card"], fg=C["text"]
                      ).grid(row=2, column=0, sticky="w", padx=(0, 10), pady=(12, 0))
@@ -1329,7 +1336,12 @@ def run_gui(open_tab=None):
             self.var_topk.set(int(v.get("top_k", DEFAULT_SAMPLING["top_k"])))
             self.var_speed.set(float(v.get("speed", 1.0)))
             self.var_seed.set(str(v.get("seed", 42)))
-            self.var_noref.set(not (v.get("prompt_text") or "").strip())
+            # Пустой текст НЕ блокирует поле: раньше это ставило галку
+            # «Без текста референса» и переводило поле в disabled —
+            # в заблокированное поле невозможно было вставить текст.
+            # Незаполненное поле сохраняется как "" (тот же результат,
+            # что и при включённой галке), поэтому просто оставляем ввод.
+            self.var_noref.set(False)
             self._toggle_noref()
             self.var_voice_status.set("Голос: %s" % (v.get("display") or name))
 
@@ -1346,6 +1358,110 @@ def run_gui(open_tab=None):
                 self.txt_prompt.configure(state="disabled")
             else:
                 self.txt_prompt.configure(state="normal")
+
+        def _add_edit_menu(self, w):
+            """Правая кнопка мыши: Вырезать/Копировать/Вставить/Выделить всё.
+
+            В tkinter контекстного меню по умолчанию нет — без этого вставка
+            правой кнопкой невозможна.  Работает и для Text, и для Entry.
+            """
+            is_text = isinstance(w, (tk.Text, scrolledtext.ScrolledText))
+            m = tk.Menu(w, tearoff=0, bg=C["input"], fg=C["text"],
+                        activebackground=C["accent"], activeforeground=C["text"],
+                        font=F_BODY, borderwidth=0)
+
+            def state_ok():
+                # в заблокированном поле команды неактивны
+                try:
+                    return str(w.cget("state")) != "disabled"
+                except Exception:
+                    return True
+
+            def cut():
+                if not state_ok():
+                    return
+                if is_text:
+                    w.event_generate("<<Cut>>")
+                else:
+                    try:
+                        sel = w.selection_get()
+                        w.delete("sel.first", "sel.last")
+                        w.insert("insert", "")
+                        w.icursor("insert")
+                    except Exception:
+                        pass
+
+            def copy():
+                try:
+                    if is_text:
+                        w.event_generate("<<Copy>>")
+                    else:
+                        sel = w.selection_get()
+                        w.clipboard_clear()
+                        w.clipboard_append(sel)
+                except Exception:
+                    pass
+
+            def paste():
+                if not state_ok():
+                    return
+                try:
+                    if is_text:
+                        w.event_generate("<<Paste>>")
+                    else:
+                        t = w.clipboard_get()
+                        try:
+                            w.delete("sel.first", "sel.last")
+                        except Exception:
+                            pass
+                        w.insert("insert", t)
+                except Exception:
+                    pass
+
+            def select_all():
+                try:
+                    if is_text:
+                        w.tag_add("sel", "1.0", "end-1c")
+                    else:
+                        w.selection_range(0, "end")
+                except Exception:
+                    pass
+
+            def clear():
+                if not state_ok():
+                    return
+                if is_text:
+                    w.delete("1.0", "end")
+                else:
+                    w.delete(0, "end")
+
+            m.add_command(label="Вырезать    Ctrl+X", command=cut)
+            m.add_command(label="Копировать  Ctrl+C", command=copy)
+            m.add_command(label="Вставить    Ctrl+V", command=paste)
+            m.add_separator()
+            m.add_command(label="Выделить всё  Ctrl+A", command=select_all)
+            m.add_command(label="Очистить", command=clear)
+
+            def show(e):
+                # снять выделение не надо — просто показать меню
+                m.tk_popup(e.x_root, e.y_root)
+                return "break"
+
+            w.bind("<Button-3>", show)
+            w.bind("<Control-a>", lambda e: (select_all(), "break"))
+            return m
+
+        def paste_ref_path(self):
+            """Кнопка «Вставить»: подставить путь референса из буфера обмена."""
+            try:
+                t = (self.clipboard_get() or "").strip().strip('"')
+            except Exception:
+                t = ""
+            if not t:
+                messagebox.showinfo(APP_NAME, "Буфер обмена пуст.\n"
+                                    "Скопируй путь к файлу в проводнике (Ctrl+C).")
+                return
+            self.var_ref.set(t)
 
         def _refresh_aux_list(self):
             self.lst_aux.delete(0, "end")
@@ -1596,10 +1712,30 @@ def run_gui(open_tab=None):
         def start_voice(self):
             if self._busy():
                 return
-            path = self.var_path.get().strip()
-            if not validate_gptsovits(path):
-                messagebox.showerror(APP_NAME, "Проверь папку GPT-SoVITS.")
-                return
+            path = self.var_path.get().strip().strip('"').strip()
+            if path:
+                self.var_path.set(path)      # кавычки/пробелы из буфера не мешают
+            problems = validate_gptsovits(path)
+            if problems:
+                # говорим ЧТО не так, а не просто «проверь папку»
+                auto = find_gptsovits_automatic()
+                msg = "Папка GPT-SoVITS не подходит:\n\n" + \
+                      "\n".join("  • " + p for p in problems)
+                if auto and os.path.normcase(auto) != os.path.normcase(path):
+                    msg += ("\n\nНо папка найдена автоматически:\n  %s\n\n"
+                            "Нажми «Да», чтобы подставить её." % auto)
+                    if messagebox.askyesno(APP_NAME, msg):
+                        self.var_path.set(auto)
+                        self._apply_path()
+                        path = auto
+                    else:
+                        return
+                else:
+                    msg += "\n\nУкажи её кнопкой «Обзор…» рядом с полем."
+                    messagebox.showerror(APP_NAME, msg)
+                    return
+            else:
+                auto = None
             voice = self._selected_voice()
             if not voice:
                 messagebox.showerror(APP_NAME, "Выбери голос (вкладка «Голос»).")

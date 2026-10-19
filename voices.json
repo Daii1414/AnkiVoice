@@ -82,6 +82,15 @@
       "aux": [],
       "prompt_text": "",
       "prompt_lang": "ja"
+    },
+    "hayane": {
+      "display": "Hayane · v2Pro+",
+      "gpt": "GPT_weights_v2ProPlus/Hayane-e50.ckpt",
+      "sovits": "SoVITS_weights_v2ProPlus/Hayane_e24_s2352.pth",
+      "ref": "",
+      "aux": [],
+      "prompt_text": "",
+      "prompt_lang": "ja"
     }
   }
 }
