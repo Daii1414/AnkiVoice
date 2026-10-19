@@ -1574,7 +1574,92 @@ def _synth_is_sane(text, dur, sounding):
     return True
 
 
-def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True):
+# ------------------------------------------------- многосигнальная проверка
+_QC_V2 = {"state": "unset"}              # "unset" -> "ok"/"none"
+
+
+def _qc_v2_module():
+    """lab/quality_v2 — независимый анализатор (долгое молчание, разрывы
+    внутри речи, дубль речи, обрезка, уровень, скорость мор/с).
+
+    Лениво и с откатом: если lab/ недоступен (например, собранный .exe без
+    исходников) или модуль не импортируется, остаётся старый простой
+    критерий _synth_is_sane.
+    """
+    if _QC_V2["state"] != "unset":
+        return _QC_V2.get("mod")
+    try:
+        lab = os.path.join(CODE, "lab")
+        if lab not in sys.path:
+            sys.path.append(lab)
+        import quality_v2 as q2
+        _QC_V2["mod"] = q2
+        _QC_V2["state"] = "ok"
+    except Exception as e:
+        if os.environ.get("AV_DEBUG_QC"):
+            print("  [qc] quality_v2 недоступен: %r" % (e,))
+        _QC_V2["mod"] = None
+        _QC_V2["state"] = "none"
+    return _QC_V2["mod"]
+
+
+def _check_audio(blob, ext, text):
+    """(список сигналов, годен ли файл). Сигналы — для лога.
+
+    Возвращает ([], True), если разобрать не удалось: не мешаем работе,
+    но однократно предупреждаем — качество тогда не контролируется.
+    """
+    q2 = _qc_v2_module()
+    if q2 is None:
+        dur, snd = audio_stats(blob, ext)
+        return ([], True) if _synth_is_sane(text, dur, snd) else (["тишина"], False)
+    ff = q2.ffmpeg_exe(ENGINE)
+    if not ff:
+        return ([], True)                   # некому проверить — не мешаем
+    m = q2.analyze(blob, ff)
+    if not m.get("ok"):
+        # ffmpeg есть, а файл не декодируется — битый ответ сервера
+        return (["не декодируется"], False)
+    sigs, is_bad = q2.verdict(m, text)
+    return sigs, not is_bad
+
+
+# Куда складывать отбракованный звук (чтобы можно было послушать и
+# проверить: правильно ли детектор отклонил). Отключается AV_QC_KEEP=0.
+QC_REJECT_DIR = os.path.join(CODE, "lab", "rejected")
+
+
+def keep_rejected(blob, ext, text, sigs, attempt, meta=None):
+    """Сохранить отбракованный файл + запись в index.jsonl.
+
+    Возвращает (имя_файла, причины) либо (None, причины), если сохранить
+    не удалось. Ошибка сохранения никогда не должна ломать озвучку.
+    """
+    if os.environ.get("AV_QC_KEEP", "1") == "0":
+        return None, sigs
+    try:
+        os.makedirs(QC_REJECT_DIR, exist_ok=True)
+        h = hashlib.sha1(("v2|%s|%d" % (text, attempt)).encode("utf-8")
+                         ).hexdigest()[:10]
+        name = "rej_%s_%s.%s" % (time.strftime("%Y%m%d_%H%M%S"), h, ext)
+        path = os.path.join(QC_REJECT_DIR, name)
+        with open(path, "wb") as f:
+            f.write(blob)
+        rec = {"file": name, "text": text, "reasons": list(sigs),
+               "attempt": attempt, "at": time.strftime("%Y-%m-%d %H:%M:%S")}
+        if meta:
+            rec.update(meta)
+        with open(os.path.join(QC_REJECT_DIR, "index.jsonl"), "a",
+                  encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        return name, sigs
+    except Exception as e:
+        if os.environ.get("AV_DEBUG_QC"):
+            print("  [qc] не смог сохранить брак: %r" % (e,))
+        return None, sigs
+
+
+def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True, **overrides):
     # Sampling defaults follow the official GPT-SoVITS webui (calmer than the raw
     # API defaults of temperature=1.0 / top_p=1.0, which sound over-expressive).
     # Any of these can be overridden per voice in voices.json.
@@ -1595,6 +1680,7 @@ def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True):
         "top_p": float(v.get("top_p", 0.6)),
         "top_k": int(v.get("top_k", 20)),
     }
+    payload.update(overrides)           # переопределения из стратегий спасения
 
     def post(media_type):
         payload["media_type"] = media_type
@@ -1645,12 +1731,17 @@ def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True):
     return blob, "ogg" if payload["media_type"] == "ogg" else "wav"
 
 
-# схема спасения мусорного синтеза: (что менять, что печатать)
+# схема спасения брака: (зарезервировано, подпись, что печатать в логе).
+# В synth() стратегия выбирается по подписи: сид -> температура ->
+# без промпта -> без промпта+сид -> другая разбивка -> без промпта+разбивка.
 _QC_ATTEMPTS = (
-    (None,      "сид",            "повторяю с другим сидом..."),
-    (None,      "сид+температура", "пробую с температурой 0.8..."),
-    ("noref",   "без промпта",    "пробую без текста референса..."),
-    ("noref2",  "без промпта+сид", "пробую без промпта и с другим сидом..."),
+    (None,    "сид",               "повторяю с другим сидом..."),
+    (None,    "сид+температура",   "пробую с температурой 0.8..."),
+    ("noref", "без промпта",       "пробую без текста референса..."),
+    ("noref2", "без промпта+сид",  "пробую без промпта и с другим сидом..."),
+    ("split0", "другая разбивка",  "пробую без разбиения текста на куски..."),
+    ("nrefs0", "без промпта+разбивка",
+     "пробую без промпта и без разбиения..."),
 )
 
 
@@ -1668,11 +1759,18 @@ def synth(v, text, seed=42, speed=1.0, _oom_retry=True):
     Не помогло — ошибка, карточка остаётся неозвученной и видна в отчёте.
     """
     v_prompt = v.get("prompt_text", "")
+    # Текста для чтения нет (только пунктуация, пробелы, ссылки на медиа) —
+    # сервер всё равно откажет «有効なテキст...», а 6 попыток и FAIL в отчёте
+    # будут лишь шумом. Это не ошибка озвучки, а пустая карточка.
+    q2 = _qc_v2_module()
+    if q2 is not None and q2.sound_chars(text) == 0:
+        print("  [%s] нечего озвучивать — пропускаю" % text[:24])
+        raise SystemExit("пустой текст: озвучивать нечего")
     tried = 0
     for _, what, msg in ((None, None, None),) + _QC_ATTEMPTS:
         if tried:
             print("  [%s] %s: %s" % (text[:24], what, msg))
-        s, tv, nv = seed, v, v_prompt
+        s, tv, nv, extra = seed, v, v_prompt, {}
         if what == "сид":
             s = seed + tried * 7 + 1
         elif what == "сид+температура":
@@ -1682,24 +1780,31 @@ def synth(v, text, seed=42, speed=1.0, _oom_retry=True):
         elif what == "без промпта+сид":
             nv = ""
             s = seed + tried * 13 + 3
+        elif what == "другая разбивка":
+            extra = {"text_split_method": "cut0"}
+        elif what == "без промпта+разбивка":
+            nv = ""
+            extra = {"text_split_method": "cut0"}
         tv = dict(tv)
         if nv == "":
             tv["prompt_text"] = ""
         blob, ext = _synth_once(tv, text, seed=s, speed=speed,
-                                _oom_retry=_oom_retry)
-        dur, sounding = audio_stats(blob, ext)
-        if dur == 0.0 and sounding == 0.0 and not _QC_BLIND[0]:
-            _QC_BLIND[0] = True
-            print("  ! проверить звук не удалось (нет ffmpeg) — "
-                  "качество не контролируется")
-        if _synth_is_sane(text, dur, sounding):
+                                _oom_retry=_oom_retry, **extra)
+        sigs, ok = _check_audio(blob, ext, text)
+        if ok:
             return blob, ext
+        if not _QC_BLIND[0] and not sigs:
+            _QC_BLIND[0] = True
+            print("  ! проверить звук не удалось — качество не контролируется")
         tried += 1
-        print("  [%s] мусор: %.1f с файла, речь %.1f с%s"
-              % (text[:24], dur, sounding,
-                 "" if msg is None else " — " + msg))
-    raise SystemExit("после %d попыток синтез даёт тишину вместо речи — "
-                     "карточка пропущена" % tried)
+        kept, _ = keep_rejected(blob, ext, text, sigs, tried,
+                                meta={"strategy": what or "сид(по умолчанию)"})
+        print("  [%s] брак: %s%s%s"
+              % (text[:24], ", ".join(sigs) or "пустой ответ",
+                 "" if msg is None else " — " + msg,
+                 "" if kept is None else "  [сохранён: %s]" % kept))
+    raise SystemExit("после %d попыток синтез даёт брак — карточка пропущена"
+                     % tried)
 
 
 def media_name(nid, field, text, ext, voice):
@@ -1731,6 +1836,19 @@ def word_text(note, word_src, reading=""):
     return plain(note["fields"].get(word_src, {}).get("value", ""), strip_media=True)
 
 
+def _speakable(text):
+    """Есть ли в тексте хотя бы один звуковой знак.
+
+    «！？…» или поле, состоящее из ссылок на медиа, — синтезировать нечего:
+    сервер откажет, а 6 попыток и FAIL в отчёте будут лишь шумом. Если
+    quality_v2 недоступен (собранный .exe), возвращаем True — не мешаем.
+    """
+    q2 = _qc_v2_module()
+    if q2 is None:
+        return True
+    return q2.sound_chars(text) > 0
+
+
 def build_jobs(notes, mode, force, fields=None):
     fields = fields or DEFAULT_FIELDS
     jobs = []
@@ -1756,9 +1874,10 @@ def build_jobs(notes, mode, force, fields=None):
                 #  формат AnkiConnect {"value": ...})
                 flat = {k: plain(v.get("value", ""))
                         for k, v in f.items() if isinstance(v, dict)}
-                jobs.append((n["noteId"], fields["sentence_audio"],
-                             kanaize_from_fields(text, fields=flat,
-                                                 field_names=fields)))
+                text = kanaize_from_fields(text, fields=flat, field_names=fields)
+                if not _speakable(text):        # только пунктуация и медиа
+                    continue
+                jobs.append((n["noteId"], fields["sentence_audio"], text))
         if mode in ("expression", "both"):
             text = word_text(n, fields["word_src"], reading=fields.get("reading", ""))
             if text and (force or not tgt(fields["word_audio"])):
@@ -1767,8 +1886,10 @@ def build_jobs(notes, mode, force, fields=None):
                                        {}).get("value", ""))
                 expression = plain(f.get(fields.get("word_src", "Expression"),
                                          {}).get("value", ""))
-                jobs.append((n["noteId"], fields["word_audio"],
-                             kanaize_card(text, expression=expression, furigana=furigana)))
+                text = kanaize_card(text, expression=expression, furigana=furigana)
+                if not _speakable(text):        # только пунктуация и медиа
+                    continue
+                jobs.append((n["noteId"], fields["word_audio"], text))
     return jobs
 
 
@@ -2020,6 +2141,94 @@ def cmd_make_deck(args):
                 seed=args.seed, speed=args.speed, fields=fields)
     print("\n=== Проверка ===")
     check_deck(to_deck, fields=fields)
+
+
+def cmd_qc_deck(args):
+    """Собрать отбракованный синтез в отдельную колоду Anki.
+
+    Зачем: детектор отклоняет файл и выбрасывает его — а чтобы судить,
+    правильно ли он отклонил, нужно ПОСЛУШАТЬ. Здесь каждая отбракованная
+    попытка становится карточкой: сверху текст, под ним причины и стратегия,
+    внизу само аудио.
+
+    Карточки помечены тегом av_qc_reject и снабжены полем «Вердикт», куда
+    вы пишете своё решение («верно» / «ложное срабатывание») — это и есть
+    разметка для подстройки порогов.
+    """
+    d = QC_REJECT_DIR
+    idx = os.path.join(d, "index.jsonl")
+    if not os.path.exists(idx):
+        raise SystemExit("Отбракованного звука нет: %s\n"
+                         "Сначала прогони озвучку — брак складывается туда "
+                         "автоматически." % idx)
+    recs = []
+    with open(idx, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    recs.append(json.loads(line))
+                except Exception:
+                    pass
+    if not recs:
+        raise SystemExit("index.jsonl пуст.")
+
+    deck = args.deck or "AnkiVoice_Брак"
+    ac("createDeck", deck=deck)
+
+    # Имя модели зависит от локали установки Anki: в русской сборке
+    # «Basic» называется «Простая». Ищем не по имени, а по строению —
+    # модель ровно с двумя полями Front/Back. Kiku (22 поля) брать нельзя:
+    # карточка брака сломается на обязательных полях.
+    models = ac("modelNames") or []
+    model = None
+    for m in models:
+        try:
+            flds_m = ac("modelFieldNames", modelName=m) or []
+        except Exception:
+            continue
+        if [x.lower() for x in flds_m] == ["front", "back"]:
+            model = m
+            break
+    if not model:
+        raise SystemExit("Нет модели с полями Front/Back (обычно «Простая»). "
+                         "Доступны: %s" % ", ".join(models[:12]))
+    flds = ac("modelFieldNames", modelName=model) or ["Front", "Back"]
+    front, back = flds[0], flds[-1]
+    print("модель: %s (%s)" % (model, ", ".join(flds)))
+    verdict_field = next((x for x in flds if x.lower() in
+                          ("вердикт", "verdict", "comment", "комментарий")), None)
+
+    made = skipped = 0
+    for r in recs:
+        fp = os.path.join(d, r["file"])
+        if not os.path.exists(fp):
+            skipped += 1
+            continue
+        with open(fp, "rb") as f:
+            blob = f.read()
+        stored = ac("storeMediaFile", filename=r["file"], overwrite=True,
+                    data=base64.b64encode(blob).decode("ascii"))
+        fname = stored or r["file"]
+        head = "【%d】%s" % (r["attempt"], r["text"] or "(пусто)")
+        body = ("Причина: %s\nСтратегия: %s\nФайл: %s (%.1f КБ)"
+                % ("; ".join(r["reasons"]) or "не указана",
+                   r.get("strategy", "?"), fname, len(blob) / 1024))
+        fields = {front: head,
+                  back: "%s\n\n[sound:%s]" % (body, fname)}
+        if verdict_field:
+            fields[verdict_field] = ""
+        ac("addNote", note={
+            "deckName": deck, "modelName": model, "fields": fields,
+            "options": {"allowDuplicate": False, "duplicateScope": "deck"},
+            "tags": ["av_qc_reject"],
+        })
+        made += 1
+    print("Колода '%s': добавлено %d карточек, пропущено (нет файла): %d"
+          % (deck, made, skipped))
+    print("Послушай каждую и впиши в поле «Вердикт»: «верно» либо "
+          "\"ложное срабатывание\" — по этим записям подстроятся пороги.")
+    return made
 
 
 def cmd_check(args):
@@ -2387,6 +2596,11 @@ def main():
 
     sub.add_parser("selftest", help="проверить файлы/референсы/Anki/сервер")
 
+    p = sub.add_parser("qc-deck", help="собрать отбракованный синтез в колоду Anki "
+                                       "(чтобы послушать и оценить детектор)")
+    p.add_argument("--deck", default="AnkiVoice_Брак",
+                   help="имя колоды (по умолчанию AnkiVoice_Брак)")
+
     args = ap.parse_args()
     if not args.cmd:
         menu()
@@ -2396,7 +2610,7 @@ def main():
         acquire_lock()
     result = {"list": cmd_list, "add": cmd_add, "serve": cmd_serve, "test": cmd_test,
               "clone": cmd_clone, "voice": cmd_voice, "make-deck": cmd_make_deck,
-              "check": cmd_check, "scan": cmd_scan,
+              "check": cmd_check, "scan": cmd_scan, "qc-deck": cmd_qc_deck,
               "selftest": cmd_selftest}[args.cmd](args)
     if args.cmd == "check" and result is False:
         sys.exit(1)

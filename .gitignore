@@ -34,3 +34,18 @@ pyruntime/
 
 # --- Релизные архивы (уходят на GitHub Releases, не в git) ---
 dist/
+
+# --- Отбракованный синтез (слушает пользователь, в git не нужен) ---
+lab/rejected/
+
+# --- Крупные дампы результатов прогонов ---
+lab/aozora/
+lab/pylibs/
+lab/rohan/
+lab/rohan_run.txt
+lab/rohan_run3.txt
+lab/bench_quality.json
+lab/quality_v2_report.json
+lab/silence_report.json
+lab/test_domain_dict.json
+lab/*.txt
