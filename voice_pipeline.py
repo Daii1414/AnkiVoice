@@ -1208,6 +1208,27 @@ def _normalize_furigana(furigana: str) -> str:
     return "".join(out)
 
 
+def _parse_furigana(furigana: str) -> str:
+    """
+    Извлечь чистую хирагану из поля фуриганы.
+
+    Поддерживаемые форматы:
+      * いけばな — чистая хирагана
+      * 生花[いけばな,せいか] — иероглиф + варианты чтения в скобках (берём первое)
+      * 今日[きょう,こんにち] — то же самое
+
+    Возвращает чистую хирагану (например, «いけばな», «きょう»).
+    """
+    furigana = furigana.strip()
+    if "[" in furigana:
+        # Берём первое чтение из скобок
+        inner = furigana.split("[", 1)[1]
+        inner = inner.split("]", 1)[0]
+        first = inner.split(",", 1)[0].strip()
+        return first
+    return furigana
+
+
 def kanaize_card(text, expression=None, furigana=None):
     """
     Текст карточки -> хирагана с приоритетом фуриганы для основного слова.
@@ -1229,10 +1250,10 @@ def kanaize_card(text, expression=None, furigana=None):
         return kanaize(text)
 
     # Нормализуем оба текста одинаково, чтобы сравнение surface == expression
-    # работало корректно. Фуригана приходит в хирагене — конвертируем в катану,
-    # чтобы читалось движком TTS.
+    # работало корректно. Фуригана приходит в хирагене (возможно с иероглифами
+    # и скобками: 生花[いけばна,せいか]) — парсим и конвертируем в катану.
     norm_expr = normalize_text(expression)
-    norm_furi = _normalize_furigana(furigana.strip())
+    norm_furi = _normalize_furigana(_parse_furigana(furigana.strip()))
 
     # Сначала пропускаем через kanaize без фуриганы, чтобы получить базовое
     # чтение для всех слов (включая основное автоматически)
