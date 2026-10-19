@@ -55,7 +55,7 @@ RTF **0.028** на RTX 4060 Ti и **0.014** на RTX 4090 (4 минуты реч
 
 ## Быстрый старт
 
-1. Скачай **`AnkiVoice-Setup-1.0.exe`** со страницы [Releases](../../releases) —
+1. Скачай **`AnkiVoice-Setup-1.1.exe`** со страницы [Releases](../../releases) —
    это один файл, в нём уже всё внутри.
 2. Запусти его: «Далее» → «Установить» → «Завершить»
    (галочка «Запустить AnkiVoice» включена — программа откроется сама).
@@ -262,7 +262,7 @@ set ENGINE=C:\Путь\К\GPT-SoVITS
 ISCC.exe AnkiVoice.iss
 ```
 
-→ получится `dist\AnkiVoice-Setup-1.0.exe`.
+→ получится `dist\AnkiVoice-Setup-1.1.exe`.
 
 ## Структура репозитория
 

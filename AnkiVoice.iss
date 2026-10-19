@@ -1,4 +1,4 @@
-﻿; -- AnkiVoice.iss -------------------------------------------------------------
+; -- AnkiVoice.iss -------------------------------------------------------------
 ; Сборка установщика AnkiVoice для Windows (Inno Setup 6).
 ;
 ;   Скомпилировать:  ISCC.exe AnkiVoice.iss
@@ -10,7 +10,7 @@
 ; а в Program Files обычный пользователь писать не может.
 
 #define MyAppName "AnkiVoice"
-#define MyAppVersion "1.0"
+#define MyAppVersion "1.1"
 #define MyAppPublisher "Daii1414"
 #define MyAppURL "https://github.com/Daii1414/AnkiVoice"
 #define MyFiles "E:\TTS-проект"
@@ -27,7 +27,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir={#MyFiles}\dist
-OutputBaseFilename=AnkiVoice-Setup-1.0
+OutputBaseFilename=AnkiVoice-Setup-1.1
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
