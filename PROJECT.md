@@ -38,7 +38,9 @@ Anki японскими голосами GPT-SoVITS. Код живёт в люб
 
 | Файл | Роль |
 |---|---|
-| `anki_gui.py` | GUI на tkinter: три вкладки, тёмная тема, лог; тонкая оболочка — только собирает аргументы и запускает пайплайн |
+| `anki_gui.py` | точка входа: по умолчанию поднимает веб-интерфейс, `--classic` — старое tkinter-окно; `doctor` — headless-диагностика |
+| `anki_web.py` | локальный HTTP-сервер интерфейса: только 127.0.0.1, stdlib `http.server`, SSE-поток лога; собирает те же аргументы CLI, что и tkinter-окно |
+| `anki_web_page.py` | HTML/CSS/JS страницы одним модулем; работает офлайн, без CDN и внешних библиотек |
 | `AnkiVoice.exe` | сборка `anki_gui.py` через PyInstaller (onefile/windowed); весит мало, потому что torch не входит в сборку |
 | `voice_pipeline.py` | **вся логика**: AnkiConnect, голоса, сервер, хирагана, подстановка чтения, синтез, запись звука |
 | `pipeline.bat` | консольная точка входа: без аргументов — интерактивное меню, с аргументами — команда |
@@ -50,7 +52,8 @@ Anki японскими голосами GPT-SoVITS. Код живёт в люб
 | `anki_tts.py` | старый одноразовый скрипт, оставлен для истории, не используется |
 
 Важное разделение: **exe запускает `voice_pipeline.py` с диска** — правки
-пайплайна действуют сразу, пересборка exe нужна только для `anki_gui.py`.
+пайплайна действуют сразу, пересборка exe нужна только для `anki_gui.py`,
+`anki_web.py` и `anki_web_page.py`.
 
 ---
 
@@ -104,6 +107,9 @@ AnkiConnect storeMediaFile → updateNoteFields → [sound:...]
 | `make-deck` | clone + voice + check одной командой |
 | `check --deck "…"` | сверка аудио-полей с медиатекой |
 | `selftest` | самопроверка окружения, exit 0/1 |
+| `anki_gui.py` | поднять веб-интерфейс и открыть страницу |
+| `anki_gui.py --no-open [--port N]` | то же без автозапуска браузера |
+| `anki_gui.py --classic` | старое tkinter-окно вместо веба |
 | `anki_gui.py doctor [--json]` | диагностика без интерфейса |
 
 ---
@@ -335,7 +341,9 @@ GPT-SoVITS хватает 3.9 — поэтому разбор идёт в сво
   + `pyopenjtalk` (MeCab) из окружения движка; чтение иероглифов —
   **встроенный SudachiPy 0.7.0 (движок sudachi.rs) + словарь UniDic core
   20261015** в своём Python 3.13 (`pyruntime\`, помощник `sudachi_g2p.py`);
-  GUI — `tkinter`/`ttk`; сборка — PyInstaller.
+  интерфейс — локальная веб-страница на stdlib `http.server`
+  (`anki_web.py`, только `127.0.0.1`, SSE для живого лога), опционально —
+  старое окно `tkinter`/`ttk` по флагу `--classic`; сборка — PyInstaller.
 * Порты: AnkiConnect `127.0.0.1:8765`, GPT-SoVITS API `127.0.0.1:9880`
   (заголовок `Origin` — `http://localhost`, но URL только `127.0.0.1` —
   иначе IPv6-резолв даёт задержку).

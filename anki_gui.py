@@ -1897,7 +1897,13 @@ def run_gui(open_tab=None):
 def main():
     ap = argparse.ArgumentParser(description=APP_NAME)
     ap.add_argument("--tab", default=None, choices=["voice", "anki", "final"],
-                    help="открыть окно сразу на указанной вкладке")
+                    help="открыть окно сразу на указанной вкладке (только --classic)")
+    ap.add_argument("--classic", action="store_true",
+                    help="старое tkinter-окно вместо веб-интерфейса")
+    ap.add_argument("--no-open", action="store_true",
+                    help="веб: не открывать браузер автоматически")
+    ap.add_argument("--port", type=int, default=0,
+                    help="веб: порт (0 — свободный автоматически)")
     sub = ap.add_subparsers(dest="cmd")
     d = sub.add_parser("doctor", help="диагностика без интерфейса")
     d.add_argument("--path", default=None, help="папка GPT-SoVITS")
@@ -1905,7 +1911,15 @@ def main():
     args = ap.parse_args()
     if args.cmd == "doctor":
         sys.exit(doctor(args.path, args.json))
-    run_gui(args.tab)
+    if args.classic:
+        run_gui(args.tab)
+        return
+    # основной режим — локальный веб-интерфейс (anki_web)
+    # sys.path явно: pyruntime собран с safe_path=True и папку скрипта
+    # в путь импорта сама не добавляет
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import anki_web
+    sys.exit(anki_web.serve(open_browser=not args.no_open, port=args.port))
 
 
 if __name__ == "__main__":

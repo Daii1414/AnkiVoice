@@ -1,0 +1,702 @@
+# -*- coding: utf-8 -*-
+"""anki_web.py — AnkiVoice: локальный веб-интерфейс пайплайна озвучки.
+
+Почему веб, а не tkinter:
+  * живой лог и прогресс потоком (SSE), без мёртвых надписей статуса;
+  * вкладки/карточки/тёмная тема рисует браузер — выглядит современно;
+  * выбор файлов и папок — модалка внутри страницы, работает везде;
+  * сервер слушает ТОЛЬКО 127.0.0.1 — наружу ничего не отдаётся.
+
+Сервер — только stdlib (http.server + threading). Вся работа (синтез, веса,
+AnkiConnect) выполняется тем же способом, что и в tkinter-окне: дочерним
+процессом voice_pipeline.py из папки GPT-SoVITS (см. anki_gui.pipeline_cmd).
+Ничего из логики синтеза здесь не дублируется.
+
+Запуск:
+    anki_web.py            — поднять сервер и открыть страницу в браузере
+    anki_web.py --no-open  — не открывать браузер (для отладки)
+"""
+
+import argparse
+import json
+import os
+import re
+import socket
+import sys
+import threading
+import time
+import urllib.parse
+import webbrowser
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+# pyruntime собран с safe_path=True: папка скрипта сама в sys.path не
+# добавляется. Без этой строки `import anki_gui` падает при любом способе
+# запуска — и из папки, и из замороженного exe.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import anki_gui as ag          # переиспользуем конфиг, AnkiConnect, запуск пайплайна
+from anki_web_page import HTML
+
+CREATE_NO_WINDOW = ag.CREATE_NO_WINDOW
+
+READING_OFF = "Не подставлять (движок сам)"
+
+
+# ============================================================ состояние запуска
+class Run(object):
+    """Один запущенный пайплайн: накапливает строки и прогресс."""
+
+    def __init__(self, title, args):
+        self.id = "%d" % int(time.time() * 1000)
+        self.title = title
+        self.args = list(args)
+        self.lines = []
+        self.cond = threading.Condition()
+        self.running = True
+        self.code = None
+        self.proc = None
+        self.total = None      # операций к озвучке (если пайплайн сообщил)
+        self.done_n = 0
+        self.failed = 0
+
+    def push(self, line):
+        self._note(line)
+        with self.cond:
+            self.lines.append(line)
+            self.cond.notify_all()
+
+    def _note(self, line):
+        m = re.search(r"К озвучке:\s*(\d+)", line)
+        if m:
+            self.total = int(m.group(1))
+        if line.startswith("OK   ["):
+            self.done_n += 1
+        elif line.startswith("FAIL ["):
+            self.failed += 1
+
+    def finish(self, code):
+        with self.cond:
+            self.running = False
+            self.code = code
+            self.cond.notify_all()
+
+    def snapshot(self):
+        return {
+            "id": self.id, "title": self.title, "args": self.args,
+            "running": self.running, "code": self.code,
+            "total": self.total, "done": self.done_n, "failed": self.failed,
+            "nlines": len(self.lines),
+        }
+
+
+STATE_LOCK = threading.Lock()
+CURRENT = None          # type: Run | None
+LAST_RUN = None         # последний завершённый — чтобы лог не пропадал
+
+
+def start_run(title, args, on_line=None):
+    """Запускает пайплайн. Возвращает (run, error)."""
+    global CURRENT, LAST_RUN
+    if not args:
+        return None, "Не собрались аргументы запуска — проверь выбор голоса и колоды."
+    cfg = ag.load_config()
+    path = (cfg.get("gptsovits_path") or "").strip()
+    if not path:
+        auto = ag.find_gptsovits_automatic()
+        if auto:
+            path = auto
+    if not path:
+        return None, "Не указана папка GPT-SoVITS — укажи её во вкладке «Приложение»."
+    problems = ag.validate_gptsovits(path)
+    if problems:
+        return None, "Папка GPT-SoVITS не подходит:\n  • " + "\n  • ".join(problems)
+
+    with STATE_LOCK:
+        if CURRENT and CURRENT.running:
+            return None, "Уже идёт операция «%s» — дождись её конца." % CURRENT.title
+        run = Run(title, args)
+        CURRENT = run
+
+    run.push("» " + " ".join(args))
+
+    def _line(line):
+        run.push(line)
+        if on_line:
+            on_line(line)
+
+    def _done(code):
+        # важно: присваивание во вложенной функции создаёт ЛОКАЛЬНУЮ
+        # переменную, если не объявить global здесь (global в start_run на
+        # эту вложенную функцию не действует) — и lastRun оставался None.
+        global LAST_RUN
+        run.finish(code)
+        LAST_RUN = run
+
+    try:
+        r = ag.pipeline_cmd(path, args, _line, _done)
+    except Exception as e:
+        run.finish(-1)
+        run.push("!! Ошибка запуска: %r" % (e,))
+        return None, "Не удалось запустить пайплайн: %r" % (e,)
+
+    with STATE_LOCK:
+        run.proc = r
+    return run, None
+
+
+def stop_run():
+    with STATE_LOCK:
+        run = CURRENT
+    if not run or not run.running:
+        return False
+    h = run.proc
+    if h and h.stop():
+        run.push("⏹ Процесс остановлен вручную.")
+        return True
+    return False
+
+
+def current_run():
+    with STATE_LOCK:
+        return CURRENT
+
+
+# ================================================================== справочники
+def guess_fields(fl):
+    """Автоподбор полей колоды — логика та же, что в anki_gui._guess_fields."""
+    low = [x.lower() for x in fl]
+
+    def find(pred, default=""):
+        for x, l in zip(fl, low):
+            if pred(l):
+                return x
+        return default
+
+    sent_src = find(lambda l: l == "sentence" or ("sentence" in l and "audio" not in l),
+                    fl[0] if fl else "")
+    sent_aud = find(lambda l: "sentence" in l and "audio" in l, "")
+    word_src = find(lambda l: l in ("expression", "word", "front")
+                    or ("expression" in l and "audio" not in l
+                        and "reading" not in l and "furigana" not in l),
+                    fl[0] if fl else "")
+    word_aud = find(lambda l: ("expression" in l or "word" in l) and "audio" in l, "")
+    furi = find(lambda l: l == "expressionfurigana"
+                or ("furigana" in l and "sentence" not in l)
+                or ("reading" in l and "expression" in l), "")
+    return {"sentence_src": sent_src, "sentence_audio": sent_aud,
+            "word_src": word_src, "word_audio": word_aud,
+            "furigana_src": furi}
+
+
+def read_voices_file():
+    p = os.path.join(ag.code_dir(), "voices.json")
+    try:
+        with open(p, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"voices": {}}
+
+
+def write_voices_file(cfg):
+    p = os.path.join(ag.code_dir(), "voices.json")
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+
+def store_path(p, eng):
+    """Относительный путь, если файл лежит внутри папки движка (как в GUI)."""
+    if not p:
+        return ""
+    p = os.path.expanduser(p)
+    try:
+        if eng and os.path.commonpath(
+                [os.path.abspath(p), os.path.abspath(eng)]) == os.path.abspath(eng):
+            return os.path.relpath(p, eng)
+    except Exception:
+        pass
+    return p
+
+
+def resolve_path(p, eng):
+    if not p:
+        return ""
+    p = os.path.expanduser(p)
+    if os.path.isabs(p):
+        return p
+    return os.path.normpath(os.path.join(eng, p))
+
+
+def voice_files_ok(v, eng):
+    for key in ("gpt", "sovits", "ref"):
+        p = v.get(key, "")
+        if not p or not os.path.exists(resolve_path(p, eng)):
+            return False
+    return True
+
+
+# ================================================================== файловый
+# модальный выбор файлов внутри страницы (в вебе нет системного диалога)
+FS_EXTS = {
+    "ckpt": (".ckpt",), "pth": (".pth",),
+    "audio": (".wav", ".mp3", ".flac", ".m4a", ".ogg", ".opus"),
+}
+
+
+def fs_list(path, kind, exts):
+    path = path or ""
+    if not path:
+        # корень: буквы дисков
+        drives = ["%s:\\" % c for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                  if os.path.exists("%s:\\" % c)]
+        return {"path": "", "parent": "", "drives": drives,
+                "dirs": [], "files": [], "kind": kind}
+    path = os.path.abspath(os.path.expanduser(path))
+    if not os.path.isdir(path):
+        return {"error": "Это не папка: %s" % path}
+    try:
+        names = sorted(os.listdir(path), key=lambda s: s.lower())
+    except Exception as e:
+        return {"error": "Не удалось прочитать папку: %r" % (e,)}
+    dirs, files = [], []
+    for n in names:
+        if n.startswith("."):
+            continue
+        full = os.path.join(path, n)
+        if os.path.isdir(full):
+            dirs.append(n)
+        elif kind == "dir":
+            pass
+        else:
+            if not exts or n.lower().endswith(tuple(exts)):
+                files.append(n)
+    parent = os.path.dirname(path.rstrip("\\/")) if os.path.dirname(path) != path else ""
+    return {"path": path, "parent": parent, "drives": [], "dirs": dirs,
+            "files": files, "kind": kind}
+
+
+# ================================================================== HTTP-обработчик
+class Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
+    def log_message(self, *a):
+        pass                        # консоль не засоряем
+
+    # ------------------------------------------------------------- ответы
+    def _send(self, code, body, ctype="application/json; charset=utf-8"):
+        if not isinstance(body, bytes):
+            body = body.encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+    def _json(self, obj, code=200):
+        self._send(code, json.dumps(obj, ensure_ascii=False))
+
+    def _err(self, msg, code=400, **extra):
+        obj = {"error": msg}
+        obj.update(extra)
+        self._json(obj, code)
+
+    def _body(self):
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+        except ValueError:
+            n = 0
+        raw = self.rfile.read(n) if n else b""
+        if not raw:
+            return {}
+        try:
+            return json.loads(raw.decode("utf-8"))
+        except Exception:
+            return {}
+
+    # ------------------------------------------------------------- GET
+    def do_GET(self):
+        u = urllib.parse.urlparse(self.path)
+        q = dict(urllib.parse.parse_qsl(u.query))
+        path = u.path
+
+        if path in ("/", "/index.html"):
+            self._send(200, HTML, "text/html; charset=utf-8")
+            return
+        if path == "/api/state":
+            self._json(self.api_state())
+            return
+        if path == "/api/decks":
+            self._json({"decks": self._decks()})
+            return
+        if path == "/api/fields":
+            deck = q.get("deck", "")
+            if not deck:
+                return self._err("Не указана колода")
+            fl = ag.list_note_fields(deck)
+            self._json({"deck": deck, "fields": fl, "guess": guess_fields(fl)})
+            return
+        if path == "/api/fs":
+            ext = q.get("ext", "")
+            exts = FS_EXTS.get(ext, tuple(x for x in ext.split(",") if x)) if ext else ()
+            out = fs_list(q.get("path", ""), q.get("kind", "file"), exts)
+            # ошибка каталога — это 400, как и в остальных эндпоинтах
+            # (раньше отдавалась с кодом 200 и полем error — страница это
+            # переживала, но API был неединообразен)
+            return self._err(out["error"], 400) if out.get("error") \
+                else self._json(out)
+        if path == "/api/doctor":
+            self._json(self._doctor())
+            return
+        if path == "/api/audio":
+            self._audio(q.get("voice", ""))
+            return
+        if path == "/api/log":
+            self._stream(q)
+            return
+        self._err("Нет такого адреса", 404)
+
+    # ------------------------------------------------------------- POST
+    def do_POST(self):
+        u = urllib.parse.urlparse(self.path)
+        path = u.path
+        b = self._body()
+
+        if path == "/api/config":
+            cfg = ag.load_config()
+            for k in ("gptsovits_path", "theme", "deck", "voice", "mode",
+                      "sentence_src", "sentence_audio", "word_src",
+                      "word_audio", "furigana_src", "reading", "limit"):
+                if k in b:
+                    cfg[k] = b[k]
+            ag.save_config(cfg)
+            # сразу проверяем папку — говорим, что именно не так
+            p = (cfg.get("gptsovits_path") or "").strip()
+            problems = ag.validate_gptsovits(p) if p else ["папка не указана"]
+            auto = ag.find_gptsovits_automatic() if problems else ""
+            self._json({"ok": True, "problems": problems, "auto": auto})
+            return
+
+        if path == "/api/voice":
+            return self._save_voice(b)
+
+        if path == "/api/voice/add":
+            return self._add_voice(b)
+
+        if path == "/api/run":
+            return self._run(b)
+
+        if path == "/api/stop":
+            ok = stop_run()
+            self._json({"ok": ok, "error": None if ok else "Нечего останавливать"})
+            return
+
+        if path == "/api/shutdown":
+            self._json({"ok": True})
+            threading.Thread(target=self.server.shutdown, daemon=True).start()
+            return
+
+        self._err("Нет такого адреса", 404)
+
+    # ------------------------------------------------------------- данные
+    def _decks(self):
+        if not ag.anki_status():
+            return []
+        try:
+            return [list(x) for x in ag.list_decks()]
+        except Exception:
+            return []
+
+    def api_state(self):
+        cfg = ag.load_config()
+        path = (cfg.get("gptsovits_path") or "").strip()
+        auto = ""
+        if not path:
+            auto = ag.find_gptsovits_automatic() or ""
+            if auto:
+                path = auto
+        problems = ag.validate_gptsovits(path) if path else ["папка не указана"]
+
+        vfile = read_voices_file()
+        voices = vfile.get("voices", {})
+        eng = path
+        view = {}
+        for name, v in voices.items():
+            d = dict(v)
+            d["ok"] = voice_files_ok(v, eng)
+            view[name] = d
+
+        run = current_run()
+        return {
+            "cfg": cfg,
+            "path": path,
+            "auto": auto,
+            "problems": problems,
+            "voices": view,
+            "default_voice": vfile.get("default_voice"),
+            "anki": ag.anki_status(),
+            "tts": ag.tts_status(),
+            "code_dir": ag.code_dir(),
+            "run": run.snapshot() if run else None,
+            "last": (LAST_RUN.snapshot() if LAST_RUN and not LAST_RUN.running
+                     else None),
+            "reading_off": READING_OFF,
+        }
+
+    def _doctor(self):
+        cfg = ag.load_config()
+        path = (cfg.get("gptsovits_path") or "").strip() or \
+            (ag.find_gptsovits_automatic() or "")
+        rep = {
+            "code_dir": ag.code_dir(),
+            "config_file": ag.CONFIG_FILE,
+            "gptsovits_path": path,
+            "local_problems": ag.validate_local(),
+            "problems": ag.validate_gptsovits(path) if path else ["папка не указана"],
+            "anki": ag.anki_status(),
+            "tts_server": ag.tts_status(),
+        }
+        if path and not rep["problems"]:
+            voices, default = ag.load_voices()
+            rep["voices"] = sorted(voices)
+            rep["default_voice"] = default
+        rep["ok"] = (not rep["problems"] and not rep["local_problems"]
+                     and rep["anki"])
+        return rep
+
+    def _audio(self, voice):
+        if not voice or not re.match(r"^[\w\-.]+$", voice):
+            return self._err("Плохое имя голоса")
+        for ext in ("ogg", "wav"):
+            p = os.path.join(ag.code_dir(), "test_%s.%s" % (voice, ext))
+            if os.path.isfile(p):
+                with open(p, "rb") as f:
+                    data = f.read()
+                ctype = ("audio/ogg" if ext == "ogg" else "audio/wav")
+                self._send(200, data, ctype)
+                return
+        self._err("Файла теста ещё нет — нажми «Прослушать»", 404)
+
+    # ------------------------------------------------------------- лог (SSE)
+    def _stream(self, q):
+        run = current_run()
+        if run is None:
+            # отдаём последний завершённый — чтобы лог не пропадал при
+            # перезагрузке страницы
+            run = LAST_RUN
+        if run is None:
+            return self._err("Лога ещё нет", 404)
+        try:
+            since = int(q.get("since", 0))
+        except ValueError:
+            since = 0
+
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Connection", "keep-alive")
+        self.end_headers()
+
+        try:
+            while True:
+                with run.cond:
+                    if since >= len(run.lines) and run.running:
+                        run.cond.wait(15)      # keep-alive вместо пустого кадра
+                    batch = run.lines[since:]
+                    since += len(batch)
+                    finished = not run.running and since >= len(run.lines)
+                if batch:
+                    for line in batch:
+                        payload = json.dumps({"line": line}, ensure_ascii=False)
+                        self.wfile.write(("data: %s\n\n" % payload).encode("utf-8"))
+                    self.wfile.flush()
+                elif not finished:
+                    self.wfile.write(b": ping\n\n")
+                    self.wfile.flush()
+                if finished:
+                    snap = run.snapshot()
+                    payload = json.dumps({"done": snap}, ensure_ascii=False)
+                    self.wfile.write(("data: %s\n\n" % payload).encode("utf-8"))
+                    self.wfile.flush()
+                    break
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            pass                            # страницу закрыли — это нормально
+
+    # ------------------------------------------------------------- команды
+    def _save_voice(self, b):
+        name = (b.get("name") or "").strip()
+        if not name:
+            return self._err("Не выбран голос")
+        cfg = read_voices_file()
+        v = dict(cfg.get("voices", {}).get(name, {}))
+        eng = (ag.load_config().get("gptsovits_path") or "")
+        v["ref"] = store_path((b.get("ref") or "").strip(), eng)
+        v["prompt_text"] = (b.get("prompt_text") or "") if not b.get("noref") else ""
+        v["prompt_lang"] = (b.get("prompt_lang") or "ja").strip() or "ja"
+        v["aux"] = [store_path(a, eng) for a in (b.get("aux") or []) if a]
+        try:
+            v["temperature"] = round(float(b.get("temperature", 0.6)), 2)
+            v["top_p"] = round(float(b.get("top_p", 0.6)), 2)
+            v["top_k"] = int(round(float(b.get("top_k", 20))))
+            v["speed"] = round(float(b.get("speed", 1.0)), 2)
+            v["seed"] = int(b.get("seed", 42))
+        except (TypeError, ValueError):
+            return self._err("Проверь числовые значения sampling")
+        cfg.setdefault("voices", {})[name] = v
+        write_voices_file(cfg)
+        self._json({"ok": True, "voice": v})
+
+    def _add_voice(self, b):
+        name = (b.get("name") or "").strip()
+        if not name or not re.match(r"^[\w\-.]+$", name):
+            return self._err("Имя голоса — латиница/цифры/«_», без пробелов")
+        cfg = read_voices_file()
+        if name in cfg.get("voices", {}):
+            return self._err("Голос «%s» уже есть" % name)
+        for k in ("gpt", "sovits", "ref", "prompt_text"):
+            if not (b.get(k) or "").strip():
+                return self._err("Заполни поле: %s" % k)
+        eng = (ag.load_config().get("gptsovits_path") or "")
+        cfg.setdefault("voices", {})[name] = {
+            "display": (b.get("display") or name).strip(),
+            "gpt": store_path(b["gpt"].strip(), eng),
+            "sovits": store_path(b["sovits"].strip(), eng),
+            "ref": store_path(b["ref"].strip(), eng),
+            "aux": [],
+            "prompt_text": b["prompt_text"].strip(),
+            "prompt_lang": (b.get("prompt_lang") or "ja").strip() or "ja",
+            "temperature": 0.6, "top_p": 0.6, "top_k": 20,
+            "speed": 1.0, "seed": 42,
+        }
+        write_voices_file(cfg)
+        self._json({"ok": True, "name": name})
+
+    def _run(self, b):
+        kind = b.get("kind")
+        if kind == "voice":
+            args, title = self._args_voice(b)
+            # поля не заполнены — отвечаем словами, а не падаем в 500
+            if not args:
+                return self._err("Сначала выбери голос и колоду")
+        elif kind == "check":
+            deck = (b.get("deck") or "").strip()
+            if not deck:
+                return self._err("Сначала выбери колоду")
+            args = ["check", "--deck", deck,
+                    "--sentence-audio", (b.get("sentence_audio") or "").strip(),
+                    "--word-audio", (b.get("word_audio") or "").strip()]
+            title = "Проверка колоды «%s»" % deck
+        elif kind == "test":
+            voice = (b.get("voice") or "").strip()
+            if not voice:
+                return self._err("Сначала выбери голос")
+            args = ["test", "--voice", voice,
+                    "--text", (b.get("text") or "こんにちは、テストです。"),
+                    "--speed", "%.2f" % float(b.get("speed") or 1.0),
+                    "--seed", str(int(b.get("seed") or 42))]
+            title = "Тест синтеза «%s»" % voice
+        elif kind == "selftest":
+            args, title = ["selftest"], "Самопроверка пайплайна"
+        elif kind == "scan":
+            args, title = ["scan", "--apply", "--json"], "Сканирование весов в движке"
+        else:
+            return self._err("Неизвестная операция: %r" % kind)
+
+        run, err = start_run(title, args)
+        if err:
+            return self._err(err)
+        return self._json({"ok": True, "run": run.snapshot()})
+
+    def _args_voice(self, b):
+        voice = (b.get("voice") or "").strip()
+        deck = (b.get("deck") or "").strip()
+        if not voice:
+            return None, None
+        if not deck:
+            return None, None
+        args = ["voice", "--voice", voice, "--deck", deck,
+                "--mode", (b.get("mode") or "both"),
+                "--sentence-src", (b.get("sentence_src") or "").strip(),
+                "--sentence-audio", (b.get("sentence_audio") or "").strip(),
+                "--word-src", (b.get("word_src") or "").strip(),
+                "--word-audio", (b.get("word_audio") or "").strip()]
+        furi = (b.get("furigana_src") or "").strip()
+        if furi:
+            args += ["--furigana-src", furi]
+        reading = (b.get("reading") or READING_OFF).strip()
+        if reading and reading != READING_OFF:
+            args += ["--reading", reading]
+        else:
+            args += ["--reading", "off"]
+        try:
+            limit = int(b.get("limit") or 0)
+        except (TypeError, ValueError):
+            limit = 0
+        if limit > 0:
+            args += ["--limit", str(limit)]
+        if b.get("force"):
+            args.append("--force")
+        return args, "Озвучка колоды «%s»" % deck
+
+    def _args_guard(self, b):
+        """Своя проверка, чтобы ответ был понятным, а не stack-trace."""
+        return None
+
+
+# ================================================================== запуск
+def serve(open_browser=True, port=0):
+    httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    httpd.daemon_threads = True
+    real_port = httpd.server_address[1]
+    url = "http://127.0.0.1:%d/" % real_port
+
+    prob = ag._payload_problem()
+    if prob:
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(
+                0, prob.replace("\n", "\r\n"),
+                "%s — сначала распакуй zip" % ag.APP_NAME, 0x10)
+        except Exception:
+            print(prob)
+        return 1
+
+    print("AnkiVoice — веб-интерфейс: %s" % url)
+    if open_browser:
+        threading.Timer(0.6, lambda: webbrowser.open(url)).start()
+    try:
+        httpd.serve_forever(poll_interval=0.3)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        httpd.server_close()
+    return 0
+
+
+def main():
+    ap = argparse.ArgumentParser(description=ag.APP_NAME + " — веб-интерфейс")
+    ap.add_argument("--no-open", action="store_true",
+                    help="не открывать браузер автоматически")
+    ap.add_argument("--port", type=int, default=0,
+                    help="порт (0 — свободный автоматически)")
+    a = ap.parse_args()
+    sys.exit(serve(open_browser=not a.no_open, port=a.port))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except SystemExit:
+        raise
+    except Exception:
+        import traceback
+        msg = traceback.format_exc()
+        try:
+            with open(ag.CRASH_LOG, "a", encoding="utf-8") as f:
+                f.write(msg + "\n")
+        except Exception:
+            pass
+        print(msg)
+        raise
