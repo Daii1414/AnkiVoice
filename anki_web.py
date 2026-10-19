@@ -439,6 +439,7 @@ class Handler(BaseHTTPRequestHandler):
             "anki": ag.anki_status(),
             "tts": ag.tts_status(),
             "code_dir": ag.code_dir(),
+            "config_file": ag.CONFIG_FILE,
             "run": run.snapshot() if run else None,
             "last": (LAST_RUN.snapshot() if LAST_RUN and not LAST_RUN.running
                      else None),

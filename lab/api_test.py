@@ -8,6 +8,7 @@
     python api_test.py http://127.0.0.1:8794
 """
 import json
+import os
 import sys
 import time
 import urllib.error
@@ -56,6 +57,10 @@ check("GET /api/state -> 200", code == 200, code)
 check("в state есть папка движка", "path" in st, list(st))
 check("в state есть голоса", isinstance(st.get("voices"), dict), st.get("voices"))
 check("reading_off подписан", bool(st.get("reading_off")), st.get("reading_off"))
+# карточка «Где лежат файлы» заполняется из state, а не только по кнопке
+# «Диагностика» — раньше ключа не было и витрина висела пустой.
+check("в state есть путь к конфигу", bool(st.get("config_file")),
+      st.get("config_file"))
 
 print("\n=== негативные сценарии (должны отвечать словами, не 500) ===")
 for name, path, body in [
@@ -100,19 +105,37 @@ if voices:
     check("флаг files_ok присутствует", "ok" in v, list(v))
     print("      пример: %s -> gpt=%s ref_ok=%s" % (first, v.get("gpt"), v.get("ok")))
 
-print("\n=== сохранение голоса (запись/откат) ===")
+print("\n=== сохранение голоса (запись + откат файла) ===")
+# API при сохранении дописывает дефолтные параметры (temperature, top_p, …),
+# поэтому «откатить» через тот же API нельзя — тест оставлял бы в репозитории
+# мусор (hayane получал параметры, которых у него не было). Держим файл
+# каким был: снимаем байты до записи и возвращаем их после.
+VOICES_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "voices.json")
 if voices:
     name = sorted(voices)[0]
     orig = dict(voices[name])
-    code, j = req("/api/voice", {"name": name, "ref": orig.get("ref", ""),
-                                 "prompt_text": orig.get("prompt_text", ""),
-                                 "prompt_lang": orig.get("prompt_lang", "ja"),
-                                 "temperature": orig.get("temperature", 0.6),
-                                 "top_p": orig.get("top_p", 0.6),
-                                 "top_k": orig.get("top_k", 20),
-                                 "speed": orig.get("speed", 1.0),
-                                 "seed": orig.get("seed", 42)})
+    sent = {"name": name, "ref": orig.get("ref", ""),
+            "prompt_text": orig.get("prompt_text", ""),
+            "prompt_lang": orig.get("prompt_lang", "ja"),
+            "temperature": orig.get("temperature", 0.6),
+            "top_p": orig.get("top_p", 0.6),
+            "top_k": orig.get("top_k", 20),
+            "speed": orig.get("speed", 1.0),
+            "seed": orig.get("seed", 42)}
+    with open(VOICES_FILE, "rb") as _f:
+        raw_before = _f.read()
+    code, j = req("/api/voice", sent)
     check("сохранение голоса -> 200", code == 200 and j.get("ok"), (code, j))
+    code, st = req("/api/state", timeout=60)
+    back = ((st.get("voices") or {}).get(name) or {})
+    check("запись дошла до файла",
+          code == 200 and back.get("temperature") == sent["temperature"],
+          (code, back.get("temperature")))
+    with open(VOICES_FILE, "wb") as _f:
+        _f.write(raw_before)
+    with open(VOICES_FILE, "rb") as _f:
+        check("voices.json возвращён байт-в-байт", _f.read() == raw_before, VOICES_FILE)
 
 print("\n=== doctor ===")
 code, d = req("/api/doctor", timeout=180)

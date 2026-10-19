@@ -510,7 +510,6 @@ select{cursor:pointer}
           <tbody>
             <tr><td class="k">Программа</td><td class="v" id="pCode">—</td></tr>
             <tr><td class="k">Конфиг</td><td class="v" id="pCfg">—</td></tr>
-            <tr><td class="k">Версия</td><td class="v" id="pVer">—</td></tr>
           </tbody>
         </table>
       </div>
@@ -605,6 +604,10 @@ async function loadState(){
   chip($("chipTts"),  ST.tts,  "Сервер", ST.tts ? "запущен" : "не запущен (поднимется сам)");
 
   $("sideFoot").innerHTML = "Программа<br><b>"+esc(ST.code_dir)+"</b>";
+
+  // карточка «Где лежат файлы» — заполняем сразу, без нажатия «Диагностика»
+  $("pCode").textContent = ST.code_dir || "—";
+  $("pCfg").textContent  = ST.config_file || "—";
 
   // папка движка
   $("gptpath").value = ST.path || "";
@@ -1029,7 +1032,14 @@ function drawProgress(n){
 
 /* ================================================= конфиг */
 async function saveCfg(patch){
-  try{ ST = await api("/api/config", patch); }catch(e){ console.warn(e); }
+  /* /api/config отвечает {ok,problems,auto} — это НЕ состояние.
+     Раньше ответ присваивался в ST целиком, поэтому после первой же
+     загрузки колод (saveCfg({deck})) из ST пропадали voices, reading_off
+     и default_voice — и интерфейс начинал показывать "undefined".
+     Сохраняем, а затем перечитываем состояние целиком. */
+  try{ await api("/api/config", patch); }
+  catch(e){ console.warn(e); return; }
+  try{ ST = await api("/api/state"); }catch(e){ console.warn(e); }
 }
 async function savePath(){
   const p = $("gptpath").value.trim();
