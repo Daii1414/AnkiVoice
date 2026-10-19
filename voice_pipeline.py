@@ -1949,7 +1949,6 @@ def cmd_selftest(args):
     print("  --   текст -> хирагана (сложные случаи):")
     for src, want in ((u"ｶﾞｷｮｳ", u"がきょう"),
                       (u"ＩＥＣ規格", u"あいいーしーきかく"),
-                      (u"合折釘", u"あいおれくぎ"),
                       (u"食べさせられたくなかった", u"たべさせられたくなかった"),
                       (u"キョウト", u"きょうと")):
         got = kanaize(src)
@@ -1957,6 +1956,20 @@ def cmd_selftest(args):
             ok("%s -> %s" % (src, got))
         else:
             fail("%s -> %s (ожидалось %s)" % (src, got, want))
+    # 合折釘 — доменный термин: движку без поля не знать «あいおれくぎ»,
+    # он читает по-своему. Проверяем обе ветки раздельно: авто-чтение
+    # (просто обязано выдать хирагану) и чтение из фуриганы (строго эталон).
+    src = u"合折釘"
+    got = kanaize(src)
+    if got and not KANJI_RE.search(got):
+        ok("%s (авто, без поля): %s — движок читает сам" % (src, got))
+    else:
+        fail("%s (авто): %r — остались иероглифы" % (src, got))
+    got = kanaize_card(src, expression=src, furigana=u"合折釘[あいおれくぎ]")
+    if got == u"あいおれくぎ":
+        ok("%s (из фуриганы): %s" % (src, got))
+    else:
+        fail("%s (из фуриганы): %s (ожидалось %s)" % (src, got, u"あいおれくぎ"))
     try:
         ac("version")
         ok("AnkiConnect отвечает")
