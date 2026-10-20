@@ -1,115 +1,143 @@
-# AnkiVoice
+<p align="center">
+  <img src="doc/logo.svg" alt="AnkiVoice" width="880">
+</p>
+
+<p align="center">
+  <a href="https://github.com/Daii1414/AnkiVoice/actions/workflows/checks.yml">
+    <img alt="CI" src="https://github.com/Daii1414/AnkiVoice/actions/workflows/checks.yml/badge.svg">
+  </a>
+  <a href="https://github.com/Daii1414/AnkiVoice/releases/latest">
+    <img alt="Release" src="https://img.shields.io/github/v/release/Daii1414/AnkiVoice?label=release&color=8B9BFF">
+  </a>
+  <a href="https://github.com/Daii1414/AnkiVoice/blob/main/LICENSE">
+    <img alt="AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-4F46E5.svg">
+  </a>
+  <img alt="Windows 10/11" src="https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6?logo=windows&logoColor=white">
+  <img alt="No cloud" src="https://img.shields.io/badge/data-off%20line%2C%20no%20cloud-12A150">
+</p>
+
+<p align="center"><b>Local Japanese audio for Anki decks, voiced by GPT-SoVITS.</b><br>
+Reads kanji with a context-aware dictionary (Haqumei), substitutes the trusted
+reading from the card's furigana, and writes finished ogg files straight into
+Anki fields. The internet is only needed to download it.</p>
+
+<p align="center">
+  <a href="#features">Features</a> •
+  <a href="#quick-start">Install</a> •
+  <a href="#interface-four-tabs">Interface</a> •
+  <a href="#how-kanji-are-read">Reading</a> •
+  <a href="#development">Development</a> •
+  <a href="#license">License</a>
+</p>
 
 [Русский](README.md) | **English**
 
-> **Local Japanese audio for Anki — context-aware kanji readings via Haqumei (Sudachi/UniDic fallback), voices via GPT-SoVITS. Fully offline, no Python setup required.**
+---
 
-AnkiVoice voices Anki decks with GPT-SoVITS. It reads kanji with a modern
-dictionary, can substitute trusted readings from a card's furigana, clones
-the selected voice and writes ready ogg files straight into card fields.
-Everything runs locally: the internet is only needed to download it.
+## Table of contents
 
-The full technical description (architecture, all logic, bug history) is in
-`PROJECT.md` (in Russian). This file covers installation and usage.
+- [Features](#features)
+- [How it works](#how-it-works)
+- [Requirements](#requirements)
+- [Quick start](#quick-start)
+- [Interface (four tabs)](#interface-four-tabs)
+- [What's new in 1.2](#whats-new-in-12)
+- [How kanji are read](#how-kanji-are-read)
+- [How text becomes hiragana](#how-text-becomes-hiragana)
+- [Card fields](#card-fields)
+- [Console](#console)
+- [Updates](#updates)
+- [Troubleshooting](#troubleshooting)
+- [Development](#development)
+- [Repository layout](#repository-layout)
+- [Contributing](#contributing)
+- [License](#license)
+- [Credits](#credits)
 
-*The app interface is currently in Russian; UI labels are quoted as they
-appear, with English explanations.*
+---
 
-## What's new in 1.2
+## Features
 
-* **First-run setup wizard** — four steps (engine, AnkiConnect, server, test
-  phrase) with concrete instructions: what to download, where to unpack it and
-  what to click. Until the setup is finished, the wizard opens by itself on
-  every launch.
-* **Update check** — the “Check for updates” button on the “Приложение” tab
-  shows the changelog, downloads the installer and **always** verifies its
-  SHA256 (if the release has no hash, downloading is refused). The hash is
-  checked once more before the installer is started.
-* **Live diagnostics** — the “Приложение” tab shows the state of the engine,
-  Anki, the server, the voices and the test, and says what exactly is wrong
-  instead of “check the folder”.
-* Smaller things: a version chip in the header, protection against a repeated
-  download, v1.2 tests.
+| | |
+|---|---|
+| 🎧 **Card audio** | Writes `<audio>` with the voiced sentence and word straight into Anki fields. GPT-SoVITS clones the voice itself. |
+| 📖 **Smart reading** | Kanji are read by Haqumei in sentence context; the card's furigana is the source of truth for the main word. |
+| 🧪 **Quality control** | QC v2 measures several independent signals (silence, speech gaps, duplicated speech, clipping, level, speed) and re-synthesizes rejects on its own. |
+| 🧙 **First-run wizard** | Four steps: GPT-SoVITS folder, AnkiConnect, server, test phrase. It tells you what to download, where to put it and what to click. |
+| 🔄 **In-app updates** | “Check for updates”: changelog, installer download and a mandatory SHA256 check. |
+| 🔒 **Fully local** | The page works offline, without a CDN. The only outbound request is the update check. |
+| 🧩 **Transparent** | No telemetry, no accounts. AGPL-3.0 — the sources are open. |
 
-The full changelog is in the [v1.2 release](https://github.com/Daii1414/AnkiVoice/releases/tag/v1.2).
+## How it works
 
-## Built on
+```
+Anki card
+   │
+   ├─► ExpressionFurigana field ──► trusted reading of the main word
+   │
+   ├─► kanaize(): Haqumei in sentence context → hiragana
+   │      (Sudachi + UniDic and pyopenjtalk as fallbacks)
+   │
+   ├─► GPT-SoVITS (127.0.0.1:9880) ──► ogg
+   │
+   └─► QC v2: signal check ──► card in Anki
+```
 
-Speech synthesis is done by **[GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS)** —
-an open few-shot TTS engine (MIT license). AnkiVoice does not copy its code:
-the engine runs as a normal local server on `127.0.0.1:9880`, and AnkiVoice
-sends it text and receives the finished audio. That is why GPT-SoVITS's own
-web UI and any of its voices keep working alongside AnkiVoice.
-
-What this means in practice: **5 seconds** of reference audio and the voice
-already speaks; **a minute** of training data noticeably improves similarity.
-
-Few-shot demo on an unseen speaker (Chinese and Japanese, 1:26):
-
-https://github.com/user-attachments/assets/f954276c-40ca-4a8a-a4f3-39ad4fb1a4a4
-
-*The file is also kept in the repository — [doc/gptsovits/gpt-sovits-demo.mp4](doc/gptsovits/gpt-sovits-demo.mp4).
-Original: [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS).*
-
-AnkiVoice is built against **v2Pro**. Their measured speed:
-RTF **0.028** on an RTX 4060 Ti and **0.014** on an RTX 4090 (about 4 minutes
-of speech in 3 seconds), **0.526** on an M4 CPU.
-
-Voice similarity on the SeedTTS test set (higher is better, GPT-SoVITS in blue):
-
-<img src="doc/gptsovits/gpt-sovits-similarity.png" width="780"
-     alt="GPT-SoVITS voice similarity on the SeedTTS test set">
-
-Credits: [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) — the engine;
-[gradio](https://github.com/gradio-app/gradio) — the slider layout on the
-Voice tab is styled after theirs; [Haqumei](https://github.com/o24s/haqumei) —
-context-aware kanji readings (the main engine); [Sudachi](https://github.com/WorksApplications/SudachiPy)
-and the UniDic dictionary — fallback and reading checks.
+AnkiVoice does not copy the engine's code:
+[GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) runs as a normal local
+server, the app sends it text and receives the audio. That is why GPT-SoVITS's
+own web UI and any of its voices keep working alongside AnkiVoice.
 
 ## Requirements
 
 1. **Windows 10/11** and a CUDA GPU (6 GB of VRAM is comfortable).
 2. **GPT-SoVITS** installed and started at least once (the folder with
    `runtime\python.exe` and `api_v2.py`).
-3. **Anki** with **AnkiConnect** enabled (the plugin listens on `127.0.0.1:8765`).
+3. **Anki** with **AnkiConnect** enabled (the add-on listens on `127.0.0.1:8765`).
 
-Nothing else: kanji reading runs on the **bundled Python**
-(`pyruntime.zip` with Haqumei and `sudachidict.zip` are already inside the
-installer and unpack themselves on first launch — no separate installs).
+Nothing else has to be installed: the reading dictionary and the bundled Python
+are already inside the installer (`pyruntime.zip`, `sudachidict.zip`) and
+unpack themselves.
 
 ## Quick start
 
-1. Download **`AnkiVoice-Setup-1.2.exe`** from the [Releases](https://github.com/Daii1414/AnkiVoice/releases)
-   page — one file with everything inside.
-2. Run it: **“Далее”** → **“Установить”** → **“Завершить”** (Next → Install → Finish;
+1. Download **`AnkiVoice-Setup-1.2.exe`** from the
+   [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) page — one
+   file with everything inside.
+2. Run it: **“Далее” → “Установить” → “Завершить”** (Next → Install → Finish;
    the “Launch AnkiVoice” checkbox is on, so the app opens by itself).
-3. On first launch the **setup wizard** opens: check the GPT-SoVITS folder
-   (if the engine is missing, the “Download GPT-SoVITS” button and exact
-   unpack instructions are right there), connect AnkiConnect, start the
-   server and synthesize a test phrase. The wizard says exactly what to
-   download, where to put it and what to click — not just “check the folder”.
-4. Then: on the **“Голос”** (Voice) tab pick a voice → on the **“Поля колоды”**
-   (Deck fields) tab pick a deck and fields → on the **“Озвучка”** (Dubbing)
-   tab press **“Начать озвучку”** (Start dubbing).
+3. The setup wizard walks you through the steps: engine folder → AnkiConnect →
+   server → test phrase. It opens by itself on every launch until the setup is
+   finished.
 
-The **AnkiConnect** add-on code is `2055492159` (Anki → Tools → Add-ons →
-Get Add-ons). Restart Anki after installing it.
+   ![Setup wizard](doc/shots/wizard-dark.png)
+
+4. Then: the **“Голос”** (Voice) tab to pick a voice, the **“Поля колоды”**
+   (Deck fields) tab to pick a deck and fields, and the **“Озвучка”** (Dubbing)
+   tab to press **“Начать озвучку”** (Start dubbing).
+
+The **AnkiConnect** add-on code is `2055492159` (Anki → Tools → Add-ons → Get
+Add-ons). Restart Anki after installing the add-on.
 
 The app starts a local server and opens a page in your browser — that is
-normal, nothing else needs to be installed.
+normal, nothing else needs to be installed. It installs into your user profile
+(`%LOCALAPPDATA%\Programs\AnkiVoice`) and does not ask for administrator
+rights. To uninstall: Start menu → “Удалить AnkiVoice” (settings and voices
+are kept).
 
-It installs into your user profile (`AppData\Local\Programs\AnkiVoice`) and
-does not ask for administrator rights. To uninstall: Start menu → “Удалить
-AnkiVoice”. The first launch takes longer (~10 seconds) because the bundled
-Python and dictionary are unpacked. After that everything is fast.
+> [!TIP]
+> No engine yet? The wizard links to the official
+> [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS/releases) releases and
+> shows which files must be in the folder. It does not download the engine for
+> you.
 
 ## Interface (four tabs)
 
-The UI is a local web page (`anki_web.py`): the server listens only on
-`127.0.0.1`, nothing goes outside. The page works offline, without a CDN.
-The old tkinter window is still available via the `--classic` flag.
+The shell is a local web page (`anki_web.py`): the server listens only on
+`127.0.0.1`, nothing goes outside. The old tkinter window is still available
+via the `--classic` flag.
 
-### “Озвучка” tab — the main screen
+### “Озвучка” (Dubbing) — the main screen
 
 ![Dubbing tab](doc/shots/voice-dark.png)
 
@@ -122,29 +150,28 @@ The old tkinter window is still available via the `--classic` flag.
   **“Самопроверка”** (Self-test).
 * **Progress bar** — an exact “N / total” counter and the error count.
 * **Log** — a live SSE stream with color coding: green = done, red = error,
-  yellow = rejected and QC retries. The “Follow” option scrolls the log
-  automatically.
+  yellow = rejected and QC retries.
 
-### “Поля колоды” tab — what to read from where
+### “Поля колоды” (Deck fields) — what to read from where
 
 ![Deck fields tab](doc/shots/anki-dark.png)
 
 * **Deck** + the **“Поля выбранной колоды”** (Fields of the selected deck)
   button — fills the role table automatically from the template
-  (Sentence / Expression / *Audio / Furigana).
+  (Sentence / Expression / \*Audio / Furigana).
 * Table rows: sentence text, sentence audio, main word, word audio,
   **word furigana ← field** and the reading source.
 * An empty choice in the “→” column means “do not write audio”. Empty
-  furigana means the word will be read automatically.
+  furigana means the word is read automatically.
 
-### “Голос” tab — reference and speech character
+### “Голос” (Voice) — reference and speech character
 
 ![Voice tab](doc/shots/sound-dark.png)
 
 * **Voice cards** — every voice from `voices.json`; ✅/✗ shows whether the
   gpt/sovits/ref files were found.
-* **Reference (3–10 s)** — the voice sample: file, its text and language.
-  Do not use a long aux reference — the API will run out of memory.
+* **Reference (3–10 s)** — the voice sample: file, its text and language. Do
+  not use a long aux reference — the API will run out of memory.
 * **Speech character** — `temperature`/`top_p`/`top_k`/`speed` sliders and a
   `seed` field: lower values give more even, calmer speech (defaults from the
   official web UI: 0.6 / 0.6 / 20).
@@ -152,130 +179,159 @@ The old tkinter window is still available via the `--classic` flag.
   right on the page. **“Обновить веса в движке”** (Refresh engine weights) —
   scans for new weights.
 
-### “Приложение” tab — engine folder and diagnostics
+### “Приложение” (App) — wizard, updates, diagnostics
 
 ![App tab](doc/shots/app-dark.png)
 
-* **Setup wizard** — four steps: engine, AnkiConnect, server, test phrase.
-  It shows the status of each step and what to do when one is red. The wizard
-  opens by itself until the setup is finished; later use the “Open wizard” button.
-
-![Setup wizard](doc/shots/wizard-dark.png)
+* **Setup wizard** — four steps: engine, AnkiConnect, server, test phrase. It
+  shows the status of each step and what to do when one is red.
 * **Updates** — the “Check for updates” button shows the latest changelog,
   downloads the installer and verifies its SHA256.
 * **GPT-SoVITS folder** — the path to the engine; the “Check” and “Browse…”
   buttons tell you exactly what is wrong instead of just “check the folder”.
-* **Diagnostics** — everything at once: tool, config, path, Anki, server,
-  voice list. Look here first if something does not work.
-* **Where the files are** — the app folder and config.
+* **Diagnostics** — everything at once: tool, config, path, Anki, server, voice
+  list. Look here first if something does not work.
+* **Where the files live** — program folder and config.
 
-Header statuses: **Anki** (connected?), **Server** (GPT-SoVITS running) and
-an indicator for the operation in progress. The theme is switched by the
-button on the right.
+Status chips in the header: **Anki** (connected?), **Server** (GPT-SoVITS is
+running), the version and a running-operation indicator. The theme is toggled
+on the right.
 
 Light theme — the same tabs: [Dubbing](doc/shots/voice-light.png),
 [Deck fields](doc/shots/anki-light.png), [Voice](doc/shots/sound-light.png),
 [App](doc/shots/app-light.png). A full-page snapshot:
 [voice-dark-full.png](doc/shots/voice-dark-full.png).
 
-## Word reading modes (important)
+## What's new in 1.2
 
-GPT-SoVITS accepts text only, so someone has to read the kanji. On the
-“Deck fields” tab this is handled by **two different rows**, and they are easy
-to confuse:
+* **First-run setup wizard** — four steps (engine, AnkiConnect, server, test
+  phrase) with concrete instructions: what to download, where to unpack it and
+  what to click. Until the setup is finished, the wizard opens by itself on
+  every launch.
+* **Update check** — the “Check for updates” button on the “Приложение” tab
+  shows the changelog, downloads the installer and **always** verifies its
+  SHA256 (if the release has no hash, downloading is refused). The hash is
+  checked once more before the installer is started.
+* **Live diagnostics** — the “Приложение” tab shows the state of the engine,
+  Anki, the server, the voices and the test.
+* **The installer now ships the reading subsystems** — five modules from `lab/`
+  are added to the installed app: the reading system (provenance, domain
+  dictionary, resolver) and QC v2. They never reached the installer before, so
+  the app silently ran on the simple “is there sound” criterion.
+
+The full list of changes is in [CHANGELOG.md](CHANGELOG.md) and in the
+[v1.2 release](https://github.com/Daii1414/AnkiVoice/releases/tag/v1.2).
+
+## How kanji are read
+
+GPT-SoVITS accepts text only, so somebody has to read the kanji. On the
+“Поля колоды” tab that is the job of **two different rows**, and they are easy
+to mix up:
 
 | Row | What it does | Default |
 |---|---|---|
-| **Word furigana ← field** | Reads **only the main word** strictly from the furigana in this field; the rest of the text is read automatically. Always works when the field is selected, even if “Reading source” is set to “Do not substitute” | `ExpressionFurigana` |
-| **Reading source** | The older method: substitutes a ready reading **into the whole sentence**, not just the main word. Enabled only when a field is explicitly selected | “Do not substitute” (`off`) |
+| **Word furigana ← field** | Reads **only the main word** strictly from that field's furigana; everything else is read automatically. Always active when a field is selected, even if “Reading source” is set to “Do not substitute” | `ExpressionFurigana` |
+| **Reading source** | The older way: substitutes a ready-made reading **into the whole sentence**, not only into the main word. Switched on only by picking a field explicitly | “Do not substitute” (`off`) |
 
-If both rows are selected, **furigana wins** for the main word — it is applied
+If both rows are set, the **furigana wins** for the main word — it is applied
 last. In practice:
 
 * a deck with `ExpressionFurigana` → “Word furigana ← field” =
   `ExpressionFurigana`, “Reading source” = “Do not substitute”;
-* a deck without furigana → leave both rows at their defaults: the bundled
-  Haqumei engine reads the word and the sentence, with Sudachi 0.7 + UniDic
-  20261015 as the fallback.
+* a deck without furigana → leave both rows at their defaults: the word and
+  the sentence are read by the built-in Haqumei core, with Sudachi 0.7 +
+  UniDic 20261015 as the fallback.
 
-On the command line these are `--furigana-src FIELD_NAME` (furigana for the
-main word) and `--reading off|FIELD_NAME` (ready reading for the whole
-sentence).
+In the console these are the flags `--furigana-src FIELD` (furigana of the main
+word) and `--reading off|FIELD` (a ready-made reading for the whole sentence).
 
-Substitution safety rules: pure kana only, and only if the word is found in
-the sentence as a whole; otherwise the card is left as is.
+Safety rules for the substitution: hiragana/katakana only, only if the word is
+found in the sentence, otherwise the card is left as is.
 
-**What furigana gives you (measurements on real cards):**
+**What furigana buys you (measured on real cards):**
 
-* field readings and automatic Haqumei readings **match in 77% of cases**
-  (a random sample of 100 cards with non-empty furigana);
-* for domain terms the **field is more accurate**: `亜鉛鍍金` →
-  あえん**めっき** (the engine gives あえんときん), `I形梁` →
-  あいがた**ば**り, `IAEE` → read letter by letter;
-* sometimes the field contains garbage or a list of readings — then the
-  automation saves the day;
+* readings from the field and the automatic Haqumei reading **match in 77% of
+  cases** (a random sample of 100 cards with non-empty furigana);
+* for domain terms the **field is more precise**: `亜鉛鍍金` → あえん**めっき**
+  (the core gives あえんときん), `I形梁` → あいがた**ば**り, `IAEE` → by letters;
+* sometimes the field contains junk or a list of readings — then automation
+  saves the day;
 * the rest is markup, spaces and variants that sound the same.
 
-Bottom line: a deck with `ExpressionFurigana` → turn furigana on; without
-furigana → keep both rows at their defaults and let Haqumei read (Sudachi is
-the fallback).
+Bottom line: a deck with `ExpressionFurigana` → furigana on; without furigana →
+both rows by default, Haqumei reads (Sudachi is the fallback).
 
 ## How text becomes hiragana
 
-GPT-SoVITS parses Japanese with its own morphological analyzer (MeCab) and
-makes mistakes on rare terms and katakana abbreviations — so the `kanaize()`
-pipeline prepares the text itself, strictly step by step:
+GPT-SoVITS parses Japanese with its own morphology (MeCab) and gets rare terms
+and katakana abbreviations wrong — that is why the `kanaize()` pipeline
+prepares the text itself, strictly step by step:
 
-1. **NFKC normalization** — full-width letters/digits and half-width
-   katakana are reduced to normal forms (punctuation is left alone);
-2. **Latin → katakana letter by letter** (`IEC` → アイイーシー);
-3. **katakana → hiragana** (the greetings コンニチハ/コンバンハ stay in
-   katakana — otherwise MeCab reads them as a particle; repetition marks
-   ヽゝゞヾ are expanded from context — repeating the previous syllable);
-4. **g2p only for the remaining kanji**: Haqumei reads every word in the
-   context of the sentence (sandhi, neighbouring katakana); the fallbacks are
-   Sudachi with the UniDic dictionary and pyopenjtalk (MeCab); digits always
-   go through MeCab because Sudachi reads numbers as dates (2024 → 二月二日);
-5. **a second katakana → hiragana pass** — and pure hiragana goes to the API.
+1. **NFKC normalization** — full-width letters/digits and half-width katakana
+   are folded into normal forms (punctuation is left alone);
+2. **Latin → katakana by letters** (`IEC` → アイイーシー);
+3. **katakana → hiragana** (greetings コンニチハ/コンバンハ stay katakana —
+   otherwise MeCab reads them as a particle; the repetition marks ヽゝゞヾ are
+   expanded contextually — repeat of the previous syllable);
+4. **g2p only for the kanji that are left**: Haqumei reads every word in the
+   context of the sentence (sandhi, neighbouring katakana), with Sudachi over
+   the UniDic dictionary and pyopenjtalk (MeCab) as fallbacks; digits always go
+   through MeCab, because Sudachi reads numbers as dates (2024 → 二月二日);
+5. **one more katakana → hiragana pass** — and the API receives pure hiragana.
 
 What the pipeline **does not touch**: the note in Anki itself (a copy of the
-text is processed) and the card's furigana (used only as a reading source).
+text is processed) and the card's furigana (it is only used as a reading
+source).
 
-Reading checks are built in: `pipeline.bat selftest` (10 substitution checks
+Reading is covered by tests: `pipeline.bat selftest` (10 substitution checks
 and 11 reading-mode checks) and the extended battery
-`python kana_stress.py` (63 difficult words).
+`python kana_stress.py` (63 difficult words). Detailed measurements live in
+[doc/reports/](doc/reports).
 
 ## Card fields
 
-Different decks name their fields differently — where to take text from and
-where to write audio is configurable (GUI: the “Deck fields” tab; console:
-the `voice` / `make-deck` / `check` commands):
+Decks name their fields differently — where to take the text from and where to
+write the audio is configurable (GUI: the “Поля колоды” tab; console: the
+`voice` / `make-deck` / `check` commands):
 
 ```
---sentence-src "Sentence"        field with the sentence text
---sentence-audio "SentenceAudio" field where the sentence audio is written
---word-src "Expression"          field with the word (Expression enables furigana parsing)
---word-audio "ExpressionAudio"   field where the word audio is written
---furigana-src "ExpressionFurigana"  field with furigana for the main word
---reading off|FIELD_NAME         ready reading for the whole sentence (see above)
+--sentence-src "Sentence"             field with the sentence text
+--sentence-audio "SentenceAudio"      field the sentence audio goes to
+--word-src "Expression"               field with the word (furigana parsing works for Expression)
+--word-audio "ExpressionAudio"        field the word audio goes to
+--furigana-src "ExpressionFurigana"   field with the furigana of the main word
+--reading off|FIELD                   a ready-made reading for the whole sentence (see above)
 ```
 
-## Command line (without the exe)
+## Console
 
-`pipeline.bat` does the same in a console and finds the engine folder itself:
+`pipeline.bat` is the same thing in a console; it finds the engine folder on
+its own:
 
 ```
-pipeline.bat list              list voices
-pipeline.bat selftest          check the environment (run it when in trouble)
+pipeline.bat list              list the voices
+pipeline.bat selftest          check the environment (run this when in trouble)
 pipeline.bat test --voice madara --text "こんにちは"
 pipeline.bat voice --voice madara --deck "Архитектура" --mode both
 pipeline.bat check --deck "Архитектура"          full deck check
-pipeline.bat check --deck "Архитектура" --fast   same without downloading audio (30x faster)
+pipeline.bat check --deck "Архитектура" --fast   same without downloading audio
 pipeline.bat scan --apply     find voices in the engine and add them to voices.json
 pipeline.bat doctor           short environment diagnostics
 ```
 
 The exe has diagnostics too: `AnkiVoice.exe doctor`.
+
+## Updates
+
+* **From the app**: the “Приложение” tab → **“Проверить обновления”**. The
+  app shows the changelog, downloads the installer and verifies the SHA256 —
+  without that check the download is not started. Then press “Запустить
+  установщик” (Launch installer).
+* **Manually**: download the new installer from
+  [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) and run it
+  over the old version — the engine path and the settings are kept.
+* **Uninstall**: Start menu → “Удалить AnkiVoice” (settings are kept and are
+  picked up again on the next install).
 
 ## Troubleshooting
 
@@ -287,47 +343,58 @@ The exe has diagnostics too: `AnkiVoice.exe doctor`.
 | `Не получилось переключить... Перезапуск` | Normal: the pipeline restarts the server and retries |
 | `сервер вернул пустой звук` | Usually VRAM is occupied by other processes (browser, games). Close them or restart the server: `pipeline.bat serve --voice <voice>` |
 | `Пайплайн уже запущен другим процессом` | Wait for the first run to finish (protection against double work) |
-| Windows: “Защитил ваш компьютер” | The downloaded exe is unsigned: in the SmartScreen window click “More info” → “Run anyway” |
+| Windows: “Your PC protected” | The downloaded exe is unsigned: in the SmartScreen window click “More info” → “Run anyway” |
 
 Useful: `selftest` prints exactly what it sees (engine, voices, reading
-dictionary, AnkiConnect, server) — 90% of problems are visible immediately.
+dictionary, reading modules, QC v2, AnkiConnect, server) — 90% of problems are
+visible immediately.
 
-## Limitations (tested in practice)
+## Development
 
-* **The reference must be exactly 3–10 seconds** — the API rejects anything
-  outside that range.
-* **The engine needs ~4–6 GB of free RAM** at startup; a long aux reference
-  causes a CUDA OOM on a 6 GB GPU.
-* **Do not use `localhost` in the AnkiConnect URL** — IPv6 resolution adds
-  delays of seconds (the code uses `127.0.0.1` everywhere).
-* A corporate proxy/VPN does not interfere — local requests bypass it.
-* A note open in the Anki editor does not accept writes — the pipeline asks
-  you to close the editor and continues.
-* Large decks are processed in chunks; cards that already have audio are
-  skipped (unless `--force`).
-
-## Rebuilding the exe
-
-Changes to `voice_pipeline.py` do not require rebuilding the exe — it runs
-the pipeline from disk. Rebuild only after editing `anki_gui.py`,
-`anki_web.py` or `anki_web_page.py` (~20 seconds):
-
+```bash
+git clone https://github.com/Daii1414/AnkiVoice.git
+cd AnkiVoice
 ```
+
+A rebuild is needed only after editing `anki_gui.py`, `anki_web.py` or
+`anki_web_page.py` — `voice_pipeline.py` runs from disk and takes effect
+immediately.
+
+**exe** (needs the Python from the GPT-SoVITS engine with PyInstaller):
+
+```bat
 set ENGINE=C:\Path\To\GPT-SoVITS
 %ENGINE%\runtime\python.exe -m pip install pyinstaller
 %ENGINE%\runtime\python.exe -m PyInstaller --noconfirm --onefile --windowed ^
     --name AnkiVoice --distpath . --workpath %TEMP%\pyi_build --specpath %TEMP% anki_gui.py
 ```
 
-The installer is built with Inno Setup 6 (the script is already in the repo):
+**installer** (Inno Setup 6, run it from the repository root):
 
-```
+```bat
 ISCC.exe AnkiVoice.iss
 ```
 
 → produces `dist\AnkiVoice-Setup-1.2.exe`.
 
-## Repository structure
+**tests** (Python 3.12+, no GPU and no network needed):
+
+```bash
+python -m pip install numpy haqumei
+python lab/qc_unit.py
+python lab/quality_unit.py
+python lab/test_g2p_infrastructure.py
+python lab/test_v12_features.py
+python lab/web_js_check.py
+python lab/integration_check.py
+```
+
+`lab/robust_tests.py` — 10 robustness checks of the pipeline; it needs a
+running Anki. CI runs everything else on every push
+([checks.yml](.github/workflows/checks.yml)) and builds the installer on
+windows-latest.
+
+## Repository layout
 
 | File | What it is |
 |---|---|
@@ -338,37 +405,44 @@ ISCC.exe AnkiVoice.iss
 | `anki_web.py` | Local HTTP server for the UI (127.0.0.1 only) |
 | `anki_web_page.py` | HTML/CSS/JS for the page (offline, no CDN) |
 | `pipeline.bat` | Console entry point |
-| `sudachi_g2p.py` | Fallback “reader” helper: SudachiPy 0.7 + 20261015 dictionary |
-| `g2p_core.py` | Haqumei reading core: words in sentence context, pron form |
-| `pyruntime.zip` | Bundled Python 3.13 + Haqumei 0.12.2 + SudachiPy 0.7.0 (~44 MB, unpacks itself) |
+| `sudachi_g2p.py` | Fallback “reader” helper: SudachiPy 0.7 + UniDic dictionary |
+| `g2p_core.py` | Haqumei reading core: word in sentence context, pron form |
+| `kana_stress.py` | A battery of 63 difficult words for reading checks |
+| `pyruntime.zip` | Bundled Python + Haqumei 0.12.2 + SudachiPy 0.7 (~44 MB, unpacks itself) |
 | `sudachidict.zip` | Sudachi core dictionary 20261015 (~73 MB, unpacked by the helper) |
 | `voices.json` | Voice registry: weights, references, prompt, sampling |
-| `kana_stress.py` | A battery of 63 difficult words for reading checks |
-| `anki_tts.py` | Old standalone script, kept for history, unused |
-| `doc/` | UI screenshots and engine media for the README |
-| `lab/` | Tests and helper scripts; only five of its modules are shipped in the installer — the reading system (provenance, domain dictionary, resolver) and QC v2 |
-| `.github/workflows/checks.yml` | CI: compile and tests on every push |
-| `README.md`, `README.en.md`, `PROJECT.md` | Instructions (RU/EN) and the full technical description |
+| `lab/` | Reading system and QC v2 modules (five files are shipped) + tests and dev tools |
+| `doc/` | UI screenshots, logo, engine media, measurement reports |
+| `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md` | History, development rules, security policy |
+| `.github/` | CI, issue and pull request templates |
 | `LICENSE` | AGPL-3.0 |
 
-Not tracked by git: `gptsovits_path.txt`, `pyruntime/` (unpacked from the
-zip), `test_*.ogg`, `logs/`.
+Not tracked by git: `gptsovits_path.txt`, `pyruntime/` (unpacked from the zip),
+`test_*.ogg`, `logs/`, `dist/`.
 
-## Updates and releases
+## Contributing
 
-* **Update**: “Приложение” (App) tab → **“Проверить обновления”** (Check for
-  updates). The app shows the changelog, downloads the installer and verifies
-  its SHA256; the download never starts without a hash. Then click “Run
-  installer”. You can also download the new installer from Releases and run
-  it over the old version — the engine path and settings are preserved.
-* **Uninstall**: Start menu → “Удалить AnkiVoice” (settings remain and are
-  picked up again on the next install).
-* A release is one file, `AnkiVoice-Setup-x.y.exe`, on [Releases](https://github.com/Daii1414/AnkiVoice/releases).
-* For developers: clone the repo, `git pull`, and run from disk — everything
-  works without installation.
+* Patches and ideas — via [issues](https://github.com/Daii1414/AnkiVoice/issues)
+  and pull requests. Templates live in `.github/ISSUE_TEMPLATE`.
+* Development rules, build, commit style — in
+  [CONTRIBUTING.md](CONTRIBUTING.md).
+* Vulnerabilities — follow the instructions in [SECURITY.md](SECURITY.md).
 
 ## License
 
-**AGPL-3.0** (the text is in the `LICENSE` file): anyone who modifies and
-distributes this tool must publish the source of their changes, including
-when it is used over a network.
+**AGPL-3.0** (text in [LICENSE](LICENSE)): whoever modifies and distributes
+this tool is obliged to publish the sources of their changes, including when
+it is used over a network.
+
+## Credits
+
+* [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) — the synthesis engine
+  (MIT).
+* [Haqumei](https://github.com/o24s/haqumei) — context-aware kanji readings
+  (the main core).
+* [Sudachi](https://github.com/WorksApplications/SudachiPy) and the UniDic
+  dictionary — fallback and reading checks.
+* [gradio](https://github.com/gradio-app/gradio) — the Voice tab is styled
+  after their web UI.
+* [AnkiConnect](https://ankiweb.net/shared/info/2055492159) — the bridge to
+  Anki.
