@@ -1842,6 +1842,11 @@ BASE_DROP_FAIL = 0.35       # насколько ниже своей нормы 
 BASE_DROP_SUSPECT = 0.14    # насколько ниже — сомнительно
 COVER_FLOOR = 0.50          # ниже этого не опускаемся ни при какой базе
 COVER_SUSPECT_FLOOR = 0.62
+# абсолютные пороги (из лаборатории, на живой коллекции): своих порогов
+# никогда не делаем МЯГЧЕ абсолютных, иначе хороший голос получил бы
+# слишком снисходительную оценку
+COVER_FAIL_ABS = 0.55
+COVER_SUSPECT_ABS = 0.80
 
 
 def baseline_path():
@@ -1889,8 +1894,11 @@ def baseline_limits(voice):
         return {}
     med = float(b["median"])
     return {
-        "COVER_FAIL": max(COVER_FLOOR, round(med - BASE_DROP_FAIL, 3)),
-        "COVER_SUSPECT": max(COVER_SUSPECT_FLOOR, round(med - BASE_DROP_SUSPECT, 3)),
+        "COVER_FAIL": min(COVER_FAIL_ABS,
+                          max(COVER_FLOOR, round(med - BASE_DROP_FAIL, 3))),
+        "COVER_SUSPECT": min(COVER_SUSPECT_ABS,
+                             max(COVER_SUSPECT_FLOOR,
+                                 round(med - BASE_DROP_SUSPECT, 3))),
     }
 
 
@@ -1952,7 +1960,9 @@ def synth(v, text, seed=42, speed=1.0, _oom_retry=True, src=None,
             if checker is not None:
                 checker.limits = baseline_limits(v.get("name"))
                 try:
-                    res = checker.check(blob, ext, src or text)
+                    # сверяем с произнесённым (text), а не с исходным полем:
+                    # у слова поле может быть длиннее самого слова
+                    res = checker.check(blob, ext, text)
                 except Exception:
                     res = {"ok": True, "verdict": "проверка не удалась",
                            "coverage": 1.0, "cer": 0.0}
@@ -2480,6 +2490,20 @@ def cmd_voice(args):
 
 
 
+def check_target(job):
+    """Что сверяем с записанным звуком.
+
+    У слова в поле может лежать длинная фраза, а озвучено только чтение
+    («アイリング・ヌートセンの残響式» -> «ざんきょうしき»). Сверять звук с
+    исходным полем — значит ждать несуществующей части фразы: получаем
+    ложные «модель потеряла кусок». Сверяем с тем, что произнесено.
+    """
+    try:
+        return job[2]
+    except Exception:
+        return ""
+
+
 def cmd_verify(args):
     """Проверить произношение уже озвученных карточек.
 
@@ -2524,7 +2548,9 @@ def cmd_verify(args):
             continue
         if not data:
             continue
-        res = checker.check(data, "ogg", src_text)
+        # сверяем с тем, что должно было быть произнесено, а не с
+        # исходным текстом поля
+        res = checker.check(data, "ogg", check_target(job))
         voice = ""
         m2 = re.search(r"tts_(.+?)_\d+_", m.group(1)) if m else None
         if m2:
@@ -2533,7 +2559,8 @@ def cmd_verify(args):
                "cer": res.get("cer"), "verdict": res.get("verdict"),
                "expected": text, "heard": res.get("heard", ""),
                "src": src_text, "voice": voice, "span": res.get("span"),
-               "avg_logprob": res.get("avg_logprob"), "file": m.group(1) if m else ""}
+               "avg_logprob": res.get("avg_logprob"),
+               "file": m.group(1) if m else ""}
         report.append(row)
         if res.get("fail") or res.get("suspect"):
             bad += 1
@@ -2636,6 +2663,7 @@ def cmd_verify(args):
             text = row.get("expected") or ""
             if not text:
                 continue
+            # произнесённый текст — ровно то, что сверяли
             for k in range(1, nvar + 1):
                 try:
                     blob, ext, _info = synth(vv, text, seed=42 + k * 17,
@@ -2715,6 +2743,26 @@ def cmd_qc_deck(args):
     deck = args.deck or "AnkiVoice_Брак"
     ac("createDeck", deck=deck)
 
+    # очистка колоды (по желанию): старые карточки без
+    # пользы; в новом AnkiConnect удаление заметок новый имя
+    # deleteNotes (раньше было removeNotes)
+    if getattr(args, "clean", False):
+        removed = 0
+        try:
+            cards = ac("findCards", query='deck:"%s"' % deck) or []
+            if cards:
+                infos = ac("cardsInfo", cards=cards) or []
+                nids = sorted(set(c.get("note") for c in infos if c.get("note")))
+                if nids:
+                    try:
+                        ac("deleteNotes", notes=nids)
+                    except SystemExit:
+                        ac("removeNotes", notes=nids)
+                    removed = len(nids)
+            print("Очищено старых карточек: %d" % removed)
+        except SystemExit as e:
+            print("  (не удалось очистить: %r)" % (e,))
+
     # Имя модели зависит от локали установки Anki: в русской сборке
     # «Basic» называется «Простая». Ищем не по имени, а по строению —
     # модель ровно с двумя полями Front/Back. Kiku (22 поля) брать нельзя:
@@ -2749,7 +2797,22 @@ def cmd_qc_deck(args):
             order.append(key)
         groups[key].append(r)
 
+    # уже созданные карточки: обновляем их на месте, а не плодим дубли
+    # (новый AnkiConnect не умеет удалять заметки, поэтому «пересоздать»
+    # колоду нельзя — только переписать)
+    existing = {}
+    try:
+        ids = ac("findCards", query='deck:"%s"' % deck) or []
+        for n in notes_info(ids):
+            fld = (n.get("fields") or {})
+            val = ((fld.get(front) or {}).get("value") or "").strip()
+            if val:
+                existing[val] = n["noteId"]
+    except SystemExit:
+        pass
+
     made = skipped = 0
+    fresh_fronts = set()
     for key in order:
         items = sorted(groups[key], key=lambda x: x.get("attempt") or 0)
         sounds = []
@@ -2766,7 +2829,13 @@ def cmd_qc_deck(args):
                         data=base64.b64encode(blob).decode("ascii"))
             fname = stored or r["file"]
             att = r.get("attempt") or 0
-            label = ("Вариант %d" % att) if att else "Как было"
+            strat = (r.get("strategy") or "")
+            if strat.startswith("вариант"):
+                label = "Вариант %d" % att
+            elif att:
+                label = "Брак качества"
+            else:
+                label = "Как было"
             sounds.append("%s: [sound:%s]" % (label, fname))
             if head:
                 continue
@@ -2794,12 +2863,43 @@ def cmd_qc_deck(args):
         fields = {front: head, back: body}
         if verdict_field:
             fields[verdict_field] = ""
-        ac("addNote", note={
-            "deckName": deck, "modelName": model, "fields": fields,
-            "options": {"allowDuplicate": False, "duplicateScope": "deck"},
-            "tags": ["av_qc_reject"],
-        })
-        made += 1
+        fresh_fronts.add(head.strip())
+        note_id = existing.get(head.strip())
+        try:
+            if note_id:
+                ac("updateNoteFields", note={"id": note_id, "fields": fields})
+                try:
+                    ac("addTags", notes=[note_id], tags=["av_qc_reject"])
+                except SystemExit:
+                    pass
+            else:
+                ac("addNote", note={
+                    "deckName": deck, "modelName": model, "fields": fields,
+                    "options": {"allowDuplicate": False, "duplicateScope": "deck"},
+                    "tags": ["av_qc_reject"],
+                })
+            made += 1
+        except SystemExit as e:
+            # такая карточка уже есть — не повторяем
+            skipped += 1
+            if "duplicate" not in str(e).lower():
+                print("  карточка не добавилась: %r" % (e,))
+    # карточки прошлых проверок, которых больше нет в индексе:
+    # помечаем «устарело» (удалить можно только руками)
+    stale = 0
+    for ftext, nid in existing.items():
+        if ftext in fresh_fronts:
+            continue
+        try:
+            ac("updateNoteFields", note={
+                "id": nid,
+                "fields": {front: "Устарело — эта карточка больше не в проверке",
+                           back: "Можно удалить."}})
+            stale += 1
+        except SystemExit:
+            pass
+    if stale:
+        print("Помечено устаревшими: %d (удалить вручню)" % stale)
     print("Колода '%s': добавлено %d карточек, пропущено (нет файла): %d"
           % (deck, made, skipped))
     print("Послушай каждую и впиши в поле «Вердикт»: «верно» либо "
@@ -3308,6 +3408,8 @@ def main():
 
     p = sub.add_parser("qc-deck", help="собрать отбракованный синтез в колоду Anki "
                                        "(чтобы послушать и оценить детектор)")
+    p.add_argument("--clean", action="store_true",
+                   help="сначала убрать старые карточки колоды")
     p.add_argument("--deck", default="AnkiVoice_Брак",
                    help="имя колоды (по умолчанию AnkiVoice_Брак)")
 

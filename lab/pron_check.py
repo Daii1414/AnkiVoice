@@ -53,7 +53,11 @@ CER_SUSPECT = 0.45        # местами прочитано не так
 MIN_MORAS = 8             # короче — ASR слишком ненадёжен, не судим
 MIN_SECONDS = 1.2         # короче — то же
 MIN_SEC_PER_MORA = 0.055  # быстрее — физически не успеть прочитать
-LOW_CONFIDENCE = -0.85     # средний лог-вероятность ASR ниже — не доверяем
+# порог по замеру на 300 словах корпора:
+# у принятых кусов уверенность выше -0.24 (медиана),
+# у брака бывает и так высокая (-0.16..-0.54), а неуверенные
+# (неразборивые) — от -0.88. Порог -0.60 отсекает наиболее шумных.
+LOW_CONFIDENCE = -0.60     # средний лог-вероятность ASR ниже — не доверяем
 ACOUSTIC_FAIL = 0.50      # акустическое покрытие ниже — кусок реально потерян
 HIGH_NOSPEECH = 0.6        # ASR решил, что это не речь
 
@@ -334,15 +338,26 @@ class Verifier(object):
                                       vad_filter=False,
                                       condition_on_previous_text=False,
                                       word_timestamps=words)
-        text = "".join(s.text for s in segs)
+        parts = []
         wlist = []
+        lps = []
+        nsp = []
         for s in segs:
+            parts.append(s.text)
+            # уверенность живёт в СЕГМЕНТЕ, а не в info
+            lp = getattr(s, "avg_logprob", None)
+            if lp is not None:
+                lps.append(float(lp))
+            ns = getattr(s, "no_speech_prob", None)
+            if ns is not None:
+                nsp.append(float(ns))
             for w in (getattr(s, "words", None) or []):
                 wlist.append({"start": getattr(w, "start", None),
                               "end": getattr(w, "end", None),
                               "text": getattr(w, "word", "") or ""})
-        meta = {"avg_logprob": getattr(info, "avg_logprob", None),
-                "no_speech_prob": getattr(info, "no_speech_prob", None),
+        text = "".join(parts)
+        meta = {"avg_logprob": (sum(lps) / len(lps)) if lps else None,
+                "no_speech_prob": (max(nsp) if nsp else None),
                 "duration": getattr(info, "duration", None)}
         return text, wlist, meta
 

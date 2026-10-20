@@ -246,10 +246,11 @@ def test_baseline_relative_limits():
             json.dump({"narrator": {"median": 0.95, "p05": 0.9, "n": 100}},
                       f, ensure_ascii=False)
         lim = vp.baseline_limits("narrator")
-        check(abs(lim["COVER_FAIL"] - 0.60) < 0.001,
-              "порог брака от нормы: %r" % lim)
-        check(abs(lim["COVER_SUSPECT"] - 0.81) < 0.001,
-              "порог подозрительного от нормы: %r" % lim)
+        # своих порогов никогда не делаем мягче абсолютных
+        check(abs(lim["COVER_FAIL"] - 0.55) < 0.001,
+              "порог брака не мягче абсолютного: %r" % lim)
+        check(abs(lim["COVER_SUSPECT"] - 0.80) < 0.001,
+              "порог подозрительного не мягче абсолютного: %r" % lim)
         # другого голоса — абсолютные пороги
         check(vp.baseline_limits("kakuzu") == {}, "без базы — абсолютные пороги")
         # пол: норма не должна опустить порог ниже пола
@@ -257,7 +258,18 @@ def test_baseline_relative_limits():
                   encoding="utf-8") as f:
             json.dump({"narrator": {"median": 0.70, "n": 100}}, f, ensure_ascii=False)
         lim2 = vp.baseline_limits("narrator")
+        check(abs(lim2["COVER_FAIL"] - 0.50) < 0.001,
+              "слабый голос -> строже: %r" % lim2)
         check(lim2["COVER_FAIL"] >= vp.COVER_FLOOR, "порог не ниже пола: %r" % lim2)
+        check(lim2["COVER_SUSPECT"] >= vp.COVER_SUSPECT_FLOOR,
+              "порог подозрительного не ниже пола: %r" % lim2)
+        # сильный голос (норма 1.0) — остаются абсолютные пороги
+        with open(os.path.join(tmp, "AnkiVoice", "pron_baseline.json"), "w",
+                  encoding="utf-8") as f:
+            json.dump({"narrator": {"median": 1.0, "n": 100}}, f, ensure_ascii=False)
+        lim3 = vp.baseline_limits("narrator")
+        check(abs(lim3["COVER_FAIL"] - 0.55) < 0.001,
+              "норма 1.0 -> абсолютный порог: %r" % lim3)
     finally:
         if old_appdata is None:
             os.environ.pop("APPDATA", None)
@@ -300,6 +312,26 @@ def test_profile_fields_per_deck():
             os.environ.pop("APPDATA", None)
         else:
             os.environ["APPDATA"] = old_appdata
+
+
+def test_check_targets_spoken_text():
+    """Проверка звука идёт по произнесённому, а не по исходному полю."""
+    note = {"noteId": 1, "fields": {
+        "Expression": {"value": "\u30a2\u30a4\u30ea\u30f3\u30b0\u30fb\u30cc\u30fc\u30c8\u30bb\u30f3\u306e\u6b8b\u97ff\u5f0f"},
+        "ExpressionFurigana": {"value": "\u30a2\u30a4\u30ea\u30f3\u30b0[\u3056\u3093\u304d\u3087\u3046\u3057\u304d]\u306e\u6b8b\u97ff\u5f0f"},
+        "ExpressionAudio": {"value": ""}}}
+    fields = {"sentence_src": "Sentence", "sentence_audio": "SentenceAudio",
+              "word_src": "Expression", "word_audio": "ExpressionAudio",
+              "furigana_src": "ExpressionFurigana", "reading": "off"}
+    jobs = vp.build_jobs([note], "expression", True, fields=fields)
+    check(len(jobs) == 1, "одна работа: %r" % (jobs,))
+    job = jobs[0]
+    spoken = job[2]
+    src_text = job[3]
+    check(len(spoken) < len(src_text),
+          "произнесённое короче исходного: %r vs %r" % (spoken, src_text))
+    check(vp.check_target(job) == spoken,
+          "сверяем с произнесённым: %r" % vp.check_target(job))
 
 
 def test_setup_status():
@@ -355,6 +387,7 @@ def main():
              test_pronunciation_compare, test_split_method_is_japanese_safe,
              test_pending_notes_limit, test_voice_args_guess_fallback,
              test_baseline_relative_limits, test_profile_fields_per_deck,
+             test_check_targets_spoken_text,
              test_setup_status]
     failed = 0
     for t in tests:
