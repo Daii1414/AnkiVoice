@@ -22,6 +22,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import socket
 import sys
 import tempfile
@@ -39,6 +40,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import anki_gui as ag          # переиспользуем конфиг, AnkiConnect, запуск пайплайна
 from anki_web_page import HTML
+
+# Ключ этого запуска: страница приложения его знает, чужие страницы — нет.
+# Локальный сервер виден любому сайту в браузере, поэтому запросы без
+# правильного ключа (или с чужим Origin) отбрасываются.
+TOKEN = secrets.token_hex(16)
+
+
+def page_html():
+    """Страница с подставленным ключом запуска."""
+    return HTML.replace("__AVTOKEN__", TOKEN)
 
 CREATE_NO_WINDOW = ag.CREATE_NO_WINDOW
 
@@ -664,6 +675,53 @@ class Handler(BaseHTTPRequestHandler):
         obj.update(extra)
         self._json(obj, code)
 
+    def _guard(self, need_token=True):
+        """Пропускаем только наши же запросы.
+
+        Локальный сервер доступен любому сайту, открытому в браузере: без
+        проверки источника чужая страница могла бы запустить озвучку,
+        скачать обновление или закрыть приложение. Проверяем Host (защита
+        от подмены DNS), Origin (защита от запросов с чужого сайта) и
+        служебный ключ этого запуска.
+        """
+        try:
+            port = int(self.server.server_address[1])
+        except Exception:
+            port = 0
+        host = (self.headers.get("Host") or "").strip()
+        try:
+            hname, hport = host.rsplit(":", 1)
+            hport = int(hport)
+        except Exception:
+            hname, hport = host, port
+        if hname.lower() not in ("127.0.0.1", "localhost", "[::1]", "::1"):
+            self.close_connection = True
+            self._err("Запрос отклонён: адрес не локальный", 403)
+            return False
+        if port and hport != port:
+            self._err("Запрос отклонён: порт не тот", 403)
+            return False
+        origin = (self.headers.get("Origin") or "").strip()
+        if origin:
+            netloc = urllib.parse.urlparse(origin).netloc.lower()
+            try:
+                oname, oport = netloc.rsplit(":", 1)
+                oport = int(oport)
+            except Exception:
+                oname, oport = netloc, port
+            if oname not in ("127.0.0.1", "localhost", "[::1]", "::1") or \
+                    (port and oport != port):
+                self.close_connection = True
+                self._err("Запрос отклонён: чужой источник", 403)
+                return False
+        if need_token:
+            tok = (self.headers.get("X-AV-Token") or "").strip()
+            if tok != TOKEN:
+                self.close_connection = True
+                self._err("Запрос отклонён: нет служебного ключа", 403)
+                return False
+        return True
+
     def _body(self):
         try:
             n = int(self.headers.get("Content-Length") or 0)
@@ -679,12 +737,14 @@ class Handler(BaseHTTPRequestHandler):
 
     # ------------------------------------------------------------- GET
     def do_GET(self):
+        if not self._guard(need_token=False):
+            return
         u = urllib.parse.urlparse(self.path)
         q = dict(urllib.parse.parse_qsl(u.query))
         path = u.path
 
         if path in ("/", "/index.html"):
-            self._send(200, HTML, "text/html; charset=utf-8")
+            self._send(200, page_html(), "text/html; charset=utf-8")
             return
         if path == "/api/state":
             self._json(self.api_state())
@@ -735,9 +795,13 @@ class Handler(BaseHTTPRequestHandler):
 
     # ------------------------------------------------------------- POST
     def do_POST(self):
+        # тело читаем ДО проверки: иначе при отказе останутся байты в сокете
+        # и следующий запрос по тому же соединению разберётся неверно
+        b = self._body()
+        if not self._guard(need_token=True):
+            return
         u = urllib.parse.urlparse(self.path)
         path = u.path
-        b = self._body()
 
         if path == "/api/config":
             cfg = ag.load_config()

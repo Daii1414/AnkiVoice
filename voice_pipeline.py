@@ -1728,6 +1728,7 @@ def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True, verify=None,
             return None, str(e)
 
     blob, err = post("ogg")
+    _b = _e = _i = None
     if blob is None and _oom_retry and err and \
             ("out of memory" in err or "CUDA" in err):
         # видеопамять переполнена (GPU занят чужими процессами или накопились
@@ -1738,14 +1739,16 @@ def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True, verify=None,
         ensure_voice(v, force=True)
         _b, _e, _i = synth(v, text, seed=seed, speed=speed, _oom_retry=False,
                            verify=verify, asr_model=asr_model)
-        return _b, _e
+        if _b is not None:
+            return _b, _e
     if blob is None and _oom_retry and err and \
             any(s in err for s in ("10061", "refused", "urlopen error", "timed out")):
         # сервер упал/перезагружается — поднимаем заново и повторяем разок
         if _resurrect(v):
             _b, _e, _i = synth(v, text, seed=seed, speed=speed, _oom_retry=False,
                            verify=verify, asr_model=asr_model)
-        return _b, _e
+            if _b is not None:
+                return _b, _e
     if blob is None:
         blob, err = post("wav")             # ogg может не поддерживаться
     if blob is None:
@@ -1760,7 +1763,8 @@ def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True, verify=None,
             ensure_voice(v, force=True)
             _b, _e, _i = synth(v, text, seed=seed, speed=speed, _oom_retry=False,
                            verify=verify, asr_model=asr_model)
-        return _b, _e
+            if _b is not None:
+                return _b, _e
         raise SystemExit("сервер вернул пустой звук (%d байт) — попробуй ещё раз"
                          % len(blob))
     return blob, "ogg" if payload["media_type"] == "ogg" else "wav"
@@ -2596,6 +2600,24 @@ def cmd_verify(args):
             print("Подозрительных в папке брака: %d — собери колоду: "
                   "pipeline.bat qc-deck" % added)
 
+    # отчёт пишем сразу: даже если что-то пойдёт не так дальше, результат
+    # проверки должен остаться на диске
+
+    # отчёт пишем сразу: даже если дальше что-то пойдёт не так, результат
+    # проверки должен остаться на диске
+
+    # отчёт пишем сразу: даже если дальше что-то пойдёт не так, результат
+    # проверки должен остаться на диске
+    if report:
+        try:
+            os.makedirs(QC_REJECT_DIR, exist_ok=True)
+            out = os.path.join(QC_REJECT_DIR, "verify_report.json")
+            with open(out, "w", encoding="utf-8") as fh:
+                json.dump(report, fh, ensure_ascii=False, indent=1)
+            print("Отчёт: %s" % out)
+        except Exception as e:
+            print("Отчёт не записан: %r" % (e,))
+
     # варианты: переозвучиваем подозрительное несколькими сидами, чтобы
     # выбрать лучший на слух
     nvar = int(getattr(args, "variants", 0) or 0)
@@ -2616,8 +2638,8 @@ def cmd_verify(args):
                 continue
             for k in range(1, nvar + 1):
                 try:
-                    blob, ext = synth(vv, text, seed=42 + k * 17,
-                                      src=row.get("src") or text)
+                    blob, ext, _info = synth(vv, text, seed=42 + k * 17,
+                                            src=row.get("src") or text)
                 except SystemExit:
                     continue
                 fn = "var_%d_%d_%d_%d.%s" % (row.get("note") or 0, k,
@@ -2641,15 +2663,6 @@ def cmd_verify(args):
                     print("  вариант не сохранился: %r" % (e,))
 
     print("\nПроверено %d кусков, сомнительных: %d" % (len(report), bad))
-    if report:
-        try:
-            os.makedirs(QC_REJECT_DIR, exist_ok=True)
-            out = os.path.join(QC_REJECT_DIR, "verify_report.json")
-            with open(out, "w", encoding="utf-8") as fh:
-                json.dump(report, fh, ensure_ascii=False, indent=1)
-            print("Отчёт: %s" % out)
-        except Exception as e:
-            print("Отчёт не записан: %r" % (e,))
     if bad:
         print("\nПодозрительные можно переделать: pipeline.bat voice --tag "
               "av_suspect --voice <голос> --force")
@@ -2736,7 +2749,11 @@ def cmd_qc_deck(args):
         stored = ac("storeMediaFile", filename=r["file"], overwrite=True,
                     data=base64.b64encode(blob).decode("ascii"))
         fname = stored or r["file"]
-        head = "【%d】%s" % (r["attempt"], r["text"] or "(пусто)")
+        att = r.get("attempt") or 0
+        if att:
+            head = "Вариант %d: %s" % (att, r["text"] or "(пусто)")
+        else:
+            head = "Как было: %s" % (r["text"] or "(пусто)")
         extra = ""
         if r.get("coverage") is not None:
             extra = ("\nПокрытие: %.2f, ошибки: %.2f"
@@ -2751,7 +2768,8 @@ def cmd_qc_deck(args):
         body = ("Причина: %s\nСтратегия: %s%s\nФайл: %s (%.1f КБ)"
                 % ("; ".join(r["reasons"]) or "не указана",
                    r.get("strategy", "?"), extra, fname, len(blob) / 1024))
-        tail = ("\n\nВердикт (верно / ложное срабатывание): "
+        tail = ("\n\nВердикт: напиши «верно» (звук плохой) или "
+                "«ложное срабатывание» (звук нормальный): "
                 if not verdict_field else "")
         fields = {front: head,
                   back: "%s%s\n\n[sound:%s]" % (body, tail, fname)}

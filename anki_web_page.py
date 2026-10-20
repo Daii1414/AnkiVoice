@@ -723,15 +723,37 @@ select{cursor:pointer}
 <script>
 /*__I18N__*/
 let LANG = "ru";
+let I18N_PREFIX = null;
+function prefixKeys(){
+  // ключи, которыми начинается длинный текст («Проблемы: X», «Код 3»)
+  if(I18N_PREFIX) return I18N_PREFIX;
+  I18N_PREFIX = Object.keys(I18N)
+    .filter(k => k.length >= 6 && /[\s:]$/.test(k))
+    .sort((a,b)=>b.length-a.length);
+  return I18N_PREFIX;
+}
 function trText(s){
   if(!I18N) return s;
+  const raw = s;
   const key = s.trim();
   if(!key) return s;
+  const lead = raw.slice(0, raw.indexOf(key));
+  const trail = raw.slice(raw.indexOf(key) + key.length);
   let tr = I18N[key];
   if(tr === undefined) tr = I18N[key.replace(/\u00a0/g, " ")];
   if(tr === undefined) tr = I18N[key.replace(/\u00a0/g, " ").replace(/\s+/g, " ")];
-  if(tr === undefined) return s;
-  return s.replace(key, tr);
+  if(tr === undefined){
+    // начало фразы известно, хвост — данные: переводим начало
+    const ks = prefixKeys();
+    for(let i=0;i<ks.length;i++){
+      const k = ks[i];
+      if(raw.indexOf(k) === 0){
+        return lead + I18N[k] + raw.slice(k.length);
+      }
+    }
+    return s;
+  }
+  return lead + tr + trail;
 }
 function translateNode(n){
   if(!n || n.nodeType!==3) return;
@@ -806,9 +828,11 @@ let WZ = {open:false, step:0, setup:null, busy:false, timer:null,
 let UPD = {timer:null};
 
 /* ================================================= утилиты */
+const AV_TOKEN = "__AVTOKEN__";
 async function api(path, body){
   const opt = body === undefined ? {} : {
-    method:"POST", headers:{"Content-Type":"application/json"},
+    method:"POST",
+    headers:{"Content-Type":"application/json", "X-AV-Token": AV_TOKEN},
     body: JSON.stringify(body)
   };
   const r = await fetch(path, opt);
