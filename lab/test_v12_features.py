@@ -370,6 +370,36 @@ def test_reading_mode_auto():
     check(word2 == "\u8010\u706b\u6027\u80fd", "\u0441\u043b\u043e\u0432\u043e \u0431\u0435\u0437 \u0444\u0443\u0440\u0438\u0433\u0430\u043d\u044b: %r" % word2)
 
 
+def test_broken_config_not_wiped():
+    """Битый конфиг (BOM, обрыв записи) не должен стирать настройки.
+
+    Раньше load_config() молча отдавала пустой словарь, и следующая же
+    запись затирала файл — путь движка, голос и колода пропадали.
+    """
+    tmp = tempfile.mkdtemp(prefix="av_cfg_")
+    cf = os.path.join(tmp, "config.json")
+    with open(cf, "wb") as f:
+        f.write(b"\xef\xbb\xbf" + json.dumps({"voice": "madara"}).encode("utf-8"))
+    old = ag.CONFIG_FILE
+    try:
+        ag.CONFIG_FILE = cf
+        cfg = ag.load_config()
+        check(cfg == {}, "битый конфиг: настройки не читаются")
+        check(os.path.exists(cf + ".broken"), "битый конфиг: файл отложен в сторону")
+        # и запись после этого не уничтожает прочие настройки
+        keep = ag.load_config()
+        keep["voice"] = "narrator"
+        ag.save_config(keep)
+        back = ag.load_config()
+        check(back.get("voice") == "narrator", "после битого конфига настройки пишутся")
+    finally:
+        ag.CONFIG_FILE = old
+        try:
+            os.remove(cf)
+        except OSError:
+            pass
+
+
 def test_setup_status():
     eng = tempfile.mkdtemp(prefix="anki_voice_engine_")
     for name in ("g.ckpt", "s.pth", "r.wav"):
@@ -424,6 +454,7 @@ def main():
              test_pending_notes_limit, test_voice_args_guess_fallback,
              test_baseline_relative_limits, test_profile_fields_per_deck,
              test_check_targets_spoken_text, test_reading_mode_auto,
+             test_broken_config_not_wiped,
              test_setup_status]
     failed = 0
     for t in tests:

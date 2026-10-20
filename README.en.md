@@ -235,6 +235,10 @@ Light theme — the same tabs: [Dubbing](doc/shots/voice-light.png),
 * **Fixed:** the synthesis used to be dropped when the pronunciation check was
   off, and it always made nine variants per card. Now it makes one when there is
   nothing to compare, and the log tells the truth.
+* **The interface was tidied up** (an outside audit): the reading source list
+  is no longer empty, the wizard does not nag when everything is ready, the
+  English interface is complete, the disabled Stop button looks disabled, and a
+  broken config file no longer wipes your settings.
 
 ## What's new in 1.2
 

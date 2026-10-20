@@ -67,42 +67,6 @@
       "aux": [],
       "prompt_text": "それでもなかなか見つけられなかった私は国境のマニアまで連れて行かれて",
       "prompt_lang": "ja"
-    },
-    "mishima_v2": {
-      "display": "Mishima V2 · v2Pro",
-      "gpt": "GPT_weights_v2Pro/MISHIMA_V2-e35.ckpt",
-      "sovits": "SoVITS_weights_v2Pro/MISHIMA_V2_e24_s792.pth",
-      "ref": "",
-      "aux": [],
-      "prompt_text": "",
-      "prompt_lang": "ja"
-    },
-    "mishima_v2_v2proplus": {
-      "display": "Mishima V2 · v2Pro+",
-      "gpt": "GPT_weights_v2ProPlus/MISHIMA_V2-e50.ckpt",
-      "sovits": "SoVITS_weights_v2ProPlus/MISHIMA_V2_e24_s792.pth",
-      "ref": "",
-      "aux": [],
-      "prompt_text": "",
-      "prompt_lang": "ja"
-    },
-    "mishima_yukio": {
-      "display": "Mishima Yukio · v2Pro",
-      "gpt": "GPT_weights_v2Pro/Mishima_Yukio-e15.ckpt",
-      "sovits": "SoVITS_weights_v2Pro/Mishima_Yukio_e8_s328.pth",
-      "ref": "",
-      "aux": [],
-      "prompt_text": "",
-      "prompt_lang": "ja"
-    },
-    "hayane": {
-      "display": "Hayane · v2Pro+",
-      "gpt": "GPT_weights_v2ProPlus/Hayane-e50.ckpt",
-      "sovits": "SoVITS_weights_v2ProPlus/Hayane_e24_s2352.pth",
-      "ref": "",
-      "aux": [],
-      "prompt_text": "",
-      "prompt_lang": "ja"
     }
   }
 }

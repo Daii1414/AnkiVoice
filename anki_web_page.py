@@ -46,10 +46,16 @@ html[data-theme="light"]{
   --ok:#12A150; --ok-t:#E6F7EF; --warn:#B46A00; --warn-t:#FFF3E0;
   --err:#E5484D; --err-t:#FDECEC;
   --chip:#F2F4F8; --input:#FFFFFF; --hover:#E9EDF4;
-  --console:#12161C; --console-fg:#D8DEE9;
+  --console:#F3F5F9; --console-fg:#232936;
   --disabled:#9AA3B2; --accent-dis:#B6B1F5;
   --shadow:0 1px 2px rgba(20,28,45,.06),0 8px 24px rgba(20,28,45,.08);
 }
+html[data-theme="light"] .console .l-ok{color:#12794A}
+html[data-theme="light"] .console .l-err{color:#B3261E}
+html[data-theme="light"] .console .l-cmd{color:#1A5FB4}
+html[data-theme="light"] .console .l-brak{color:#8A5A00}
+html[data-theme="light"] .console .l-dim{color:#7A8394}
+html[data-theme="light"] .console::-webkit-scrollbar-thumb{background:#C9CFDD;border-color:var(--console)}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
@@ -92,7 +98,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .nav .badge{margin-left:auto;background:var(--err);color:#fff;border-radius:999px;
   font-size:11px;padding:1px 6px;font-weight:700}
 .side-foot{margin-top:auto;font-size:11.5px;color:var(--sub);
-  border-top:1px solid var(--line);padding-top:10px;word-break:break-all}
+  border-top:1px solid var(--line);padding-top:10px}
+.side-foot b{display:block;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;font-weight:600}
 
 .main{padding:22px 26px 60px;max-width:1180px;width:100%}
 .panel{display:none;animation:fade .18s ease}
@@ -179,6 +187,7 @@ select{cursor:pointer}
 .btn.primary{background:var(--accent);border-color:transparent;color:var(--onaccent);font-weight:650}
 .btn.primary:hover{background:var(--accent-h)}
 .btn.danger{background:var(--err);border-color:transparent;color:#fff;font-weight:650}
+.btn.danger:disabled{background:var(--chip);color:var(--sub);opacity:1}
 .btn.ghost{background:transparent}
 .btn.sm{padding:7px 11px;font-size:13px}
 .btn.big{padding:13px 22px;font-size:15px;width:100%}
@@ -433,7 +442,7 @@ select{cursor:pointer}
         </div>
 
         <div class="spacer" style="height:16px"></div>
-        <div class="prog indet" id="prog"><i></i></div>
+        <div class="prog" id="prog"><i></i></div>
         <div class="prog-meta">
           <span id="progText">Готов к запуску</span>
           <span id="progPct"></span>
@@ -481,19 +490,19 @@ select{cursor:pointer}
                 <div class="ksub">основное слово читается строго по нему</div></td>
                 <td><select id="f_furi"></select></td></tr>
             <tr><td class="k wrap">Источник чтения
-                <div class="ksub">если не «Не подставлять» — переопределяет чтение
-                  всего предложения</div></td>
+                <div class="ksub">как читать основное слово: по фуригане, если
+                  она есть; нет фуриганы — кандзи</div></td>
                 <td><select id="f_reading"></select></td></tr>
           </tbody>
         </table>
         </div>
         <div class="hint">
-          <b>Что чем читается.</b> Основное слово — всегда по строке
-          «Фуригана слова»; если она пустая, слово читается автоматически.
-          Строка «Источник чтения» — отдельный, более старый способ: она
-          подставляет готовое чтение в <b>предложение целиком</b> и работает
-          только когда выбрана не «Не подставлять». Если выбраны обе —
-          для основного слова всё равно выигрывает фуригана.
+          <b>Как это читается.</b> Движок читает иероглифы сам, в контексте
+          предложения. Режим <b>«Авто»</b> (по умолчанию) читает основное слово
+          строго по строке «Фуригана слова»; если фуриганы нет — кандзи, как
+          есть. Режим <b>«Только кандзи»</b> — всегда кандзи: чтение движок
+          подбирает сам.
+          <br>Режим сохраняется в профиле колоды — у каждой колоды свой.
           <br>Пустой выбор в колонке «→» = звук не записывать.
         </div>
       </div>
@@ -671,7 +680,6 @@ select{cursor:pointer}
         <div class="spacer" style="height:12px"></div>
         <div class="row">
           <button class="btn" id="btnDoctor">Запустить диагностику</button>
-          <button class="btn ghost" id="btnQuit">Закрыть AnkiVoice</button>
         </div>
       </div>
 
@@ -683,6 +691,13 @@ select{cursor:pointer}
             <tr><td class="k">Конфиг</td><td class="v" id="pCfg">—</td></tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <button class="btn ghost" id="btnQuit">Закрыть AnkiVoice</button>
+          <span class="hint">Закрывает приложение и локальный сервер. Карточки в Anki не трогаются.</span>
+        </div>
       </div>
     </section>
 
@@ -788,11 +803,36 @@ function translateDom(root){
       if(tr) el.placeholder = tr; });
   }
 }
+const AV_DATA_SEL = "option, script, style, #pCode, #pCfg, #sideFoot, #gptpath, " +
+  "#deck, #deck2, #voice, #vlist, #veName, #v_ref, #v_prompt, #auxList, #a_disp, " +
+  "#a_ref, #a_gpt, #a_sov, #a_txt, #wzPath, #wzText, #testFile, #mPath, #mTitle, " +
+  "#voiceHint, #fieldsSaved, #deckHint, #doctor, #updateBox, #log, #progText";
+function reportUntranslated(){
+  // в английском режиме всё видимое должно быть переведено: что осталось
+  // по-русски — пишем в консоль, чтобы это было видно сразу.
+  // Данные пользователя (названия колод, пути, имена голосов, лог) не
+  // переводятся — их пропускаем.
+  const left = [];
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+  let n;
+  while((n = w.nextNode())){
+    const t = (n.nodeValue || "").trim();
+    if(!t || !/[\u0410-\u042f\u0430-\u044f\u0401\u0451]/.test(t)) continue;
+    const el = n.parentElement;
+    if(el && el.closest && el.closest(AV_DATA_SEL)) continue;
+    left.push(t.replace(/\s+/g, " ").slice(0, 120));
+  }
+  if(left.length){
+    const uniq = Array.from(new Set(left));
+    console.warn("i18n: \u043d\u0435 \u043f\u0435\u0440\u0435\u0432\u0435\u0434\u0435\u043d\u043e ("+uniq.length+"): " + uniq.join(" | "));
+  }
+}
 function applyLang(){
   document.documentElement.lang = LANG;
   const b = $("btnLang");
   if(b) b.textContent = LANG==="ru" ? "EN" : "RU";
   translateDom(document.body);
+  if(LANG==="en") setTimeout(reportUntranslated, 60);
   if(LANG==="ru"){
     document.querySelectorAll("[title]").forEach(el=>{
       if(el.__ruTitle !== undefined) el.title = el.__ruTitle; });
@@ -902,7 +942,7 @@ async function loadState(){
   chip($("chipAnki"), ST.anki, "Anki", ST.anki ? "подключена" : "не подключена");
   chip($("chipTts"),  ST.tts,  "Сервер", ST.tts ? "запущен" : "не запущен (поднимется сам)");
 
-  $("sideFoot").innerHTML = "Программа<br><b>"+esc(ST.code_dir)+"</b>";
+  $("sideFoot").innerHTML = "Программа<br><b title=\""+esc(ST.code_dir)+"\">"+esc(ST.code_dir)+"</b>";
 
   // карточка «Где лежат файлы» — заполняем сразу, без нажатия «Диагностика»
   $("pCode").textContent = ST.code_dir || "—";
@@ -1024,7 +1064,7 @@ function clearFieldSelects(){
   $("fieldsSaved").textContent = "";
 }
 function fillSelect(sel, fields, keep){
-  const prev = keep || sel.value;
+  const prev = (keep !== undefined && keep !== null) ? keep : sel.value;
   let html = '<option value="">— не используется —</option>';
   if(sel.id === "f_reading")
     html = '<option value="">Авто: есть фуригана — чтение по ней, нет — кандзи</option>'
@@ -1033,9 +1073,12 @@ function fillSelect(sel, fields, keep){
   if(sel.id !== "f_reading")
     html += fields.map(f=>'<option value="'+esc(f)+'">'+esc(f)+"</option>").join("");
   sel.innerHTML = html;
-  if(prev && (fields.indexOf(prev) >= 0
-              || (sel.id === "f_reading" && (prev === "mix" || prev === "asis"))))
-    sel.value = prev;
+  if(sel.id === "f_reading"){
+    // два режима: авто (пусто) и «только кандзи»
+    sel.value = (prev === "asis") ? "asis" : "";
+    return;
+  }
+  if(prev && fields.indexOf(prev) >= 0) sel.value = prev;
 }
 async function loadFields(){
   const deck = $("deck2").value || $("deck").value;
@@ -1072,11 +1115,14 @@ async function loadFields(){
     fillSelect($("f_word_src"), FIELDS, pick("word_src", g.word_src));
     fillSelect($("f_word_aud"), FIELDS, pick("word_audio", g.word_audio));
     fillSelect($("f_furi"),     FIELDS, pick("furigana_src", g.furigana_src));
-    // режим чтения — настойка колоды (профиль),
-    // иначе — общий дефолт
-    const readMode = (prof.reading === "asis") ? "asis"
-                   : (prof.reading === "mix") ? "mix"
-                   : (c.reading === "asis") ? "asis" : "mix";
+    // режим чтения: профиль колоды, иначе общий, иначе авто
+    // (пусто = «авто»: есть фуригана — читаем по ней, нет — кандзи)
+    const rprof = prof.reading, rglob = c.reading;
+    const readMode = (rprof === "asis") ? "asis"
+                   : (rprof === "mix") ? ""      // старое значение — то же, что авто
+                   : (rglob === "asis") ? "asis"
+                   : (rglob === "mix") ? ""
+                   : "";
     fillSelect($("f_reading"),  FIELDS, readMode);
     $("fieldsHint").innerHTML = "Полей в колоде: <b>"+FIELDS.length+"</b>. " +
       "Фуригана: <b>"+(g.furigana_src || c.furigana_src || "нет — слово прочитается автоматически")+"</b>.";
@@ -1099,7 +1145,6 @@ $("btnSaveFields").onclick = ()=>{
       word_src:"word_src",word_aud:"word_audio",furi:"furigana_src",reading:"reading"}[id];
     g[key] = el.value;
   });
-  if(!g.reading) g.reading = (ST && ST.reading_off) || "Не подставлять (движок сам)";
   g.deck = $("deck2").value || $("deck").value;
   g.profile_deck = g.deck;          // сохраняем в профиль этой колоды
   saveCfg(g).then(()=>{
@@ -1638,13 +1683,21 @@ function renderSetupSummary(){
     ["движок", s.engine.ok], ["Anki", s.anki.ok], ["сервер", s.server.ok],
     ["голоса", s.voices.ok], ["тест", s.test.ok]
   ];
-  $("setupSummary").innerHTML = marks.map(x =>
-    '<span style="color:'+(x[1]?"var(--ok)":"var(--err)")+'">'+
-    (x[1]?"✓":"✗")+" "+esc(x[0])+"</span>").join(" · ");
-  $("setupState").textContent = s.complete ? "Готово ✓" : "Требует внимания";
-  $("setupState").style.color = s.complete ? "var(--ok)" : "var(--err)";
+  // тестовая фраза необязательна: без неё озвучка работает
+  const opt = !!(s.core && !s.test.ok);
+  $("setupSummary").innerHTML = marks.map(x=>{
+    const soft = opt && x[0]==="тест";
+    const col = x[1] ? "var(--ok)" : (soft ? "var(--sub)" : "var(--err)");
+    const mark = x[1] ? "✓" : (soft ? "—" : "✗");
+    return '<span style="color:'+col+'"><b>'+mark+"</b> "+esc(x[0])+
+      (soft?" (необязательно)":"")+"</span>";
+  }).join(" · ");
+  // core — движок, Anki и голоса на месте: этого хватает, чтобы работать.
+  // complete — мастер пройден до конца (с тестовой фразой).
+  $("setupState").textContent = s.core ? "Готово ✓" : "Требует внимания";
+  $("setupState").style.color = s.core ? "var(--ok)" : "var(--err)";
   $("btnWizardAgain").style.display = s.done ? "" : "none";
-  if(!s.complete) $("navBadge").style.display = "";
+  if(!s.core) $("navBadge").style.display = "";
   else if(!(ST && ST.problems && ST.problems.length)) $("navBadge").style.display = "none";
 }
 function hydrateWizard(s){
@@ -2072,9 +2125,10 @@ $("btnUpdate").onclick = checkUpdates;
   applyLang();
   try{
     await loadSetup();
-    // Пока настройка не завершена, мастер открывается при каждом запуске.
-    // Раньше закрытие ставило avWizardSeen и навсегда отключало этот показ.
-    if(WZ.setup && !WZ.setup.complete){
+    // мастер открывается сам, только если чего-то не хватает для работы:
+    // нет движка, Anki не отвечает или нет ни одного готового голоса.
+    // тестовая фраза необязательна — из-за неё мастер не приставал.
+    if(WZ.setup && !WZ.setup.core){
       setTimeout(()=>{ if(!WZ.open) openWizard(); }, 450);
     }
   }catch(e){

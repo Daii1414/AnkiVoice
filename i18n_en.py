@@ -370,6 +370,72 @@ I18N_EN = {
     "Закрыть": "Close",
     "Установлено ": "Installed ",
     "Папка в порядке.": "The folder is fine.",
+    # --- правки 1.3: режим чтения, поля колоды, мастер, оформление ---
+    "Движок читает иероглифы сам, а чтение слова — ровно по фуригане карточки. Режим чтения и поля — в «Полях колоды».":
+        "The engine reads the kanji itself, and the main word follows the card's "
+        "furigana. The reading mode and the fields are in “Deck fields”.",
+    "Что каким полем читать и куда класть звук. Значения подставляются автоматически — поправь, если колода называет поля иначе.":
+        "Which field to read from and where to put the audio. The values are filled "
+        "in automatically - fix them if your deck names its fields differently.",
+    "Как это читается.": "How this is read.",
+    "Движок читает иероглифы сам, в контексте предложения. Режим":
+        "The engine reads the kanji itself, in the context of the sentence. The",
+    "«Авто»": "“Auto”",
+    "(по умолчанию) читает основное слово строго по строке «Фуригана слова»; если фуриганы нет — кандзи, как есть. Режим":
+        "(by default) reads the main term strictly from the “Furigana” field; with "
+        "no furigana it is read as kanji, as it is. The",
+    "«Только кандзи»": "“Kanji only”",
+    "— всегда кандзи: чтение движок подбирает сам.":
+        "- always kanji: the engine picks the reading itself.",
+    "Режим сохраняется в профиле колоды — у каждой колоды свой.":
+        "The mode is stored in the deck profile - every deck has its own.",
+    "как читать основное слово: по фуригане, если она есть; нет фуриганы — кандзи":
+        "how the main term is read: from the furigana if there is one; without a "
+        "furigana - kanji",
+    "Папка GPT-SoVITS": "GPT-SoVITS folder",
+    "Закрывает приложение и локальный сервер. Карточки в Anki не трогаются.":
+        "Closes the app and the local server. Your Anki cards are not touched.",
+    "Полей в колоде:": "Fields in the deck:",
+    "Готово ✓": "Ready ✓",
+    "Кубота Хитоси": "Hitoshi Kubota",
+    "и": "and",
+
+    # --- мастер и шапки (аудит интерфейса) ---
+    ". Фуригана:":
+        ". Furigana:",
+    "движок":
+        "engine",
+    "сервер":
+        "server",
+    "голоса":
+        "voices",
+    "тест":
+        "test",
+    "(необязательно)":
+        "(optional)",
+    "AnkiConnect":
+        "AnkiConnect",
+    "AnkiVoice — оболочка. Синтез делает отдельный движок GPT-SoVITS; он весит несколько гигабайт и ставится один раз.":
+        "AnkiVoice is a shell. A separate GPT-SoVITS engine does the synthesis; it weighs several gigabytes and is installed once.",
+    "Скачай Windows-пакет GPT-SoVITS v2Pro, распакуй в папку без кириллицы (например,":
+        "Download the Windows package of GPT-SoVITS v2Pro and unpack it into a folder without Cyrillic (for example,",
+    ") и укажи её здесь. Внутри должны быть":
+        ") and point to it here. Inside there must be",
+    "Через AnkiConnect программа читает колоды и записывает звук в карточки. Без него озвучка не начнётся.":
+        "Through AnkiConnect the app reads the decks and writes the audio into the cards. Without it the dubbing will not start.",
+    "и нажми «ОК».":
+        "and press “OK”.",
+    "Сервер слушает только":
+        "The server listens only on",
+    ". Первый запуск грузит веса и CUDA — это может занять 1–2 минуты.":
+        ". The first start loads the weights and CUDA - it may take 1-2 minutes.",
+    "Если сервер ещё не поднят, тестовая фраза запустит его автоматически. Этот шаг нужен, чтобы заранее увидеть ошибки движка.":
+        "If the server is not up yet, the test phrase starts it automatically. This step lets you see the engine problems in advance.",
+    "Открой вкладку «Голос»: добавь голос (GPT .ckpt, SoVITS .pth и референс) или нажми «Обновить веса в движке».":
+        "Open the “Voice” tab: add a voice (GPT .ckpt, SoVITS .pth and a reference) or press “Update the weights in the engine”.",
+    "Колода в Anki: ":
+        "Decks in Anki: ",
+
 }
 
 

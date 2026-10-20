@@ -459,10 +459,15 @@ def cmd_scan(args):
     existing = cfg.setdefault("voices", {})
     known_gpt = {_gpt_identity(v.get("gpt", "")) for v in existing.values()}
     added = []
+    skipped = []
     for item in found:
         # голос уже зарегистрирован (иначе ключей) — в т.ч. той же модели,
         # но с другой эпохой: дубликаты с пустым референсом не нужны
         if _gpt_identity(item["gpt"]) in known_gpt:
+            continue
+        # без референса голос не озвучить: не добавляем в список
+        if not (item.get("ref") or "").strip():
+            skipped.append(item["name"])
             continue
         existing[item["name"]] = {
             "display": item["display"],
@@ -486,6 +491,9 @@ def cmd_scan(args):
             mark = "+" if it["name"] in added else "="
             print("  %s %-22s %-24s ref=%s"
                   % (mark, it["name"], it["display"], it["ref"] or "—"))
+        if skipped:
+            print("Пропущены (нет референса): %s" % ", ".join(skipped))
+            print("  Их можно добавить вручную на вкладке «Голос».")
         if added and not args.apply:
             print("Новые голоса НЕ записаны — запусти с --apply.")
         elif added:

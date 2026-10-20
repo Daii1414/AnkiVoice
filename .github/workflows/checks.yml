@@ -44,6 +44,7 @@ jobs:
           python lab/integration_check.py
           python lab/readme_check.py
           python lab/fmt_check.py
+          python lab/i18n_check.py
 
   installer:
     name: installer (windows)

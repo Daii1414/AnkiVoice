@@ -133,7 +133,15 @@ def load_config():
     try:
         with open(CONFIG_FILE, encoding="utf-8") as f:
             return json.load(f)
+    except FileNotFoundError:
+        return {}
     except Exception:
+        # битый конфиг (BOM, правка руками, обрыв записи) — настройки не
+        # теряем: откладываем файл в сторону и начинаем с чистого
+        try:
+            os.replace(CONFIG_FILE, CONFIG_FILE + ".broken")
+        except OSError:
+            pass
         return {}
 
 

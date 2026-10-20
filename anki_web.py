@@ -358,14 +358,18 @@ def setup_status():
     anki_ok = ag.anki_status()
     server_ok = ag.tts_status()
     engine_ok = bool(path) and not problems
-    # завершённость — только явный флаг: смена папки движка его сбрасывает,
-    # а старый test_*.ogg не должен «подтверждать» новый движок
+    # Для работы нужны три вещи: движок на месте, Anki отвечает и есть хоть
+    # один голос с полным набором файлов. Тестовая фраза необязательна:
+    # без неё озвучка всё равно работает, поэтому она не решает, готов ли
+    # мастер — иначе он ругался бы на каждом запуске.
+    core = engine_ok and anki_ok and bool(ready)
     done = bool(cfg.get("setup_done"))
-    complete = engine_ok and anki_ok and bool(ready) and done
+    complete = core and done
 
     return {
         "version": ag.APP_VERSION,
         "complete": complete,
+        "core": core,
         "done": done,
         "engine": {
             "ok": engine_ok,
