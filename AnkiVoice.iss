@@ -1,4 +1,4 @@
-; -- AnkiVoice.iss -------------------------------------------------------------
+﻿; -- AnkiVoice.iss -------------------------------------------------------------
 ; Сборка установщика AnkiVoice для Windows (Inno Setup 6).
 ;
 ;   Скомпилировать:  ISCC.exe AnkiVoice.iss
@@ -13,7 +13,8 @@
 #define MyAppVersion "1.2"
 #define MyAppPublisher "Daii1414"
 #define MyAppURL "https://github.com/Daii1414/AnkiVoice"
-#define MyFiles "E:\TTS-проект"
+; Исходники берём из каталога этого скрипта ({src}) — сборка одинаково
+; работает локально и в CI, без жёстких путей.
 
 [Setup]
 AppId={{6D8C4A52-73E1-4E49-9C2F-0B1E2A9C7D31}
@@ -26,7 +27,7 @@ DefaultDirName={localappdata}\Programs\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
-OutputDir={#MyFiles}\dist
+OutputDir=dist
 OutputBaseFilename=AnkiVoice-Setup-1.2
 Compression=lzma2/max
 SolidCompression=yes
@@ -46,31 +47,32 @@ Name: "desktopicon"; Description: "Создать значок на рабоче
 
 [Files]
 ; сама программа и её памятки
-Source: "{#MyFiles}\AnkiVoice.exe";         DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyFiles}\pipeline.bat";          DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyFiles}\README.md";            DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyFiles}\README.en.md";         DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyFiles}\PROJECT.md";           DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyFiles}\LICENSE";              DestDir: "{app}"; Flags: ignoreversion
+Source: "AnkiVoice.exe";         DestDir: "{app}"; Flags: ignoreversion
+Source: "pipeline.bat";          DestDir: "{app}"; Flags: ignoreversion
+Source: "README.md";            DestDir: "{app}"; Flags: ignoreversion
+Source: "README.en.md";         DestDir: "{app}"; Flags: ignoreversion
+Source: "CHANGELOG.md";         DestDir: "{app}"; Flags: ignoreversion
+Source: "PROJECT.md";           DestDir: "{app}"; Flags: ignoreversion
+Source: "LICENSE";              DestDir: "{app}"; Flags: ignoreversion
 ; пайплайн (exe только запускает его — живёт на диске, обновляется git pull)
-Source: "{#MyFiles}\voice_pipeline.py";    DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyFiles}\anki_gui.py";          DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyFiles}\sudachi_g2p.py";       DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyFiles}\g2p_core.py";          DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyFiles}\kana_stress.py";       DestDir: "{app}"; Flags: ignoreversion
+Source: "voice_pipeline.py";    DestDir: "{app}"; Flags: ignoreversion
+Source: "anki_gui.py";          DestDir: "{app}"; Flags: ignoreversion
+Source: "sudachi_g2p.py";       DestDir: "{app}"; Flags: ignoreversion
+Source: "g2p_core.py";          DestDir: "{app}"; Flags: ignoreversion
+Source: "kana_stress.py";       DestDir: "{app}"; Flags: ignoreversion
 ; модули системы чтения и QC v2 — без них в установленном приложении
 ; молча отключаются подстановка чтения из фуриганы, доменный словарь
 ; и многосигнальная проверка качества звука
-Source: "{#MyFiles}\lab\g2p_provenance.py"; DestDir: "{app}\lab"; Flags: ignoreversion
-Source: "{#MyFiles}\lab\domain_dict.py";     DestDir: "{app}\lab"; Flags: ignoreversion
-Source: "{#MyFiles}\lab\g2p_candidates.py";  DestDir: "{app}\lab"; Flags: ignoreversion
-Source: "{#MyFiles}\lab\g2p_resolver.py";    DestDir: "{app}\lab"; Flags: ignoreversion
-Source: "{#MyFiles}\lab\quality_v2.py";       DestDir: "{app}\lab"; Flags: ignoreversion
+Source: "lab\g2p_provenance.py"; DestDir: "{app}\lab"; Flags: ignoreversion
+Source: "lab\domain_dict.py";     DestDir: "{app}\lab"; Flags: ignoreversion
+Source: "lab\g2p_candidates.py";  DestDir: "{app}\lab"; Flags: ignoreversion
+Source: "lab\g2p_resolver.py";    DestDir: "{app}\lab"; Flags: ignoreversion
+Source: "lab\quality_v2.py";       DestDir: "{app}\lab"; Flags: ignoreversion
 ; голоса и словарь чтения
-Source: "{#MyFiles}\voices.json";          DestDir: "{app}"; Flags: ignoreversion
+Source: "voices.json";          DestDir: "{app}"; Flags: ignoreversion
 ; встроенный Python и словарь Sudachi (распакуются при первом запуске)
-Source: "{#MyFiles}\pyruntime.zip";        DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MyFiles}\sudachidict.zip";      DestDir: "{app}"; Flags: ignoreversion
+Source: "pyruntime.zip";        DestDir: "{app}"; Flags: ignoreversion
+Source: "sudachidict.zip";      DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{userstartmenu}\{#MyAppName}"; Filename: "{app}\AnkiVoice.exe"

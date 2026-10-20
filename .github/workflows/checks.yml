@@ -9,8 +9,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
+    name: tests (ubuntu, python 3.12)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,8 +32,7 @@ jobs:
           python -m pip install numpy==2.4.6 haqumei==0.12.2
 
       - name: Compile Python
-        run: |
-          python -m compileall -q anki_gui.py anki_web.py anki_web_page.py voice_pipeline.py sudachi_g2p.py g2p_core.py kana_stress.py anki_tts.py robust_tests.py
+        run: python -m compileall -q anki_gui.py anki_web.py anki_web_page.py voice_pipeline.py sudachi_g2p.py g2p_core.py kana_stress.py lab
 
       - name: Unit and integration checks
         run: |
@@ -38,3 +42,24 @@ jobs:
           python lab/test_v12_features.py
           python lab/web_js_check.py
           python lab/integration_check.py
+
+  installer:
+    name: installer (windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: cmd
+        run: |
+          "$(ProgramFiles(x86))\Inno Setup 6\ISCC.exe" AnkiVoice.iss
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: AnkiVoice-Setup
+          path: dist/AnkiVoice-Setup-*.exe
+          retention-days: 14

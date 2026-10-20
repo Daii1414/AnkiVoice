@@ -1,0 +1,67 @@
+name: Ошибка
+description: Что-то не работает — расскажи, как воспроизвести
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо! Прежде чем заполнять — проверь вкладку «Приложение» → «Запустить диагностику»:
+        там сразу видно, что именно сломалось (движок, Anki, сервер, голоса, QC).
+        Скопируй вывод в поле «Диагностика» ниже.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: Что произошло
+      description: Опиши проблему своими словами.
+      placeholder: Кнопка «Начать озвучку» пишет «сервер вернул пустой звук»…
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Как воспроизвести
+      description: Шаги, при которых проблема повторяется.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Лог или диагностика
+      description: Вкладка «Озвучка» → «Журнал», или вывод «Запустить диагностику».
+      render: shell
+  - type: input
+    id: versions
+    attributes:
+      label: Версии
+      description: Версия AnkiVoice, Anki, GPT-SoVITS, Windows.
+      placeholder: AnkiVoice 1.2 / Anki 25.04 / GPT-SoVITS v2Pro / Windows 11 23H2
+    validations:
+      required: true
+  - type: dropdown
+    id: engine
+    attributes:
+      label: С чем связано
+      options:
+        - Движок GPT-SoVITS (папка, веса, сервер)
+        - AnkiConnect / запись в колоду
+        - Чтение иероглифов, фуригана, словарь
+        - Качество звука (QC), отбраковка
+        - Установщик, обновление, удаление
+        - Интерфейс (вкладки, кнопки, тема)
+        - Другое
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Проверено
+      options:
+        - label: Проблема воспроизводится и в консоли (`pipeline.bat selftest`)
+          required: false
+        - label: Я проверил, что папка движка указана верно (вкладка «Приложение» → «Проверить»)
+          required: false
