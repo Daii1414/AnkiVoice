@@ -406,7 +406,12 @@ select{cursor:pointer}
           <label class="switch" style="align-self:center;padding-bottom:12px">
             <input type="checkbox" id="force"> Пересобрать всё заново
           </label>
+          <label class="switch" style="align-self:center;padding-bottom:12px"
+                 title="Распознаём собственный звук и сверяем с текстом: ловим «модель потеряла кусок фразы»">
+            <input type="checkbox" id="verifyPron"> Проверять произношение
+          </label>
         </div>
+        <div class="hint" id="pronHint">—</div>
       </div>
 
       <div class="card">
@@ -820,6 +825,17 @@ async function loadState(){
   // колоды не тянем в state (долго) — отдельным вызовом
   if(!$("deck").options.length) loadDecks(c.deck);
 
+  // проверка произношения
+  const vpr = $("verifyPron");
+  if(vpr) vpr.checked = !!c.verify_pronunciation;
+  const pr = (ST && ST.pron) || {};
+  if($("pronHint")){
+    $("pronHint").innerHTML = pr.ok
+      ? "Доступна: <b>" + esc(pr.msg || "") + "</b>. Каждый кусок распознаём и сверяем с текстом — мусор переделаем сами."
+      : "Недоступна: " + esc(pr.msg || "нет данных") +
+        ". Нужна faster-whisper в питоне движка и скачанная модель.";
+  }
+
   // режим/лимит из конфига
   if(c.mode) setMode(c.mode);
   if(c.limit != null) $("limit").value = c.limit;
@@ -1114,6 +1130,10 @@ function collectVoiceArgs(){
     limit:$("limit").value, force:$("force").checked
   };
 }
+$("verifyPron").onchange = ()=>{
+  saveCfg({verify_pronunciation: $("verifyPron").checked});
+  toast($("verifyPron").checked ? "Проверка произношения включена" : "Проверка произношения выключена");
+};
 $("btnStart").onclick = async ()=>{
   if(!$("deck").value) return toast("Сначала выбери колоду","bad");
   if(!$("voice").value) return toast("Сначала выбери голос","bad");

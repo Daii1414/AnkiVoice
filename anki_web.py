@@ -213,6 +213,39 @@ def deck_fields(deck):
     return fl, (guess_fields(fl) if fl else {})
 
 
+def pron_status():
+    """(доступно ли, описание) — проверка произношения через faster-whisper.
+
+    Смотрим по файлам: в питоне движка есть ли faster-whisper и есть ли
+    скачанная модель. Саму модель грузит пайплайн (он и так живёт
+    в питоне движка).
+    """
+    try:
+        lab = os.path.join(ag.code_dir(), "lab")
+        if lab not in sys.path:
+            sys.path.insert(0, lab)
+        import pron_check
+    except Exception as e:
+        return False, ("модуль проверки не импортируется (%s)"
+                       % (repr(e)[:80],))
+    cfg = ag.load_config()
+    eng = (cfg.get("gptsovits_path") or "").strip()
+    if not eng:
+        return False, "не указана папка GPT-SoVITS"
+    site = os.path.join(eng, "runtime", "Lib", "site-packages")
+    try:
+        has_fw = any(n.lower().startswith("faster_whisper")
+                     for n in os.listdir(site))
+    except OSError:
+        has_fw = False
+    if not has_fw:
+        return False, "в питоне движка нет faster-whisper"
+    models = pron_check.cached_models()
+    if not models:
+        return False, "нет скачанной модели faster-whisper"
+    return True, models[0][0]
+
+
 def read_voices_file():
     p = os.path.join(ag.code_dir(), "voices.json")
     try:
@@ -716,7 +749,8 @@ class Handler(BaseHTTPRequestHandler):
                     cfg.pop("last_test_voice", None)
             for k in ("gptsovits_path", "theme", "deck", "voice", "mode",
                       "sentence_src", "sentence_audio", "word_src",
-                      "word_audio", "furigana_src", "reading", "limit"):
+                      "word_audio", "furigana_src", "reading", "limit",
+                      "verify_pronunciation", "asr_model"):
                 if k in b:
                     cfg[k] = b[k]
             ag.save_config(cfg)
@@ -835,6 +869,7 @@ class Handler(BaseHTTPRequestHandler):
         return {
             "cfg": cfg,
             "version": ag.APP_VERSION,
+            "pron": dict(zip(("ok", "msg"), pron_status())),
             "setup_done": bool(cfg.get("setup_done")),
             "path": path,
             "auto": auto,
