@@ -1539,7 +1539,9 @@ function testHtml(s){
     '<button class="btn sm" data-w="wzRefresh" '+(WZ.busy?"disabled":"")+'>Проверить снова</button></div>'+
     (s.test.ok ? '<div class="wresult">Тестовый звук готов ✓'+
       (s.test.voice ? ' <span class="hint">голос: '+esc(s.test.voice)+'</span>' : "")+
-      '<audio controls preload="none" src="'+esc(s.test.url)+'&t='+Date.now()+'"></audio></div>' : "")+
+      '<audio controls preload="none" src="'+esc(s.test.url)+'&t='+Date.now()+'"></audio>'+
+      (!s.done ? '<div class="hint">Это тест от прошлого запуска. Синтезируй фразу заново, чтобы завершить настройку.</div>' : "")+
+      '</div>' : "")+
     (WZ.testError ? '<div class="wresult bad">'+esc(WZ.testError)+'</div>' : "")+
     (s.complete ? '<div class="wstate ok" style="margin-top:14px"><span class="dot"></span>'+
       'Настройка завершена. Можно закрывать мастер.</div>' : "");

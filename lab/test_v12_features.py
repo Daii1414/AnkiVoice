@@ -126,7 +126,8 @@ def test_setup_status():
     for name in ("g.ckpt", "s.pth", "r.wav"):
         with open(os.path.join(eng, name), "wb") as f:
             f.write(b"x")
-    cfg = {"gptsovits_path": eng, "last_test_voice": "alice"}
+    cfg = {"gptsovits_path": eng, "last_test_voice": "alice",
+           "setup_done": True}
     voices = {"alice": {"display": "Alice", "gpt": "g.ckpt",
                         "sovits": "s.pth", "ref": "r.wav"}}
     old = (ag.load_config, ag.validate_gptsovits, ag.anki_status, ag.tts_status,
@@ -145,6 +146,15 @@ def test_setup_status():
         check(st["test"]["ok"] is True, "test ok")
         check(st["complete"] is True, "complete")
         check(st["test"]["voice"] == "alice", "test voice")
+
+        # сброс флага (например, после смены папки движка) не должен
+        # подтверждаться старым test_alice.ogg
+        cfg["setup_done"] = False
+        reset = aw.setup_status()
+        check(reset["done"] is False, "reset done")
+        check(reset["complete"] is False, "reset complete")
+        check(reset["test"]["ok"] is True, "old test still shown")
+        cfg["setup_done"] = True
 
         cfg["gptsovits_path"] = "C:\\nope"
         ag.validate_gptsovits = lambda path: ["Папка не существует: " + path]

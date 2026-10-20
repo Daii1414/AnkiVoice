@@ -300,9 +300,9 @@ def setup_status():
     anki_ok = ag.anki_status()
     server_ok = ag.tts_status()
     engine_ok = bool(path) and not problems
-    # успешный тестовый файл — тоже доказательство, что мастер пройден;
-    # отдельный флаг нужен для случая, когда файл потом удалили
-    done = bool(cfg.get("setup_done")) or bool(test_path)
+    # завершённость — только явный флаг: смена папки движка его сбрасывает,
+    # а старый test_*.ogg не должен «подтверждать» новый движок
+    done = bool(cfg.get("setup_done"))
     complete = engine_ok and anki_ok and bool(ready) and done
 
     return {
