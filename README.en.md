@@ -441,12 +441,17 @@ python lab/test_v12_features.py
 python lab/web_js_check.py
 python lab/integration_check.py
 python lab/readme_check.py
+python lab/fmt_check.py
 ```
 
 `lab/readme_check.py` compares the READMEs with the code: the files listed in
 the layout table, the images, the table-of-contents anchors, the console
 commands, the number of reading modes and the modules shipped with the
 installer. If they drift apart, it fails.
+
+`lab/fmt_check.py` checks that every format string has as many placeholders
+as there are arguments - such a mismatch only blows up at the moment it runs,
+usually at the very end of a long job.
 
 `lab/robust_tests.py` — 10 robustness checks of the pipeline; it needs a
 running Anki. CI runs everything else on every push

@@ -1221,7 +1221,7 @@ $("btnSaveVoice").onclick = async ()=>{
 $("btnTest").onclick = async ()=>{
   const v = $("voice").value;
   if(!v) return toast("Выбери голос","bad");
-  const ok = await runOp({kind:"test", voice:v, text:"こんにちは、テストです。",
+  const ok = await runOp({kind:"test", voice:v, text:"既存建築物の改修では、耐火性能と耐震性能の確認が重要です。",
     speed:$("v_speed").value, seed:$("v_seed").value});
   if(ok) setTimeout(()=>{ $("log").scrollIntoView({behavior:"smooth"}); }, 300);
 };
@@ -1652,7 +1652,7 @@ function hydrateWizard(s){
     WZ.voice = ready.some(v => v.name === s.test.voice) ? s.test.voice
       : (ready[0] ? ready[0].name : "");
   }
-  if(!WZ.text) WZ.text = s.test.text || "こんにちは。これは声のテストです。";
+  if(!WZ.text) WZ.text = s.test.text || "既存建築物の改修では、耐火性能と耐震性能の確認が重要です。";
 }
 function openWizard(step){
   WZ.open = true;

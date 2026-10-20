@@ -43,6 +43,7 @@ jobs:
           python lab/web_js_check.py
           python lab/integration_check.py
           python lab/readme_check.py
+          python lab/fmt_check.py
 
   installer:
     name: installer (windows)

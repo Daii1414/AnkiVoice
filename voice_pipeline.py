@@ -2020,23 +2020,36 @@ def synth(v, text, seed=42, speed=1.0, _oom_retry=True, src=None,
                 info["heard"] = suspect.get("heard")
                 info["pron_coverage"] = cov
         # запоминаем лучший по содержанию (если проверяли произношение)
-        if cov is not None and (best is None or cov > best[2]):
+        # лучший кусок: если проверка содержания работает — берём его первый
+        # по крытию; если проверка выключена — выбираем по покрытию
+        # лучший кусок: если проверка содержания работает — берём его первый
+        # по крытию; если проверка выключена — выбираем по покрытию
+        if best is None:
+            if ok:
+                best = (blob, ext, cov, list(sigs))
+                if cov is None:
+                    break          # сравнивать нечем — девять вариантов не нужно
+                if cov >= 0.96:
+                    break          # дубль чистый — лучше невзять
+        elif (cov is not None and best[2] is not None and cov > best[2]):
             best = (blob, ext, cov, list(sigs))
-        if not _QC_BLIND[0] and not sigs:
+        if not _QC_BLIND[0] and not ok and not sigs:
             _QC_BLIND[0] = True
             print("  ! проверить звук не удалось — качество не контролируется")
         tried += 1
         kept, _ = keep_rejected(blob, ext, text, sigs, tried,
                                 meta={"strategy": what or "по умолчанию",
                                       "coverage": cov})
-        print("  [%s] брак: %s%s%s"
-              % (text[:24], ", ".join(sigs) or "пустой ответ",
-                 "" if msg is None else " — " + msg,
-                 "" if kept is None else "  [сохранён: %s]" % kept))
+        if not ok:
+            print("  [%s] брак: %s%s%s"
+                  % (text[:24], ", ".join(sigs) or "звук не прошёл проверку",
+                     "" if msg is None else " — " + msg,
+                     "" if kept is None else "  [сохранён: %s]" % kept))
     if best is not None:
-        print("  [%s] ни один вариант не прошёл — беру лучший по содержанию "
-              "(покрытие %.2f)" % (text[:24], best[2]))
-        return best[0], best[1], {"suspect": True, "coverage": best[2],
+        if best[2] is not None:
+            print("  [%s] лучший кусок по содержанию (покрытие %.2f) - вернём его"
+                  % (text[:24], best[2]))
+        return best[0], best[1], {"suspect": bool(best[3]), "coverage": best[2],
                                    "signals": best[3], "heard": ""}
     raise SystemExit("после %d попыток синтез даёт брак — карточка пропущена"
                      % tried)

@@ -406,7 +406,7 @@ def setup_status():
             "path": test_path,
             "url": ("/api/audio?voice=" + urllib.parse.quote(test_voice)
                     if test_voice else ""),
-            "text": "こんにちは。これは声のテストです。",
+            "text": "既存建築物の改修では、耐火性能と耐震性能の確認が重要です。",
         },
     }
 
@@ -1109,7 +1109,7 @@ class Handler(BaseHTTPRequestHandler):
             if not voice:
                 return self._err("Сначала выбери голос")
             args = ["test", "--voice", voice,
-                    "--text", (b.get("text") or "こんにちは、テストです。"),
+                    "--text", (b.get("text") or "既存建築物の改修では、耐火性能と耐震性能の確認が重要です。"),
                     "--speed", "%.2f" % float(b.get("speed") or 1.0),
                     "--seed", str(int(b.get("seed") or 42))]
             title = "Тест синтеза «%s»" % voice

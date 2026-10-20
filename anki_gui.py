@@ -1811,7 +1811,7 @@ def run_gui(open_tab=None):
             if not self.save_voice():
                 return
             seed = self.var_seed.get().strip() or "42"
-            args = ["test", "--voice", voice, "--text", "こんにちは、テストです。",
+            args = ["test", "--voice", voice, "--text", "既存建築物の改修では、耐火性能と耐震性能の確認が重要です。",
                     "--speed", "%.2f" % float(self.var_speed.get()), "--seed", seed]
             self._run_pipeline(args, "Тест синтеза «%s»" % voice,
                                on_done_extra=lambda v=voice: self._play_test(v))
