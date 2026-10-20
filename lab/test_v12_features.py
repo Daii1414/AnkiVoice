@@ -13,6 +13,9 @@ import traceback
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
+LAB = os.path.join(ROOT, "lab")
+if LAB not in sys.path:
+    sys.path.insert(0, LAB)
 
 import anki_gui as ag
 import anki_web as aw
@@ -127,6 +130,41 @@ def test_busy_download_no_deadlock():
             aw.UPDATE.update(old)
 
 
+def test_pronunciation_compare():
+    """Проверка содержания: пропущенный кусок — брак, неверное слово — подозрительно."""
+    import pron_check as pc
+    kana = lambda s: s
+
+    exp, wild = pc.expected_kana_masked("Aさんに行った", kana)
+    check(exp == "\ue000さんに行った"
+          and wild == [True, False, False, False, False, False, False],
+          "маска латиницы: %r %r" % (exp, wild))
+
+    ok = pc.compare("きょうはあめです", [False] * 8, "きょうはあめです")
+    check(ok["verdict"] == "ок" and not ok["fail"], "совпадение: %r" % ok)
+
+    lost = pc.compare("せこうけいかくでは、いちぶのどこうさぎょうに、じどうせこうをためした",
+                       [False] * 34,
+                       "じんこうそんしをつづけるほうがにっこうしをだいひょうに")
+    check(lost["verdict"] == "пропущено" and lost["fail"], "потерян кусок: %r" % lost)
+
+    mis = pc.compare("びぇにゃくどのです", [False] * 10, "めにあどのです")
+    check(mis["verdict"] == "подозрительно" and not mis["fail"],
+          "слово прочитано не так: %r" % mis)
+
+    # короткие фразы не судим: ASR на них ненадёжен
+    short = pc.compare("はい", [False] * 2, "いいえ")
+    check(short["verdict"] == "коротко" and not short["fail"], "короткое: %r" % short)
+
+
+def test_split_method_is_japanese_safe():
+    """Для японского не режем текст по китайским правилам (cut5 ломает фразу)."""
+    check(vp.split_method_for("せこうけいかくでは、じどうせこうをためした。") == "cut0",
+          "короткая фраза — целиком")
+    check(vp.split_method_for("あ" * 60) == "cut2", "длинная фраза — по «。」")
+    check("cut5" not in (vp.split_method_for("あ" * 10),), "cut5 не используется по умолчанию")
+
+
 def test_installer_ships_runtime_modules():
     """Установщик обязан везти модули чтения и QC v2.
 
@@ -136,7 +174,7 @@ def test_installer_ships_runtime_modules():
     with open(os.path.join(ROOT, "AnkiVoice.iss"), encoding="utf-8") as f:
         iss = f.read()
     for name in ("g2p_provenance.py", "domain_dict.py", "g2p_candidates.py",
-                 "g2p_resolver.py", "quality_v2.py"):
+                 "g2p_resolver.py", "quality_v2.py", "pron_check.py"):
         check(("lab\\" + name) in iss, "installer must ship lab/" + name)
     with open(os.path.join(ROOT, "lab", "g2p_candidates.py"), encoding="utf-8") as f:
         src = f.read()
@@ -244,6 +282,7 @@ def test_setup_status():
 def main():
     tests = [test_version_tuple, test_release_parse, test_download_sha,
              test_busy_download_no_deadlock, test_installer_ships_runtime_modules,
+             test_pronunciation_compare, test_split_method_is_japanese_safe,
              test_pending_notes_limit, test_voice_args_guess_fallback,
              test_setup_status]
     failed = 0

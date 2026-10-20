@@ -167,19 +167,23 @@ def _read_engine_local_file():
         return None
 
 
-def _read_engine_gui_config():
-    for name in ("AnkiVoice", "AnkiTTS"):      # новое имя и старое (до переименования)
+def _read_app_config():
+    """Конфиг приложения (%APPDATA%\\AnkiVoice\\config.json) целиком."""
+    for name in ("AnkiVoice", "AnkiTTS"):
         cfgp = os.path.join(os.environ.get("APPDATA") or "", name, "config.json")
         try:
             with open(cfgp, encoding="utf-8") as f:
-                p = (json.load(f) or {}).get("gptsovits_path")
-                if p:
-                    return p
-        except OSError:
-            continue
+                cfg = json.load(f) or {}
+            if cfg:
+                return cfg
         except Exception:
             continue
-    return None
+    return {}
+
+
+def _read_engine_gui_config():
+    cfg = _read_app_config()
+    return cfg.get("gptsovits_path") or None
 
 
 def _norm(p):
@@ -1663,7 +1667,25 @@ def keep_rejected(blob, ext, text, sigs, attempt, meta=None):
         return None, sigs
 
 
-def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True, **overrides):
+def split_method_for(text):
+    """Как резать текст перед синтезом.
+
+    GPT-SoVITS умеет резать по китайским правилам (cut5 — «凑50字一切»).
+    Для японского это ломает фразу: куски синтезируются по отдельности, и на
+    стыках модель теряет кусок или придумывает лишний. Замер на реальных
+    карточках: cut5 давал покрытие 0.54-0.59 вместо 0.91-0.92 у cut0/cut2.
+
+    Поэтому короткие фразы (типичная карточка) идут целиком (cut0), длинные
+    режутся по «。» (cut2) — там границы фразы естественные.
+    """
+    forced = os.environ.get("AV_FORCE_SPLIT")
+    if forced:
+        return forced
+    return "cut0" if len(text or "") <= 45 else "cut2"
+
+
+def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True, verify=None,
+                 asr_model=None, **overrides):
     # Sampling defaults follow the official GPT-SoVITS webui (calmer than the raw
     # API defaults of temperature=1.0 / top_p=1.0, which sound over-expressive).
     # Any of these can be overridden per voice in voices.json.
@@ -1674,7 +1696,7 @@ def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True, **overrides):
         "aux_ref_audio_paths": v.get("aux") or [],
         "prompt_text": v.get("prompt_text", ""),
         "prompt_lang": v.get("prompt_lang", "ja"),
-        "text_split_method": "cut5",
+        "text_split_method": split_method_for(text),
         "batch_size": 1,
         "speed_factor": speed,
         "media_type": "ogg",
@@ -1711,12 +1733,16 @@ def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True, **overrides):
         print("Не хватает видеопамяти — перезапускаю сервер и повторяю...")
         restart_server(_tts_start_config())
         ensure_voice(v, force=True)
-        return synth(v, text, seed=seed, speed=speed, _oom_retry=False)
+        _b, _e, _i = synth(v, text, seed=seed, speed=speed, _oom_retry=False,
+                           verify=verify, asr_model=asr_model)
+        return _b, _e
     if blob is None and _oom_retry and err and \
             any(s in err for s in ("10061", "refused", "urlopen error", "timed out")):
         # сервер упал/перезагружается — поднимаем заново и повторяем разок
         if _resurrect(v):
-            return synth(v, text, seed=seed, speed=speed, _oom_retry=False)
+            _b, _e, _i = synth(v, text, seed=seed, speed=speed, _oom_retry=False,
+                           verify=verify, asr_model=asr_model)
+        return _b, _e
     if blob is None:
         blob, err = post("wav")             # ogg может не поддерживаться
     if blob is None:
@@ -1729,7 +1755,9 @@ def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True, **overrides):
             print("Сервер вернул пустой звук — перезапускаю сервер и повторяю...")
             restart_server(_tts_start_config())
             ensure_voice(v, force=True)
-            return synth(v, text, seed=seed, speed=speed, _oom_retry=False)
+            _b, _e, _i = synth(v, text, seed=seed, speed=speed, _oom_retry=False,
+                           verify=verify, asr_model=asr_model)
+        return _b, _e
         raise SystemExit("сервер вернул пустой звук (%d байт) — попробуй ещё раз"
                          % len(blob))
     return blob, "ogg" if payload["media_type"] == "ogg" else "wav"
@@ -1739,76 +1767,198 @@ def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True, **overrides):
 # В synth() стратегия выбирается по подписи: сид -> температура ->
 # без промпта -> без промпта+сид -> другая разбивка -> без промпта+разбивка.
 _QC_ATTEMPTS = (
-    (None,    "сид",               "повторяю с другим сидом..."),
-    (None,    "сид+температура",   "пробую с температурой 0.8..."),
-    ("noref", "без промпта",       "пробую без текста референса..."),
-    ("noref2", "без промпта+сид",  "пробую без промпта и с другим сидом..."),
-    ("split0", "другая разбивка",  "пробую без разбиения текста на куски..."),
-    ("nrefs0", "без промпта+разбивка",
-     "пробую без промпта и без разбиения..."),
+    ({"seed_off": 7},   "сид",               "повторяю с другим сидом..."),
+    ({"seed_off": 13, "temperature": 0.8}, "сид+температура",
+     "пробую с температурой 0.8 и другим сидом..."),
+    ({"seed_off": 29},  "ещё сид",           "пробую ещё один сид..."),
+    ({"seed_off": 41, "temperature": 0.9}, "сид+температура 0.9",
+     "пробую температуру 0.9..."),
+    ({"prompt_text": ""}, "без промпта",     "пробую без текста референса..."),
+    ({"prompt_text": "", "seed_off": 53}, "без промпта+сид",
+     "пробую без промпта и с другим сидом..."),
+    ({"text_split_method": "cut5"}, "старая разбивка",
+     "пробую старую разбивку текста на куски..."),
+    ({"prompt_text": "", "text_split_method": "cut5", "seed_off": 67},
+     "без промпта+старая разбивка",
+     "пробую без промпта и со старой разбивкой..."),
 )
 
 
 _QC_BLIND = [False]      # уже предупреждали, что проверить звук не удалось
+_PRON = [None]          # ленивый проверяющий произношения (lab/pron_check.py)
+_PRON_STATE = {"checked": 0, "bad": 0, "suspect": 0, "note": ""}
 
 
-def synth(v, text, seed=42, speed=1.0, _oom_retry=True):
+def _pron_verifier():
+    """Проверяющий произношение — только если он включён в конфиге.
+
+    Модель (faster-whisper) грузится один раз на прогон: 5-10 с на прогретом
+    кэше, сама проверка клипа — около 0.5 с на GPU.
+    """
+    if _PRON[0] is None:
+        _PRON[0] = False          # «вычисляем»
+        cfg = _read_app_config()
+        want = verify if verify is not None else cfg.get("verify_pronunciation")
+        if not want:
+            return None
+        try:
+            lab = os.path.join(CODE, "lab")
+            if lab not in sys.path:
+                sys.path.insert(0, lab)
+            import pron_check
+        except Exception as e:
+            print("-- проверка произношения недоступна: %r" % (e,))
+            return None
+        _PRON[0] = pron_check.Verifier(model=asr_model or cfg.get("asr_model"),
+                                      kanaize=kanaize)
+    return _PRON[0] or None
+
+
+def pron_status():
+    """(доступно ли, описание) — для диагностики и отчётов."""
+    v = _pron_verifier()
+    if v is None:
+        return False, "проверка произношения выключена"
+    return v.available()
+
+
+def synth(v, text, seed=42, speed=1.0, _oom_retry=True, src=None,
+          verify=None, asr_model=None):
     """Синтез с проверкой качества на входе в колоду.
 
-    GPT-SoVITS иногда возвращает файл, где 25–40 с тишины и крошечный
+    GPT-SoVITS иногда возвращает файл, где 25-40 с тишины и крошечный
     кусочек речи в самом конце: байтов нормально, длины хватает, но
     слушать нечего. Такой файл раньше уходил в карточку как «озвучено».
     Теперь проверяем звук (audio_stats) и при мусоре пробуем спасение:
     другой сид -> другая температура -> без текста референса -> ещё раз.
     Не помогло — ошибка, карточка остаётся неозвученной и видна в отчёте.
+
+    Вторая проверка — СОДЕРЖАНИЕ. Модель может произнести все слова, но
+    потерять кусок фразы или придумать лишний: длительность в норме, а
+    звук — не то предложение. Старый QC такое не видит. Если включена
+    проверка произношения (faster-whisper в движке), мы распознаём свой же
+    звук и сравниваем с ожидаемой каной; при несовпадении пробуем другие
+    варианты и оставляем лучший.
+
+    Возвращает (blob, ext, info), где info = {"suspect": bool, ...}.
     """
     v_prompt = v.get("prompt_text", "")
     # Текста для чтения нет (только пунктуация, пробелы, ссылки на медиа) —
-    # сервер всё равно откажет «有効なテキст...», а 6 попыток и FAIL в отчёте
+    # сервер всё равно откажет «有効なテキスト...», а 6 попыток и FAIL в отчёте
     # будут лишь шумом. Это не ошибка озвучки, а пустая карточка.
     q2 = _qc_v2_module()
     if q2 is not None and q2.sound_chars(text) == 0:
         print("  [%s] нечего озвучивать — пропускаю" % text[:24])
         raise SystemExit("пустой текст: озвучивать нечего")
     tried = 0
-    for _, what, msg in ((None, None, None),) + _QC_ATTEMPTS:
+    best = None            # (blob, ext, покрытие, сигналы) — лучший вариант
+    suspect = None         # результат проверки: «похоже, но не уверен»
+    for over, what, msg in ((None, None, None),) + _QC_ATTEMPTS:
         if tried:
             print("  [%s] %s: %s" % (text[:24], what, msg))
         s, tv, nv, extra = seed, v, v_prompt, {}
-        if what == "сид":
-            s = seed + tried * 7 + 1
-        elif what == "сид+температура":
-            tv = dict(v); tv["temperature"] = 0.8
-        elif what == "без промпта":
-            nv = ""
-        elif what == "без промпта+сид":
-            nv = ""
-            s = seed + tried * 13 + 3
-        elif what == "другая разбивка":
-            extra = {"text_split_method": "cut0"}
-        elif what == "без промпта+разбивка":
-            nv = ""
-            extra = {"text_split_method": "cut0"}
+        if over:
+            o = dict(over)
+            if "seed_off" in o:
+                s = seed + int(o.pop("seed_off"))
+            if "temperature" in o:
+                tv = dict(v)
+                tv["temperature"] = o.pop("temperature")
+            if "prompt_text" in o:
+                nv = o.pop("prompt_text")
+            extra.update(o)
         tv = dict(tv)
         if nv == "":
             tv["prompt_text"] = ""
         blob, ext = _synth_once(tv, text, seed=s, speed=speed,
                                 _oom_retry=_oom_retry, **extra)
         sigs, ok = _check_audio(blob, ext, text)
+        cov = None
         if ok:
-            return blob, ext
+            checker = _pron_verifier()
+            if checker is not None:
+                try:
+                    res = checker.check(blob, ext, src or text)
+                except Exception:
+                    res = {"ok": True, "verdict": "проверка не удалась",
+                           "coverage": 1.0, "cer": 0.0}
+                cov = res.get("coverage")
+                _PRON_STATE["checked"] += 1
+                if res.get("fail"):
+                    # модель потеряла кусок фразы или сказала не то —
+                    # однозначный брак, пробуем другой вариант
+                    _PRON_STATE["bad"] += 1
+                    sigs = list(sigs) + ["содержание: %s (покрытие %.2f, ошибки %.2f)"
+                                         % (res.get("verdict"), res.get("coverage", 0.0),
+                                            res.get("cer", 0.0))]
+                    ok = False
+                elif res.get("suspect"):
+                    # «похоже, но не уверен»: попробуем ещё пару сидов и
+                    # оставим лучшее, а карточку пометим
+                    _PRON_STATE["suspect"] = _PRON_STATE.get("suspect", 0) + 1
+                    suspect = res
+                else:
+                    _PRON_STATE["note"] = res.get("verdict", "")
+        if ok:
+            info = {"suspect": bool(suspect), "coverage": cov}
+            if suspect:
+                info["signals"] = suspect.get("verdict")
+                info["heard"] = suspect.get("heard")
+                print("  [%s] подозрительно: %s (покрытие %.2f, ошибки %.2f)"
+                      % (text[:24], suspect.get("verdict"), cov or 0.0,
+                         suspect.get("cer") or 0.0))
+            return blob, ext, info
+        # запоминаем лучший по содержанию (если проверяли произношение)
+        if cov is not None and (best is None or cov > best[2]):
+            best = (blob, ext, cov, list(sigs))
         if not _QC_BLIND[0] and not sigs:
             _QC_BLIND[0] = True
             print("  ! проверить звук не удалось — качество не контролируется")
         tried += 1
         kept, _ = keep_rejected(blob, ext, text, sigs, tried,
-                                meta={"strategy": what or "сид(по умолчанию)"})
+                                meta={"strategy": what or "по умолчанию",
+                                      "coverage": cov})
         print("  [%s] брак: %s%s%s"
               % (text[:24], ", ".join(sigs) or "пустой ответ",
                  "" if msg is None else " — " + msg,
                  "" if kept is None else "  [сохранён: %s]" % kept))
+    if best is not None:
+        print("  [%s] ни один вариант не прошёл — беру лучший по содержанию "
+              "(покрытие %.2f)" % (text[:24], best[2]))
+        return best[0], best[1], {"suspect": True, "coverage": best[2],
+                                   "signals": best[3], "heard": ""}
     raise SystemExit("после %d попыток синтез даёт брак — карточка пропущена"
                      % tried)
+
+
+
+SUSPECT_TAG = "av_suspect"          # тег карточки с подозрительным звуком
+
+
+def mark_suspect(nid, field, text, blob, ext, sinfo):
+    """Звук озвучен, но содержание не совпало: помечаем и сохраняем.
+
+    Карточка остаётся озвученной (лучший из вариантов), но помечена тегом
+    av_suspect, а файл попадает в папку брака — чтобы можно было послушать
+    и переделать. Тег в Anki ставим мягко: если аддон не умеет, не падаем.
+    """
+    try:
+        ac("addTags", notes=[nid], tags=SUSPECT_TAG + "::" + field)
+        print("  ! [%d] помечено как подозрительное (%s, покрытие %.2f)"
+              % (nid, field, sinfo.get("coverage") or 0.0))
+    except Exception:
+        pass
+    try:
+        kept, _ = keep_rejected(blob, ext, text,
+                                ["содержание: %s" % (sinfo.get("signals") or "не совпало")],
+                                0,
+                                meta={"suspect": True,
+                                      "coverage": sinfo.get("coverage"),
+                                      "note": nid, "field": field})
+        if kept:
+            print("     звук сохранён для прослушивания: %s" % kept)
+    except Exception as e:
+        print("     не удалось сохранить звук: %r" % (e,))
 
 
 def media_name(nid, field, text, ext, voice):
@@ -1866,12 +2016,14 @@ def build_jobs(notes, mode, force, fields=None):
             # текст на синтез: [sound:...] внутри поля вырезаем
             return plain(f.get(name, {}).get("value", ""), strip_media=True)
 
+        src_text = ""
         if mode in ("sentence", "both"):
             text = tgt_text(fields["sentence_src"])
             if text and (force or not tgt(fields["sentence_audio"])):
                 # вставляем чтение сложного слова в предложение (источник:
                 # отключено либо конкретное поле карточки)
                 text = inject_reading(text, n, reading=fields.get("reading", ""))
+                src_text = text          # исходник: в нём ещё есть латиница
                 # kanaize_from_fields: основное слово читается по
                 # ExpressionFurigana, остальное — автоматически
                 # (поля раскладываем в простые строки: внутри f лежит
@@ -1881,9 +2033,10 @@ def build_jobs(notes, mode, force, fields=None):
                 text = kanaize_from_fields(text, fields=flat, field_names=fields)
                 if not _speakable(text):        # только пунктуация и медиа
                     continue
-                jobs.append((n["noteId"], fields["sentence_audio"], text))
+                jobs.append((n["noteId"], fields["sentence_audio"], text, src_text))
         if mode in ("expression", "both"):
             text = word_text(n, fields["word_src"], reading=fields.get("reading", ""))
+            src_text = text           # исходник: в нём ещё есть латиница
             if text and (force or not tgt(fields["word_audio"])):
                 # Фуригана для основного слова — из настраиваемого поля
                 furigana = plain(f.get(fields.get("furigana_src", "ExpressionFurigana"),
@@ -1893,7 +2046,7 @@ def build_jobs(notes, mode, force, fields=None):
                 text = kanaize_card(text, expression=expression, furigana=furigana)
                 if not _speakable(text):        # только пунктуация и медиа
                     continue
-                jobs.append((n["noteId"], fields["word_audio"], text))
+                jobs.append((n["noteId"], fields["word_audio"], text, src_text))
     return jobs
 
 
@@ -1910,13 +2063,15 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
     ensure_voice(v)
     done, failed = 0, 0
     cache = {}
-    for nid, field, text in jobs:
+    for nid, field, text, src_text in jobs:
         try:
             key = (text, seed, speed)
             if key not in cache:
-                cache[key] = synth(v, text, seed=seed, speed=speed)
+                cache[key] = synth(v, text, seed=seed, speed=speed,
+                                   src=src_text, verify=verify,
+                                   asr_model=asr_model)
                 time.sleep(0.2)
-            blob, ext = cache[key]
+            blob, ext, sinfo = cache[key]
             fname = media_name(nid, field, text, ext, v["name"])
             stored = ac("storeMediaFile", filename=fname, overwrite=True,
                         data=base64.b64encode(blob).decode("ascii"))
@@ -1926,6 +2081,10 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
             done += 1
             print("OK   [%d] %-16s %s (%s, %.0f КБ)"
                   % (nid, field, text[:40], ext, len(blob) / 1024))
+            if sinfo.get("suspect"):
+                # содержание не совпало даже у лучшего варианта: помечаем
+                # карточку и кладём звук в папку брака для прослушивания
+                mark_suspect(nid, field, text, blob, ext, sinfo)
         except SystemExit as e:
             failed += 1
             print("FAIL [%d] %s: %s" % (nid, field, e))
@@ -1935,7 +2094,12 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
             if "editor" in msg.lower():
                 msg += "  <- закой карточку в редакторе Anki"
             print("FAIL [%d] %s: %s" % (nid, field, msg))
-    print("\nГотово: %d, ошибок: %d" % (done, failed))
+    extra = ""
+    if _PRON_STATE.get("checked"):
+        extra = (" | произношение проверено: %d, подозрительных: %d, брака: %d"
+                 % (_PRON_STATE["checked"], _PRON_STATE.get("suspect", 0),
+                    _PRON_STATE.get("bad", 0)))
+    print("\nГотово: %d, ошибок: %d%s" % (done, failed, extra))
     return done, failed
 
 
@@ -2105,7 +2269,7 @@ def cmd_test(args):
     ensure_voice(v)
     text = kanaize(args.text)
     print("Текст: %s\nКиана: %s" % (args.text, text))
-    blob, ext = synth(v, text, seed=args.seed, speed=args.speed)
+    blob, ext, _sinfo = synth(v, text, seed=args.seed, speed=args.speed)
     out = os.path.join(CODE, "test_%s.%s" % (v["name"], ext))
     with open(out, "wb") as f:
         f.write(blob)
@@ -2204,7 +2368,9 @@ def cmd_voice(args):
     else:
         raise SystemExit("Укажи --deck или --ids.")
     voice_notes(ids, args.voice, mode=args.mode, force=args.force,
-                seed=args.seed, speed=args.speed, fields=fields)
+                seed=args.seed, speed=args.speed, fields=fields,
+                verify=getattr(args, "verify", None),
+                asr_model=getattr(args, "asr_model", None))
 
 
 def cmd_make_deck(args):
@@ -2213,7 +2379,9 @@ def cmd_make_deck(args):
     ids = clone_cards(args.query, to_deck, limit=args.limit, tag=args.tag or args.voice,
                       force=args.force, fields=fields)
     voice_notes(ids, args.voice, mode=args.mode, force=args.force,
-                seed=args.seed, speed=args.speed, fields=fields)
+                seed=args.seed, speed=args.speed, fields=fields,
+                verify=getattr(args, "verify", None),
+                asr_model=getattr(args, "asr_model", None))
     print("\n=== Проверка ===")
     check_deck(to_deck, fields=fields)
 
@@ -2649,6 +2817,11 @@ def main():
     p.add_argument("--force", action="store_true")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--speed", type=float, default=1.0)
+    p.add_argument("--verify", action="store_true",
+                   help="проверять произношение (faster-whisper в движке): "
+                        "распознаём свой звук и сверяем с текстом")
+    p.add_argument("--asr-model", default=None,
+                   help="модель faster-whisper (по умолчанию — лучшая из кэша)")
 
     p = sub.add_parser("make-deck", help="клонировать + озвучить + проверить")
     p.add_argument("--voice", required=True)
