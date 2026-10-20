@@ -28,9 +28,10 @@ WIN = 0.02
 
 
 def ffmpeg_exe(engine: str) -> str:
-    p = os.path.join(engine, "runtime", "ffmpeg.exe")
-    if os.path.exists(p):
-        return p
+    if engine:
+        p = os.path.join(engine, "runtime", "ffmpeg.exe")
+        if os.path.exists(p):
+            return p
     try:
         import shutil
         return shutil.which("ffmpeg") or ""
