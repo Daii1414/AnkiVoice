@@ -2540,7 +2540,8 @@ def cmd_verify(args):
     print("Проверяю произношение: %d кусков" % len(jobs))
     report = []
     bad = 0
-    for nid, field, text, src_text in jobs:
+    for job in jobs:
+        nid, field, text, src_text = job
         f = (by_id.get(nid) or {}).get("fields", {})
         raw = f.get(field, {}).get("value", "")
         m = re.search(r"\[sound:([^\]]+)\]", raw)
