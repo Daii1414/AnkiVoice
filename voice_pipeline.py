@@ -1494,9 +1494,10 @@ def _resurrect(v):
 
 def _ffmpeg_exe():
     """ffmpeg из папки движка (или из PATH) — для проверки качества звука."""
-    p = os.path.join(ENGINE, "runtime", "ffmpeg.exe")
-    if os.path.exists(p):
-        return p
+    if ENGINE:
+        p = os.path.join(ENGINE, "runtime", "ffmpeg.exe")
+        if os.path.exists(p):
+            return p
     try:
         import shutil
         return shutil.which("ffmpeg") or ""
