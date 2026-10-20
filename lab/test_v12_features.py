@@ -126,6 +126,23 @@ def test_busy_download_no_deadlock():
             aw.UPDATE.update(old)
 
 
+def test_installer_ships_runtime_modules():
+    """Установщик обязан везти модули чтения и QC v2.
+
+    Без них в установленном приложении молча отключаются доменный словарь
+    и многосигнальная проверка качества (voice_pipeline.py грузит их из lab/).
+    """
+    with open(os.path.join(ROOT, "AnkiVoice.iss"), encoding="utf-8") as f:
+        iss = f.read()
+    for name in ("g2p_provenance.py", "domain_dict.py", "g2p_candidates.py",
+                 "g2p_resolver.py", "quality_v2.py"):
+        check(("lab\\" + name) in iss, "installer must ship lab/" + name)
+    with open(os.path.join(ROOT, "lab", "g2p_candidates.py"), encoding="utf-8") as f:
+        src = f.read()
+    check('sys.path.append(r"' not in src, "hardcoded dev path in g2p_candidates")
+    check("del _h" not in src, "del _h raises NameError and breaks the import")
+
+
 def test_setup_status():
     eng = tempfile.mkdtemp(prefix="anki_voice_engine_")
     for name in ("g.ckpt", "s.pth", "r.wav"):
@@ -175,7 +192,8 @@ def test_setup_status():
 
 def main():
     tests = [test_version_tuple, test_release_parse, test_download_sha,
-             test_busy_download_no_deadlock, test_setup_status]
+             test_busy_download_no_deadlock, test_installer_ships_runtime_modules,
+             test_setup_status]
     failed = 0
     for t in tests:
         try:

@@ -103,6 +103,8 @@ def _ensure_reading_modules():
         }
     except Exception as e:
         _READING_MODULES = {"_error": str(e)}
+        print("-- Модули чтения (lab/) недоступны: %r" % (e,))
+        print("   Подстановка чтения из фуриганы и доменный словарь отключены.")
     return _READING_MODULES
 
 # ------------------------------------------------------------------ константы
@@ -2290,6 +2292,18 @@ def cmd_selftest(args):
                     ok("%s: %s %s" % (name, key, ("%.1f с" % d) if d else ""))
             else:
                 fail("%s: %s не найден: %s" % (name, key, p))
+    mods = _ensure_reading_modules()
+    if mods and "_error" not in mods:
+        ok("модули чтения (lab/): provenance, доменный словарь, резолвер")
+    else:
+        fail("модули чтения (lab/) недоступны: %s — "
+             "чтение из фуриганы и доменный словарь отключены"
+             % (mods or {}).get("_error", "?"))
+    if _qc_v2_module() is not None:
+        ok("QC v2: многосигнальная проверка качества звука")
+    else:
+        fail("QC v2 (lab/quality_v2.py) недоступен — работает простой "
+             "критерий «есть звук»")
     try:
         import pyopenjtalk
         r = pyopenjtalk.g2p("合釘を打ち込む", kana=True)

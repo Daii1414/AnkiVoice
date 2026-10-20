@@ -58,6 +58,14 @@ Source: "{#MyFiles}\anki_gui.py";          DestDir: "{app}"; Flags: ignoreversio
 Source: "{#MyFiles}\sudachi_g2p.py";       DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyFiles}\g2p_core.py";          DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyFiles}\kana_stress.py";       DestDir: "{app}"; Flags: ignoreversion
+; модули системы чтения и QC v2 — без них в установленном приложении
+; молча отключаются подстановка чтения из фуриганы, доменный словарь
+; и многосигнальная проверка качества звука
+Source: "{#MyFiles}\lab\g2p_provenance.py"; DestDir: "{app}\lab"; Flags: ignoreversion
+Source: "{#MyFiles}\lab\domain_dict.py";     DestDir: "{app}\lab"; Flags: ignoreversion
+Source: "{#MyFiles}\lab\g2p_candidates.py";  DestDir: "{app}\lab"; Flags: ignoreversion
+Source: "{#MyFiles}\lab\g2p_resolver.py";    DestDir: "{app}\lab"; Flags: ignoreversion
+Source: "{#MyFiles}\lab\quality_v2.py";       DestDir: "{app}\lab"; Flags: ignoreversion
 ; голоса и словарь чтения
 Source: "{#MyFiles}\voices.json";          DestDir: "{app}"; Flags: ignoreversion
 ; встроенный Python и словарь Sudachi (распакуются при первом запуске)
@@ -78,4 +86,5 @@ Filename: "{app}\AnkiVoice.exe"; Description: "Запустить {#MyAppName}";
 ; pyruntime и логи создаёт сама программа — установщик о них не знает
 Type: filesandordirs; Name: "{app}\pyruntime"
 Type: filesandordirs; Name: "{app}\logs"
+Type: filesandordirs; Name: "{app}\lab"
 Type: files; Name: "{app}\gptsovits_path.txt"

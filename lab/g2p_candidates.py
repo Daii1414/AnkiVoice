@@ -13,20 +13,26 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from typing import Optional
 
-# haqumei лежит в lab/pylibs. Кладём эту папку в КОНЕЦ sys.path и только если
-# haqumei сам не нашёлся: insert(0, ...) подмешивал сюда чужой numpy 2.5.4
-# (собран под Python 3.13), и движок GPT-SoVITS на Python 3.9 переставал
+# haqumei может лежать рядом (lab/pylibs). Кладём эту папку в КОНЕЦ sys.path и
+# только если haqumei сам не нашёлся: insert(0, ...) подмешивал сюда чужой numpy
+# 2.5.4 (собран под Python 3.13), и движок GPT-SoVITS на Python 3.9 переставал
 # импортировать свой numpy — из-за этого падала проверка качества синтеза.
+# Путь считаем от самого файла: жёсткий E:\TTS-проект в установленном
+# приложении не существует, и попытка del несуществующего имени роняла
+# импорт всего модуля (NameError), а вместе с ним — подстановку фуриганы.
 if "haqumei" not in sys.modules:
     try:
         import haqumei as _h  # noqa: F401
     except Exception:
-        sys.path.append(r"E:\TTS-проект\lab\pylibs")
-        del _h
+        _h = None
+        _pylibs = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pylibs")
+        if os.path.isdir(_pylibs):
+            sys.path.append(_pylibs)
 
 from domain_dict import DomainDictionary, ReadingSource
 from g2p_provenance import (
