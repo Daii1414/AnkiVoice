@@ -3446,7 +3446,9 @@ def main():
     p.add_argument("--word-src", default=None)
     p.add_argument("--word-audio", default=None)
     p.add_argument("--furigana-src", default=None)
-    p.add_argument("--reading", default="mix")
+    p.add_argument("--reading", default=None,
+                   help="rezhim chteniya: mix (kandzi + chtenie termina iz furigany) / "
+                        "asis (tolko kandzi); esli ne ukazano - beretsya iz profila kolody")
     p.add_argument("--asr-model", default=None)
     p.add_argument("--variants", type=int, default=0,
                    help="сколько вариантов синтеза сделать на каждое "

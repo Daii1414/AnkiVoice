@@ -1055,6 +1055,11 @@ async function loadFields(){
     const pick = (key, guess) => {
       if (prof[key] !== undefined && prof[key] !== null && prof[key] !== "")
         return prof[key];
+      if (key === "reading"){
+        // rezhim chteniya - nastoyka profila kolody
+        if (c.reading === "asis" || c.reading === "mix") return c.reading;
+        return (prof.reading === "asis") ? "asis" : "mix";
+      }
       return (c[key] !== undefined && c[key] !== null && c[key] !== "")
         ? c[key] : (guess || "");
     };
