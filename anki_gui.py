@@ -6,12 +6,12 @@
 вызовом runtime\\python.exe из папки GPT-SoVITS, где уже лежит проверенный
 пайплайн. Поэтому exe лёгкий и не тянет torch.
 
-Интерфейс — три вкладки:
-  * «Голос»      — редактор голоса: референс, текст/язык промпта, aux, sampling.
-  * «Anki»       — колода и какие поля карточки читать/озвучивать.
-  * «Финализация» — запуск озвучки, проверка, лог.
+Основной интерфейс — локальная веб-страница (четыре вкладки: «Озвучка»,
+«Поля колоды», «Голос», «Приложение»). Старое tkinter-окно с тремя вкладками
+осталось под флагом `--classic`.
 
-Первый запуск: укажи папку GPT-SoVITS (программа сама ищет её на диске).
+Первый запуск: мастер настройки сам ищет папку GPT-SoVITS, проверяет
+AnkiConnect, поднимает сервер и предлагает тестовую фразу.
 Дальше всё подхватывается само: голоса из voices.json, колоды из AnkiConnect.
 
 Конфиг хранится в %APPDATA%\\AnkiVoice\\config.json
@@ -37,6 +37,7 @@ import traceback
 import urllib.request
 
 APP_NAME = "AnkiVoice"
+APP_VERSION = "1.2"
 LEGACY_APP_NAME = "AnkiTTS"   # старое имя (до переименования) — конфиг переносим
 ANKI_CONNECT = "http://127.0.0.1:8765"
 TTS_HOST, TTS_PORT = "127.0.0.1", 9880
@@ -57,6 +58,12 @@ except Exception:
 
 
 # ------------------------------------------------------------------ утилиты
+def version_tuple(s):
+    """'v1.2.1' -> (1, 2, 1); мусор -> (0,)."""
+    parts = re.findall(r"\d+", str(s or ""))
+    return tuple(int(x) for x in parts[:4]) or (0,)
+
+
 def appdata_dir():
     base = os.environ.get("APPDATA") or os.path.expanduser("~")
     d = os.path.join(base, APP_NAME)

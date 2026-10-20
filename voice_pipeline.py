@@ -2083,6 +2083,16 @@ def cmd_add(args):
     print("Голос '%s' добавлен в voices.json." % args.name)
 
 
+def cmd_server(args):
+    """Поднять api_v2 и выйти, не загружая голос.
+
+    Нужен мастеру первого запуска: сервер можно подготовить отдельно,
+    а тестовую фразу синтезировать следующим шагом.
+    """
+    start_server(_tts_start_config(), wait=args.wait)
+    print("Сервер GPT-SoVITS готов.")
+
+
 def cmd_serve(args):
     ensure_voice(get_voice(args.voice), force=args.force)
     print("Сервер работает с голосом '%s'." % args.voice)
@@ -2522,6 +2532,9 @@ def main():
     p.add_argument("--prompt-lang", default="ja")
     p.add_argument("--force", action="store_true")
 
+    p = sub.add_parser("server", help="поднять api_v2 без загрузки голоса")
+    p.add_argument("--wait", type=int, default=600)
+
     p = sub.add_parser("serve", help="поднять сервер/переключить голос")
     p.add_argument("--voice")
     p.add_argument("--force", action="store_true")
@@ -2608,9 +2621,10 @@ def main():
         menu()
         return
     # команды, которым нужен один работающий экземпляр (гонка за веса/сервер)
-    if args.cmd in ("serve", "test", "clone", "voice", "make-deck"):
+    if args.cmd in ("server", "serve", "test", "clone", "voice", "make-deck"):
         acquire_lock()
-    result = {"list": cmd_list, "add": cmd_add, "serve": cmd_serve, "test": cmd_test,
+    result = {"list": cmd_list, "add": cmd_add, "server": cmd_server,
+              "serve": cmd_serve, "test": cmd_test,
               "clone": cmd_clone, "voice": cmd_voice, "make-deck": cmd_make_deck,
               "check": cmd_check, "scan": cmd_scan, "qc-deck": cmd_qc_deck,
               "selftest": cmd_selftest}[args.cmd](args)

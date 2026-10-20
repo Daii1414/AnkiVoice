@@ -18,14 +18,17 @@ AnkiConnect) выполняется тем же способом, что и в t
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
 import socket
 import sys
+import tempfile
 import threading
 import time
 import urllib.parse
+import urllib.request
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -40,6 +43,14 @@ from anki_web_page import HTML
 CREATE_NO_WINDOW = ag.CREATE_NO_WINDOW
 
 READING_OFF = "Не подставлять (движок сам)"
+
+GITHUB_REPO = "Daii1414/AnkiVoice"
+GITHUB_API = "https://api.github.com/repos/" + GITHUB_REPO
+RELEASES_URL = "https://github.com/" + GITHUB_REPO + "/releases"
+GPT_SOVITS_RELEASES = "https://github.com/RVC-Boss/GPT-SoVITS/releases"
+ANKI_CONNECT_CODE = "2055492159"
+ANKI_CONNECT_URL = "https://ankiweb.net/shared/info/" + ANKI_CONNECT_CODE
+UPDATE_TTL = 300                    # секунд; кнопка «Проверить» обходит кэш
 
 
 # ============================================================ состояние запуска
@@ -234,6 +245,299 @@ def voice_files_ok(v, eng):
     return True
 
 
+# ================================================================ мастер настройки
+def _test_audio(voice):
+    if not voice or not re.match(r"^[\w\-.]+$", voice):
+        return ""
+    for ext in ("ogg", "wav"):
+        p = os.path.join(ag.code_dir(), "test_%s.%s" % (voice, ext))
+        if os.path.isfile(p):
+            return p
+    return ""
+
+
+def setup_status():
+    """Один снимок для мастера: что уже готово и что делать дальше."""
+    cfg = ag.load_config()
+    path = (cfg.get("gptsovits_path") or "").strip()
+    auto = ""
+    if not path:
+        auto = ag.find_gptsovits_automatic() or ""
+        if auto:
+            path = auto
+    problems = ag.validate_gptsovits(path) if path else ["Папка GPT-SoVITS не указана"]
+
+    vfile = read_voices_file()
+    voices = vfile.get("voices", {})
+    rows, ready = [], []
+    for name, v in sorted(voices.items()):
+        missing = []
+        for key in ("gpt", "sovits", "ref"):
+            p = v.get(key, "")
+            if not p or not os.path.exists(resolve_path(p, path)):
+                missing.append(key)
+        ok = not missing
+        rows.append({
+            "name": name,
+            "display": v.get("display") or name,
+            "ok": ok,
+            "missing": missing,
+        })
+        if ok:
+            ready.append(name)
+
+    default = vfile.get("default_voice") or ""
+    last_test = (cfg.get("last_test_voice") or "").strip()
+    test_voice = (last_test if last_test in ready else
+                  (default if default in ready else (ready[0] if ready else "")))
+    test_path = _test_audio(test_voice)
+    if not test_path and not last_test:
+        for name in ready:
+            p = _test_audio(name)
+            if p:
+                test_voice, test_path = name, p
+                break
+    anki_ok = ag.anki_status()
+    server_ok = ag.tts_status()
+    engine_ok = bool(path) and not problems
+    # успешный тестовый файл — тоже доказательство, что мастер пройден;
+    # отдельный флаг нужен для случая, когда файл потом удалили
+    done = bool(cfg.get("setup_done")) or bool(test_path)
+    complete = engine_ok and anki_ok and bool(ready) and done
+
+    return {
+        "version": ag.APP_VERSION,
+        "complete": complete,
+        "done": done,
+        "engine": {
+            "ok": engine_ok,
+            "path": path,
+            "auto": auto,
+            "problems": problems,
+            "expected": "runtime\\python.exe и api_v2.py",
+            "download_url": GPT_SOVITS_RELEASES,
+            "hint": ("Скачай Windows-пакет GPT-SoVITS v2Pro со страницы релизов, "
+                     "распакуй в папку без кириллицы (например, D:\\GPT-SoVITS) "
+                     "и укажи её здесь. Внутри должны лежать runtime\\python.exe "
+                     "и api_v2.py."),
+        },
+        "anki": {
+            "ok": anki_ok,
+            "code": ANKI_CONNECT_CODE,
+            "url": ANKI_CONNECT_URL,
+            "hint": ("Открой Anki → Инструменты → Дополнения → Получить "
+                     "дополнения, вставь код %s, перезапусти Anki." % ANKI_CONNECT_CODE),
+        },
+        "server": {
+            "ok": server_ok,
+            "hint": ("Первый запуск движка занимает 1–2 минуты: он грузит "
+                     "веса и CUDA. Дальше сервер поднимается сам."),
+        },
+        "voices": {
+            "ok": bool(ready),
+            "ready": ready,
+            "all": rows,
+            "default": default,
+            "hint": ("Нет ни одного голоса с полным набором файлов. "
+                     "Открой вкладку «Голос»: добавь голос или нажми "
+                     "«Обновить веса в движке»."),
+        },
+        "test": {
+            "ok": bool(test_path),
+            "voice": test_voice,
+            "path": test_path,
+            "url": ("/api/audio?voice=" + urllib.parse.quote(test_voice)
+                    if test_voice else ""),
+            "text": "こんにちは。これは声のテストです。",
+        },
+    }
+
+
+# ============================================================== обновления
+UPDATE_LOCK = threading.Lock()
+UPDATE = {
+    "phase": "idle",          # idle | downloading | verifying | done | error
+    "received": 0,
+    "total": 0,
+    "error": "",
+    "path": "",
+    "expected": "",
+    "actual": "",
+    "tag": "",
+    "asset": "",
+}
+UPDATE_CACHE = {"at": 0.0, "data": None}
+
+
+def _github_json(url, timeout=30):
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "AnkiVoice/" + ag.APP_VERSION,
+        "Accept": "application/vnd.github+json",
+    })
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
+def release_info(force=False):
+    """Последний стабильный релиз GitHub + выбранный установщик и SHA256."""
+    now = time.time()
+    with UPDATE_LOCK:
+        if (not force and UPDATE_CACHE["data"]
+                and now - UPDATE_CACHE["at"] < UPDATE_TTL):
+            return UPDATE_CACHE["data"]
+    rel = _github_json(GITHUB_API + "/releases/latest")
+    tag = (rel.get("tag_name") or "").strip()
+    latest = tag[1:] if tag.lower().startswith("v") else tag
+    body = rel.get("body") or ""
+    asset = None
+    for a in rel.get("assets") or []:
+        if re.match(r"^AnkiVoice-Setup-[0-9A-Za-z._-]+\.exe$",
+                    a.get("name") or ""):
+            asset = a
+            break
+    sha = ""
+    if asset:
+        digest = (asset.get("digest") or "").strip().lower()
+        if digest.startswith("sha256:"):
+            sha = digest[7:]
+    if not sha:
+        m = re.search(r"SHA256[^\n:]*[:\s]+([0-9a-fA-F]{64})", body)
+        if m:
+            sha = m.group(1)
+    data = {
+        "ok": True,
+        "current": ag.APP_VERSION,
+        "tag": tag,
+        "latest": latest,
+        "available": ag.version_tuple(latest) > ag.version_tuple(ag.APP_VERSION),
+        "name": rel.get("name") or tag,
+        "body": body[:20000],
+        "url": rel.get("html_url") or RELEASES_URL,
+        "published": rel.get("published_at") or "",
+        "asset": ({"name": asset.get("name"), "size": asset.get("size") or 0,
+                   "url": asset.get("browser_download_url") or "",
+                   "sha256": sha} if asset else None),
+        "checked_at": int(now),
+    }
+    with UPDATE_LOCK:
+        UPDATE_CACHE["at"] = now
+        UPDATE_CACHE["data"] = data
+    return data
+
+
+def update_snapshot():
+    with UPDATE_LOCK:
+        d = dict(UPDATE)
+    if d["total"]:
+        d["percent"] = min(100, int(d["received"] * 100 / d["total"]))
+    else:
+        d["percent"] = 0
+    return d
+
+
+def _update_set(**kw):
+    with UPDATE_LOCK:
+        UPDATE.update(kw)
+
+
+def start_update_download():
+    with UPDATE_LOCK:
+        if UPDATE["phase"] in ("downloading", "verifying"):
+            # снимок собираем здесь же: update_snapshot() берёт тот же
+            # нереентерабельный UPDATE_LOCK и повесил бы поток навсегда
+            d = dict(UPDATE)
+            d["percent"] = (min(100, int(d["received"] * 100 / d["total"]))
+                            if d["total"] else 0)
+            return d, None
+    try:
+        info = release_info()
+    except Exception as e:
+        return None, "Не удалось проверить обновления: %s" % (e,)
+    if not info.get("available"):
+        return None, "Установленная версия уже последняя."
+    asset = info.get("asset") or {}
+    if not asset.get("url"):
+        return None, "В релизе нет установщика AnkiVoice-Setup-*.exe."
+    expected = (asset.get("sha256") or "").lower()
+    if not re.match(r"^[0-9a-f]{64}$", expected):
+        return None, ("В релизе нет SHA256 установщика — скачивание "
+                      "без проверки запрещено.")
+    name = os.path.basename(asset.get("name") or "")
+    if not re.match(r"^AnkiVoice-Setup-[0-9A-Za-z._-]+\.exe$", name):
+        safe = re.sub(r"[^0-9A-Za-z._-]+", "_",
+                      info["tag"] or info["latest"])
+        name = "AnkiVoice-Setup-%s.exe" % safe
+    path = os.path.join(tempfile.gettempdir(), name)
+    _update_set(phase="downloading", received=0,
+                total=int(asset.get("size") or 0), error="", path="",
+                expected=expected, actual="", tag=info["tag"],
+                asset=asset.get("name") or name)
+    threading.Thread(target=_download_update,
+                     args=(asset["url"], path, expected, int(asset.get("size") or 0)),
+                     daemon=True).start()
+    return update_snapshot(), None
+
+
+def _download_update(url, path, expected, size):
+    part = path + ".part"
+    try:
+        if urllib.parse.urlparse(url).scheme != "https":
+            raise RuntimeError("ссылка на установщик не HTTPS")
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "AnkiVoice/" + ag.APP_VERSION})
+        h = hashlib.sha256()
+        got = 0
+        with urllib.request.urlopen(req, timeout=120) as r:
+            total = int(r.headers.get("Content-Length") or 0) or size
+            _update_set(total=total or 0)
+            with open(part, "wb") as f:
+                while True:
+                    chunk = r.read(256 * 1024)
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    h.update(chunk)
+                    got += len(chunk)
+                    with UPDATE_LOCK:
+                        UPDATE["received"] = got
+        actual = h.hexdigest()
+        _update_set(phase="verifying", actual=actual,
+                    received=got, total=got)
+        if actual.lower() != expected.lower():
+            raise RuntimeError("SHA256 не совпал: ожидался %s, получен %s"
+                               % (expected, actual))
+        os.replace(part, path)
+        _update_set(phase="done", path=path, actual=actual, error="")
+    except Exception as e:
+        try:
+            if os.path.exists(part):
+                os.remove(part)
+        except Exception:
+            pass
+        _update_set(phase="error", error=str(e)[:800])
+
+
+def launch_update():
+    with UPDATE_LOCK:
+        path = UPDATE.get("path") or ""
+        expected = UPDATE.get("expected") or ""
+    if not path or not os.path.isfile(path):
+        return False, "Установщик ещё не скачан."
+    if not re.match(r"^[0-9a-f]{64}$", expected):
+        return False, "Нет ожидаемого SHA256 — запуск запрещён."
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    if h.hexdigest().lower() != expected:
+        return False, "Файл изменился после скачивания — SHA256 не совпал."
+    try:
+        os.startfile(path)
+    except Exception as e:
+        return False, "Не удалось открыть установщик: %r" % (e,)
+    return True, None
+
+
 # ================================================================== файловый
 # модальный выбор файлов внутри страницы (в вебе нет системного диалога)
 FS_EXTS = {
@@ -350,6 +654,20 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/doctor":
             self._json(self._doctor())
             return
+        if path == "/api/setup":
+            self._json(setup_status())
+            return
+        if path == "/api/update/check":
+            try:
+                self._json(release_info(force=bool(q.get("force"))))
+            except Exception as e:
+                self._json({"ok": False,
+                            "error": "Не удалось проверить обновления: %s" % (e,)},
+                           502)
+            return
+        if path == "/api/update/status":
+            self._json(update_snapshot())
+            return
         if path == "/api/audio":
             self._audio(q.get("voice", ""))
             return
@@ -366,6 +684,12 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/config":
             cfg = ag.load_config()
+            if "gptsovits_path" in b:
+                old = (cfg.get("gptsovits_path") or "").strip()
+                new = (b.get("gptsovits_path") or "").strip()
+                if new != old:
+                    cfg["setup_done"] = False
+                    cfg.pop("last_test_voice", None)
             for k in ("gptsovits_path", "theme", "deck", "voice", "mode",
                       "sentence_src", "sentence_audio", "word_src",
                       "word_audio", "furigana_src", "reading", "limit"):
@@ -392,6 +716,61 @@ class Handler(BaseHTTPRequestHandler):
             ok = stop_run()
             self._json({"ok": ok, "error": None if ok else "Нечего останавливать"})
             return
+
+        if path == "/api/setup/server":
+            cfg = ag.load_config()
+            eng = (cfg.get("gptsovits_path") or "").strip() or \
+                (ag.find_gptsovits_automatic() or "")
+            if not eng:
+                return self._err("Сначала укажи папку GPT-SoVITS.")
+            problems = ag.validate_gptsovits(eng)
+            if problems:
+                return self._err("Папка GPT-SoVITS не подходит: "
+                                 + "; ".join(problems))
+            if ag.tts_status():
+                return self._json({"ok": True, "already": True,
+                                   "message": "Сервер уже запущен."})
+            run, err = start_run("Подготовка сервера GPT-SoVITS",
+                                 ["server", "--wait", "600"])
+            if err:
+                return self._err(err)
+            return self._json({"ok": True, "run": run.snapshot()})
+
+        if path == "/api/setup/done":
+            st = setup_status()
+            if not st["engine"]["ok"]:
+                return self._err("Сначала укажи рабочую папку GPT-SoVITS.")
+            if not st["anki"]["ok"]:
+                return self._err("Сначала подключи AnkiConnect.")
+            if not st["voices"]["ok"]:
+                return self._err("Сначала добавь голос с весами и референсом.")
+            voice = (b.get("voice") or st["test"]["voice"] or "").strip()
+            if not voice or not _test_audio(voice):
+                return self._err("Сначала синтезируй тестовую фразу выбранным голосом.")
+            cfg = ag.load_config()
+            cfg["setup_done"] = True
+            cfg["last_test_voice"] = voice
+            ag.save_config(cfg)
+            return self._json({"ok": True, "setup": setup_status()})
+
+        if path == "/api/setup/reset":
+            cfg = ag.load_config()
+            cfg["setup_done"] = False
+            cfg.pop("last_test_voice", None)
+            ag.save_config(cfg)
+            return self._json({"ok": True, "setup": setup_status()})
+
+        if path == "/api/update/download":
+            snap, err = start_update_download()
+            if err:
+                return self._err(err)
+            return self._json({"ok": True, "update": snap})
+
+        if path == "/api/update/run":
+            ok, err = launch_update()
+            if not ok:
+                return self._err(err)
+            return self._json({"ok": True})
 
         if path == "/api/shutdown":
             self._json({"ok": True})
@@ -431,6 +810,8 @@ class Handler(BaseHTTPRequestHandler):
         run = current_run()
         return {
             "cfg": cfg,
+            "version": ag.APP_VERSION,
+            "setup_done": bool(cfg.get("setup_done")),
             "path": path,
             "auto": auto,
             "problems": problems,

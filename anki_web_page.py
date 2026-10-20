@@ -234,6 +234,7 @@ select{cursor:pointer}
 .overlay{position:fixed;inset:0;background:rgba(6,9,14,.62);backdrop-filter:blur(3px);
   display:none;place-items:center;z-index:50;padding:20px}
 .overlay.on{display:grid}
+#overlay{z-index:60}
 .modal{background:var(--card);border:1px solid var(--border);border-radius:14px;
   width:min(660px,100%);max-height:82vh;display:flex;flex-direction:column;
   box-shadow:0 24px 70px rgba(0,0,0,.5);overflow:hidden}
@@ -261,6 +262,58 @@ select{cursor:pointer}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 .toast.bad{border-color:color-mix(in srgb,var(--err) 50%,transparent);color:var(--err)}
 .toast.good{border-color:color-mix(in srgb,var(--ok) 50%,transparent);color:var(--ok)}
+
+/* ---------------------------------------------------------- мастер и обновления */
+#wizardOverlay{z-index:55}
+.modal.wizard{width:min(840px,100%);max-height:90vh}
+.wsteps{display:flex;gap:6px;padding:11px 18px;border-bottom:1px solid var(--line);
+  flex-wrap:wrap;background:var(--chip)}
+.wstep{display:inline-flex;align-items:center;gap:7px;border:1px solid transparent;
+  border-radius:999px;padding:5px 10px;font-size:12px;color:var(--sub);white-space:nowrap}
+.wstep .n{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;
+  background:var(--border);color:var(--text);font-size:10.5px;font-weight:700}
+.wstep.on{background:var(--tint);border-color:color-mix(in srgb,var(--accent) 35%,transparent);color:var(--accent)}
+.wstep.on .n{background:var(--accent);color:var(--onaccent)}
+.wstep.ok .n{background:var(--ok);color:#07130d}
+.wbody{padding:18px;overflow:auto;flex:1;min-height:300px}
+.wbody h3{font-size:16px;margin:0 0 6px;font-weight:650}
+.wbody p{margin:0 0 10px;color:var(--sub);font-size:13px}
+.wbody ul{margin:8px 0 12px;padding-left:20px;color:var(--sub);font-size:13px}
+.wbody li{margin:4px 0}
+.wbody code{font:12px var(--mono);background:var(--chip);border:1px solid var(--border);
+  border-radius:5px;padding:1px 5px;color:var(--text)}
+.wstate{display:flex;align-items:center;gap:9px;border:1px solid var(--border);
+  border-radius:9px;padding:10px 12px;margin:10px 0 14px;font-size:13px;background:var(--input)}
+.wstate .dot{width:9px;height:9px}
+.wstate.ok{border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+.wstate.ok .dot{background:var(--ok)}
+.wstate.bad{border-color:color-mix(in srgb,var(--err) 40%,transparent)}
+.wstate.bad .dot{background:var(--err)}
+.wstate.warn{border-color:color-mix(in srgb,var(--warn) 40%,transparent)}
+.wstate.warn .dot{background:var(--warn)}
+.wcard{background:var(--chip);border:1px solid var(--line);border-radius:10px;
+  padding:13px 14px;margin:12px 0}
+.wcard .row{margin-top:8px}
+.wactions{display:flex;gap:9px;flex-wrap:wrap;margin-top:12px}
+.wactions a.btn{text-decoration:none;display:inline-flex;align-items:center}
+.wresult{background:var(--ok-t);border:1px solid color-mix(in srgb,var(--ok) 35%,transparent);
+  border-radius:10px;padding:13px 14px;margin-top:12px;color:var(--ok);font-size:13px}
+.wresult.bad{background:var(--err-t);border-color:color-mix(in srgb,var(--err) 35%,transparent);color:var(--err)}
+.wresult audio{width:100%;margin-top:10px}
+.update-pre{white-space:pre-wrap;word-break:break-word;background:var(--console);
+  border:1px solid var(--border);border-radius:9px;padding:12px 14px;color:var(--console-fg);
+  font:12px/1.55 var(--mono);max-height:260px;overflow:auto;margin-top:10px}
+.update-bar{height:6px;border-radius:999px;background:var(--chip);overflow:hidden;
+  border:1px solid var(--border);margin:10px 0 4px}
+.update-bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .25s}
+.update-meta{font-size:12px;color:var(--sub)}
+@media(max-width:700px){
+  .modal.wizard{max-height:94vh}
+  .wsteps{gap:4px;padding:9px 12px}
+  .wstep{font-size:11px;padding:4px 7px}
+  .wstep .n{width:16px;height:16px}
+  .wbody{padding:14px}
+}
 .spacer{height:6px}
 </style>
 </head>
@@ -270,6 +323,7 @@ select{cursor:pointer}
   <div class="topbar">
     <div class="brand"><span class="logo">A</span> AnkiVoice</div>
     <div class="chips">
+      <span class="chip" id="chipVer">v…</span>
       <span class="chip" id="chipAnki"><span class="dot"></span>Anki: …</span>
       <span class="chip" id="chipTts"><span class="dot"></span>Сервер: …</span>
       <span class="chip" id="chipRun" style="display:none"><span class="dot"></span>Выполняется</span>
@@ -534,6 +588,32 @@ select{cursor:pointer}
       <div class="banner" id="appBanner"></div>
 
       <div class="card">
+        <div class="log-head">
+          <h2>Мастер настройки</h2>
+          <span class="hint" id="setupState" style="margin:0"></span>
+        </div>
+        <div class="hint" id="setupSummary">Проверяю движок, Anki и голоса…</div>
+        <div class="spacer" style="height:12px"></div>
+        <div class="row">
+          <button class="btn primary" id="btnWizard">Открыть мастер</button>
+          <button class="btn ghost" id="btnWizardAgain">Пройти заново</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="log-head">
+          <h2>Обновление</h2>
+          <span class="hint" id="curVersion" style="margin:0"></span>
+        </div>
+        <div class="row">
+          <button class="btn" id="btnUpdate">Проверить обновления</button>
+          <a class="btn ghost" id="lnkReleases" href="https://github.com/Daii1414/AnkiVoice/releases"
+             target="_blank" rel="noopener">Релизы на GitHub</a>
+        </div>
+        <div id="updateBox" class="hint">Нажми «Проверить обновления» — покажу changelog и предложу установщик.</div>
+      </div>
+
+      <div class="card">
         <label class="f">Папка GPT-SoVITS</label>
         <div class="row">
           <div class="grow"><input type="text" id="gptpath" placeholder="D:\DOWNLOAD\GPT-SoVITS-…"></div>
@@ -569,6 +649,22 @@ select{cursor:pointer}
   </main>
 </div>
 
+<!-- мастер первого запуска -->
+<div class="overlay" id="wizardOverlay">
+  <div class="modal wizard">
+    <header><span>Мастер настройки</span>
+      <button class="x" id="wzClose">×</button></header>
+    <div class="wsteps" id="wzSteps"></div>
+    <div class="wbody" id="wzBody"></div>
+    <footer>
+      <span class="sp" style="margin-left:auto"></span>
+      <button class="btn sm" id="wzPrev">Назад</button>
+      <button class="btn sm primary" id="wzNext">Далее</button>
+      <button class="btn sm primary" id="wzDone" style="display:none">Готово</button>
+    </footer>
+  </div>
+</div>
+
 <!-- модалка выбора файла/папки -->
 <div class="overlay" id="overlay">
   <div class="modal">
@@ -595,6 +691,9 @@ let ST = null;            // последний /api/state
 let FIELDS = [];          // поля выбранной колоды
 let RUNNING = false;
 let SSE = null;
+let WZ = {open:false, step:0, setup:null, busy:false, timer:null,
+          runId:null, path:"", voice:"", text:"", testError:"", serverError:""};
+let UPD = {timer:null};
 
 /* ================================================= утилиты */
 async function api(path, body){
@@ -631,6 +730,10 @@ document.querySelectorAll(".nav").forEach(b=>{
     $("p-"+b.dataset.tab).classList.add("on");
   };
 });
+function goTab(name){
+  const b = document.querySelector('.nav[data-tab="'+name+'"]');
+  if(b) b.click();
+}
 
 /* ================================================= тема */
 $("btnTheme").onclick = ()=>{
@@ -649,6 +752,8 @@ async function loadState(){
   }
   const c = ST.cfg || {};
   if(c.theme) document.documentElement.dataset.theme = c.theme;
+  $("chipVer").textContent = "v" + (ST.version || "?");
+  $("curVersion").textContent = "Установлено v" + (ST.version || "?");
 
   // статусы
   chip($("chipAnki"), ST.anki, "Anki", ST.anki ? "подключена" : "не подключена");
@@ -1116,6 +1221,7 @@ async function savePath(){
     $("pathHint").innerHTML = '<span style="color:var(--ok)">Папка в порядке ✓</span>';
     toast("Папка сохранена","good");
     await loadState();
+    try{ await loadSetup(); }catch(e){}
   }
 }
 $("btnSavePath").onclick = savePath;
@@ -1251,9 +1357,475 @@ $("a_ok").onclick = async ()=>{
   }
 };
 
+/* ================================================= мастер настройки */
+const WZ_STEPS = [
+  {id:"engine", label:"Движок"},
+  {id:"anki",   label:"AnkiConnect"},
+  {id:"server", label:"Сервер"},
+  {id:"test",   label:"Тест голоса"},
+];
+
+function setupStepOk(st, i){
+  if(!st) return false;
+  return !!(st[WZ_STEPS[i].id] && st[WZ_STEPS[i].id].ok);
+}
+function firstSetupStep(st){
+  for(let i=0;i<WZ_STEPS.length;i++) if(!setupStepOk(st,i)) return i;
+  return 3;
+}
+async function loadSetup(){
+  WZ.setup = await api("/api/setup");
+  renderSetupSummary();
+  if(WZ.open) renderWizard();
+  return WZ.setup;
+}
+function renderSetupSummary(){
+  const s = WZ.setup;
+  if(!s){
+    $("setupSummary").textContent = "Не удалось прочитать состояние настройки.";
+    return;
+  }
+  const marks = [
+    ["движок", s.engine.ok], ["Anki", s.anki.ok], ["сервер", s.server.ok],
+    ["голоса", s.voices.ok], ["тест", s.test.ok]
+  ];
+  $("setupSummary").innerHTML = marks.map(x =>
+    '<span style="color:'+(x[1]?"var(--ok)":"var(--err)")+'">'+
+    (x[1]?"✓":"✗")+" "+esc(x[0])+"</span>").join(" · ");
+  $("setupState").textContent = s.complete ? "Готово ✓" : "Требует внимания";
+  $("setupState").style.color = s.complete ? "var(--ok)" : "var(--err)";
+  $("btnWizardAgain").style.display = s.done ? "" : "none";
+  if(!s.complete) $("navBadge").style.display = "";
+  else if(!(ST && ST.problems && ST.problems.length)) $("navBadge").style.display = "none";
+}
+function hydrateWizard(s){
+  if(!WZ.path) WZ.path = s.engine.path || s.engine.auto || "";
+  const ready = (s.voices.all || []).filter(v => v.ok);
+  if(!WZ.voice || !ready.some(v => v.name === WZ.voice)){
+    WZ.voice = ready.some(v => v.name === s.test.voice) ? s.test.voice
+      : (ready[0] ? ready[0].name : "");
+  }
+  if(!WZ.text) WZ.text = s.test.text || "こんにちは。これは声のテストです。";
+}
+function openWizard(step){
+  WZ.open = true;
+  WZ.testError = "";
+  WZ.serverError = "";
+  const s = WZ.setup;
+  if(s){
+    WZ.path = s.engine.path || s.engine.auto || "";
+    hydrateWizard(s);
+    WZ.step = step == null ? firstSetupStep(s) : Math.max(0, Math.min(3, step));
+    renderWizard();
+  }else{
+    $("wzBody").innerHTML = '<div class="empty">Проверяю настройку…</div>';
+    loadSetup().then(()=>{
+      if(!WZ.open) return;
+      WZ.path = WZ.setup.engine.path || WZ.setup.engine.auto || "";
+      hydrateWizard(WZ.setup);
+      WZ.step = step == null ? firstSetupStep(WZ.setup) : Math.max(0, Math.min(3, step));
+      renderWizard();
+    }).catch(e=>{
+      $("wzBody").innerHTML = '<div class="wresult bad">Не удалось прочитать настройку: '+
+        esc(e.message)+"</div>";
+    });
+  }
+  $("wizardOverlay").classList.add("on");
+}
+function closeWizard(){
+  WZ.open = false;
+  $("wizardOverlay").classList.remove("on");
+  try{ localStorage.setItem("avWizardSeen", "1"); }catch(e){}
+}
+function renderWizard(){
+  const s = WZ.setup;
+  if(!s){ return; }
+  hydrateWizard(s);
+  $("wzSteps").innerHTML = WZ_STEPS.map((x,i) => {
+    const ok = setupStepOk(s,i);
+    return '<span class="wstep '+(i===WZ.step?"on ":"")+(ok?"ok":"")+'">'+
+      '<span class="n">'+(ok?"✓":(i+1))+"</span>"+esc(x.label)+"</span>";
+  }).join("");
+  const fn = [engineHtml, ankiHtml, serverHtml, testHtml][WZ.step];
+  $("wzBody").innerHTML = fn(s);
+  $("wzPrev").disabled = WZ.step === 0 || WZ.busy;
+  $("wzNext").style.display = WZ.step < 3 ? "" : "none";
+  $("wzNext").disabled = WZ.busy;
+  $("wzDone").style.display = WZ.step === 3 ? "" : "none";
+  $("wzDone").textContent = s.complete ? "Готово" : "Закрыть";
+  $("wzDone").disabled = WZ.busy;
+  wireWizard();
+}
+function engineHtml(s){
+  const e = s.engine;
+  const path = WZ.path || e.path || e.auto || "";
+  const problems = (e.problems || []).map(p => "<li>"+esc(p)+"</li>").join("");
+  return '<h3>1. Движок GPT-SoVITS</h3>'+
+    '<p>AnkiVoice — оболочка. Синтез делает отдельный движок GPT-SoVITS; '+
+    'он весит несколько гигабайт и ставится один раз.</p>'+
+    '<div class="wstate '+(e.ok?"ok":"bad")+'"><span class="dot"></span>'+
+    (e.ok ? "Папка проверена: <b>"+esc(e.path)+"</b>"
+          : "Папка не найдена или в ней не хватает файлов")+'</div>'+
+    (problems ? '<div class="wcard"><b>Что не так:</b><ul>'+problems+'</ul></div>' : "")+
+    '<label class="f">Папка GPT-SoVITS</label>'+
+    '<div class="row"><div class="grow"><input id="wzPath" type="text" value="'+esc(path)+'"></div>'+
+    '<button class="btn sm" data-w="wzBrowse">Обзор…</button>'+
+    '<button class="btn sm primary" data-w="wzSavePath">Проверить и сохранить</button></div>'+
+    '<div class="wactions">'+
+    (e.auto ? '<button class="btn sm" data-w="wzAuto" title="'+esc(e.auto)+'">Подставить найденную</button>' : "")+
+    '<a class="btn sm ghost" href="'+esc(e.download_url)+'" target="_blank" rel="noopener">Скачать GPT-SoVITS</a>'+
+    '</div>'+
+    '<div class="wcard"><b>Куда класть.</b> Скачай Windows-пакет GPT-SoVITS v2Pro, '+
+    'распакуй в папку без кириллицы (например, <code>D:\\GPT-SoVITS</code>) и укажи её здесь. '+
+    'Внутри должны быть <code>runtime\\python.exe</code> и <code>api_v2.py</code>.</div>';
+}
+function ankiHtml(s){
+  const a = s.anki;
+  return '<h3>2. AnkiConnect</h3>'+
+    '<p>Через AnkiConnect программа читает колоды и записывает звук в карточки. '+
+    'Без него озвучка не начнётся.</p>'+
+    '<div class="wstate '+(a.ok?"ok":"bad")+'"><span class="dot"></span>'+
+    (a.ok ? "AnkiConnect отвечает — Anki запущена." : "AnkiConnect не отвечает.")+'</div>'+
+    (a.ok ? "" :
+      '<div class="wcard"><b>Что сделать:</b><ul>'+
+      '<li>Открой Anki.</li>'+
+      '<li><b>Инструменты → Дополнения → Получить дополнения</b>.</li>'+
+      '<li>Вставь код <code>'+esc(a.code)+'</code> и нажми «ОК».</li>'+
+      '<li>Перезапусти Anki и вернись сюда.</li></ul>'+
+      '<div class="hint">Если Anki не установлена — сначала скачай её.</div></div>')+
+    '<div class="wactions">'+
+    '<a class="btn sm" href="'+esc(a.url)+'" target="_blank" rel="noopener">Открыть AnkiConnect</a>'+
+    '<a class="btn sm ghost" href="https://apps.ankiweb.net/" target="_blank" rel="noopener">Скачать Anki</a>'+
+    '<button class="btn sm" data-w="wzRefresh">Проверить снова</button></div>';
+}
+function serverHtml(s){
+  const v = s.server;
+  return '<h3>3. Сервер GPT-SoVITS</h3>'+
+    '<p>Сервер слушает только <code>127.0.0.1:9880</code>. Первый запуск грузит '+
+    'веса и CUDA — это может занять 1–2 минуты.</p>'+
+    '<div class="wstate '+(v.ok?"ok":"bad")+'"><span class="dot"></span>'+
+    (v.ok ? "Сервер уже запущен и отвечает." : "Сервер пока не запущен.")+'</div>'+
+    (WZ.busy ? '<div class="wcard"><b>Запускаю…</b> не закрывай мастер, первый старт небыстрый.</div>' : "")+
+    (WZ.serverError ? '<div class="wresult bad">'+esc(WZ.serverError)+'</div>' : "")+
+    '<div class="wactions">'+
+    (v.ok ? "" : '<button class="btn sm primary" data-w="wzStartServer" '+(WZ.busy?"disabled":"")+'>Запустить сервер</button>')+
+    '<button class="btn sm" data-w="wzRefresh" '+(WZ.busy?"disabled":"")+'>Проверить снова</button>'+
+    '<a class="btn sm ghost" href="#" data-w="wzLog">Открыть журнал</a></div>'+
+    '<div class="wcard"><b>Можно пропустить.</b> Если сервер ещё не поднят, '+
+    'тестовая фраза запустит его автоматически. Этот шаг нужен, чтобы '+
+    'заранее увидеть ошибки движка.</div>';
+}
+function testHtml(s){
+  const ready = (s.voices.all || []).filter(v => v.ok);
+  if(!ready.length){
+    return '<h3>4. Тестовая фраза</h3>'+
+      '<div class="wstate bad"><span class="dot"></span>Нет ни одного голоса с полным набором файлов.</div>'+
+      '<p>Открой вкладку «Голос»: добавь голос (GPT .ckpt, SoVITS .pth и референс) '+
+      'или нажми «Обновить веса в движке».</p>'+
+      '<div class="wactions"><button class="btn sm primary" data-w="wzSound">Открыть вкладку «Голос»</button>'+
+      '<button class="btn sm" data-w="wzRefresh">Проверить снова</button></div>';
+  }
+  hydrateWizard(s);
+  const opts = ready.map(v => '<option value="'+esc(v.name)+'"'+
+    (v.name===WZ.voice?" selected":"")+'>'+esc(v.display)+"</option>").join("");
+  const text = WZ.text || s.test.text || "";
+  return '<h3>4. Тестовая фраза</h3>'+
+    '<p>Проверим весь путь: голос → сервер → звук. Это последний шаг мастера.</p>'+
+    '<label class="f">Голос</label><select id="wzVoice">'+opts+'</select>'+
+    '<div class="spacer"></div>'+
+    '<label class="f">Фраза</label><textarea id="wzText" rows="3">'+esc(text)+'</textarea>'+
+    '<div class="wactions"><button class="btn sm primary" data-w="wzTest" '+
+    (WZ.busy?"disabled":"")+'>'+(WZ.busy?"Синтезирую…":"Синтезировать тестовую фразу")+'</button>'+
+    '<button class="btn sm" data-w="wzRefresh" '+(WZ.busy?"disabled":"")+'>Проверить снова</button></div>'+
+    (s.test.ok ? '<div class="wresult">Тестовый звук готов ✓'+
+      (s.test.voice ? ' <span class="hint">голос: '+esc(s.test.voice)+'</span>' : "")+
+      '<audio controls preload="none" src="'+esc(s.test.url)+'&t='+Date.now()+'"></audio></div>' : "")+
+    (WZ.testError ? '<div class="wresult bad">'+esc(WZ.testError)+'</div>' : "")+
+    (s.complete ? '<div class="wstate ok" style="margin-top:14px"><span class="dot"></span>'+
+      'Настройка завершена. Можно закрывать мастер.</div>' : "");
+}
+function wireWizard(){
+  document.querySelectorAll("#wzBody [data-w]").forEach(b=>{
+    b.onclick = ev=>{
+      if(b.dataset.w === "wzSound" || b.dataset.w === "wzLog") ev.preventDefault();
+      onWizardAction(b.dataset.w);
+    };
+  });
+  const p = $("wzPath");
+  if(p) p.oninput = ()=>{ WZ.path = p.value; };
+  const t = $("wzText");
+  if(t) t.oninput = ()=>{ WZ.text = t.value; };
+  const v = $("wzVoice");
+  if(v) v.onchange = ()=>{ WZ.voice = v.value; };
+}
+async function onWizardAction(a){
+  if(a === "wzBrowse"){
+    openPicker("wzPath", "dir", "", "Папка GPT-SoVITS");
+    return;
+  }
+  if(a === "wzSound"){ closeWizard(); goTab("sound"); return; }
+  if(a === "wzLog"){ closeWizard(); goTab("voice"); return; }
+  if(a === "wzRefresh"){ await refreshWizard(); return; }
+  if(WZ.busy) return;
+  if(a === "wzAuto"){
+    const p = WZ.setup.engine.auto || "";
+    if(!p) return toast("Автоматически ничего не нашлось","bad");
+    WZ.path = p;
+    const el = $("wzPath"); if(el) el.value = p;
+    await saveWizardPath(p);
+  }else if(a === "wzSavePath"){
+    const el = $("wzPath");
+    await saveWizardPath(el ? el.value : WZ.path);
+  }else if(a === "wzStartServer"){
+    await startWizardServer();
+  }else if(a === "wzTest"){
+    await runWizardTest();
+  }
+}
+async function refreshWizard(){
+  if(WZ.busy) return;
+  WZ.busy = true; renderWizard();
+  try{ await loadSetup(); }
+  catch(e){ toast(e.message,"bad"); }
+  finally{ WZ.busy = false; if(WZ.open) renderWizard(); }
+}
+async function saveWizardPath(path){
+  const p = String(path || "").trim();
+  if(!p) return toast("Укажи папку GPT-SoVITS","bad");
+  WZ.path = p; WZ.busy = true; WZ.serverError = ""; WZ.testError = "";
+  renderWizard();
+  try{
+    const j = await api("/api/config", {gptsovits_path:p});
+    if(j.problems && j.problems.length){
+      toast("Папка не подходит","bad");
+      await loadSetup();
+    }else{
+      toast("Папка сохранена","good");
+      await loadState();
+      await loadSetup();
+    }
+  }catch(e){ toast(e.message,"bad"); }
+  finally{ WZ.busy = false; if(WZ.open) renderWizard(); }
+}
+function startWizardServer(){
+  return new Promise(async resolve=>{
+    WZ.busy = true; WZ.serverError = ""; renderWizard();
+    let runId = null;
+    try{
+      const j = await api("/api/setup/server", {});
+      if(j.already){
+        await loadSetup();
+        WZ.busy = false; renderWizard(); toast("Сервер уже работает","good"); resolve(); return;
+      }
+      runId = j.run && j.run.id; WZ.runId = runId;
+      const started = Date.now();
+      WZ.timer = setInterval(async ()=>{
+        try{
+          const st = await api("/api/state");
+          const r = st.run;
+          if(r && r.id === runId && !r.running){
+            clearInterval(WZ.timer); WZ.timer = null; WZ.busy = false;
+            await loadSetup();
+            if(r.code !== 0) WZ.serverError =
+              "Сервер не поднялся (код "+r.code+"). Открой журнал — там причина.";
+            else toast("Сервер готов","good");
+            if(WZ.open) renderWizard(); resolve();
+          }else if(Date.now() - started > 10*60*1000){
+            clearInterval(WZ.timer); WZ.timer = null; WZ.busy = false;
+            WZ.serverError = "Сервер не поднялся за 10 минут. Посмотри журнал.";
+            if(WZ.open) renderWizard(); resolve();
+          }
+        }catch(e){ /* сеть моргнула — следующий тик */ }
+      }, 1500);
+    }catch(e){
+      WZ.busy = false; WZ.serverError = e.message; renderWizard(); resolve();
+    }
+  });
+}
+function runWizardTest(){
+  return new Promise(async resolve=>{
+    const voice = ($("wzVoice") && $("wzVoice").value) || WZ.voice || "";
+    const text = ($("wzText") && $("wzText").value) || WZ.text || "";
+    if(!voice){ toast("Сначала выбери голос","bad"); resolve(); return; }
+    if(!text.trim()){ toast("Напиши тестовую фразу","bad"); resolve(); return; }
+    WZ.voice = voice; WZ.text = text;
+    WZ.busy = true; WZ.testError = ""; renderWizard();
+    try{
+      const j = await api("/api/run", {kind:"test", voice:voice, text:text});
+      const runId = j.run && j.run.id; WZ.runId = runId;
+      const started = Date.now();
+      WZ.timer = setInterval(async ()=>{
+        try{
+          const st = await api("/api/state");
+          const r = st.run;
+          if(r && r.id === runId && !r.running){
+            clearInterval(WZ.timer); WZ.timer = null; WZ.busy = false;
+            if(r.code === 0){
+              try{ await api("/api/setup/done", {voice:voice}); }
+              catch(e){ WZ.testError = "Звук готов, но отметка мастера не сохранилась: "+e.message; }
+              await loadSetup();
+              if(!WZ.testError) toast("Тест готов","good");
+            }else{
+              WZ.testError = "Синтез завершился с ошибкой (код "+r.code+"). "+
+                "Открой журнал на вкладке «Озвучка» — там подробности.";
+            }
+            if(WZ.open) renderWizard(); resolve();
+          }else if(Date.now() - started > 5*60*1000){
+            clearInterval(WZ.timer); WZ.timer = null; WZ.busy = false;
+            WZ.testError = "Тест не закончился за 5 минут. Посмотри журнал.";
+            if(WZ.open) renderWizard(); resolve();
+          }
+        }catch(e){ /* сеть моргнула — следующий тик */ }
+      }, 1200);
+    }catch(e){
+      WZ.busy = false; WZ.testError = e.message; renderWizard(); resolve();
+    }
+  });
+}
+
+/* ================================================= обновления */
+function fmtMb(n){
+  if(!n) return "—";
+  return (n / 1048576).toFixed(n >= 10*1048576 ? 0 : 1) + " МБ";
+}
+async function checkUpdates(){
+  const box = $("updateBox");
+  $("btnUpdate").disabled = true;
+  box.innerHTML = "Проверяю GitHub…";
+  try{
+    const j = await api("/api/update/check?force=1");
+    renderUpdate(j);
+  }catch(e){
+    box.innerHTML = '<div class="wresult bad">Не удалось проверить обновления: '+esc(e.message)+
+      '<div class="wactions"><a class="btn sm ghost" href="https://github.com/Daii1414/AnkiVoice/releases" '+
+      'target="_blank" rel="noopener">Открыть релизы</a></div></div>';
+  }finally{ $("btnUpdate").disabled = false; }
+}
+function renderUpdate(j){
+  const a = j.asset || {};
+  let h = '<div>Установлено <b>v'+esc(j.current)+'</b> · последний релиз <b>'+
+    esc(j.tag || "—")+'</b></div>';
+  if(j.available){
+    h += '<div style="margin-top:8px;color:var(--ok)"><b>Доступно обновление '+
+      esc(j.tag)+'</b></div>';
+    if(j.body) h += '<div class="update-pre">'+esc(j.body)+'</div>';
+    if(a.name && a.sha256){
+      h += '<div class="wactions"><button class="btn sm primary" data-up="dl">Скачать установщик'+
+        (a.size ? " ("+fmtMb(a.size)+")" : "")+'</button>'+
+        '<a class="btn sm ghost" href="'+esc(a.url)+'" target="_blank" rel="noopener">Скачать вручную</a></div>'+
+        '<div class="hint">SHA256 будет проверен после скачивания.</div>';
+    }else{
+      h += '<div class="wresult bad">В релизе нет установщика или SHA256. '+
+        'Скачай вручную со страницы релиза.</div>'+
+        '<div class="wactions"><a class="btn sm" href="'+esc(j.url)+'" target="_blank" rel="noopener">Страница релиза</a></div>';
+    }
+  }else{
+    h += '<div style="margin-top:8px;color:var(--ok)">Новых версий нет.</div>';
+    if(j.body) h += '<details style="margin-top:10px"><summary>Что нового в '+
+      esc(j.tag || "последнем релизе")+'</summary><div class="update-pre">'+esc(j.body)+'</div></details>';
+  }
+  $("updateBox").innerHTML = h;
+  const dl = $("updateBox").querySelector('[data-up="dl"]');
+  if(dl) dl.onclick = downloadUpdate;
+}
+async function downloadUpdate(){
+  if(UPD.timer) return;
+  $("updateBox").innerHTML = '<div>Начинаю скачивание…</div>';
+  try{
+    await api("/api/update/download", {});
+    pollUpdate();
+  }catch(e){
+    $("updateBox").innerHTML = '<div class="wresult bad">'+esc(e.message)+'</div>';
+  }
+}
+function pollUpdate(){
+  if(UPD.timer) clearInterval(UPD.timer);
+  const tick = async ()=>{
+    try{
+      const s = await api("/api/update/status");
+      renderUpdateProgress(s);
+      if(s.phase === "done" || s.phase === "error"){
+        clearInterval(UPD.timer); UPD.timer = null;
+      }
+    }catch(e){ /* следующий тик */ }
+  };
+  UPD.timer = setInterval(tick, 900);
+  tick();
+}
+function renderUpdateProgress(s){
+  const total = s.total || 0, got = s.received || 0;
+  const pct = s.percent || (total ? Math.min(100, Math.round(got*100/total)) : 0);
+  let h = "";
+  if(s.phase === "downloading" || s.phase === "verifying"){
+    h = '<div>Скачиваю установщик…</div>'+
+      '<div class="update-bar"><i style="width:'+pct+'%"></i></div>'+
+      '<div class="update-meta">'+fmtMb(got)+' из '+fmtMb(total)+' · '+pct+'%</div>';
+    if(s.phase === "verifying") h += '<div class="hint">Проверяю SHA256…</div>';
+  }else if(s.phase === "done"){
+    h = '<div class="wstate ok"><span class="dot"></span>Скачано, SHA256 совпал ✓</div>'+
+      '<div class="hint">'+esc(s.path || "")+'</div>'+
+      '<div class="wactions"><button class="btn sm primary" data-up="run">Запустить установщик</button>'+
+      '<a class="btn sm ghost" href="https://github.com/Daii1414/AnkiVoice/releases" '+
+      'target="_blank" rel="noopener">Страница релиза</a></div>';
+  }else if(s.phase === "error"){
+    h = '<div class="wresult bad">Скачивание не удалось: '+esc(s.error || "неизвестная ошибка")+'</div>'+
+      '<div class="wactions"><button class="btn sm" data-up="retry">Попробовать снова</button></div>';
+  }else{
+    h = '<div class="hint">Скачивание не запущено.</div>';
+  }
+  $("updateBox").innerHTML = h;
+  const run = $("updateBox").querySelector('[data-up="run"]');
+  if(run) run.onclick = runUpdate;
+  const retry = $("updateBox").querySelector('[data-up="retry"]');
+  if(retry) retry.onclick = downloadUpdate;
+}
+async function runUpdate(){
+  try{
+    await api("/api/update/run", {});
+    toast("Установщик открыт. Следуй его подсказкам.","good");
+  }catch(e){ toast(e.message,"bad"); }
+}
+
+$("wzClose").onclick = closeWizard;
+$("wzPrev").onclick = ()=>{
+  if(WZ.step > 0){ WZ.step--; WZ.testError = ""; WZ.serverError = ""; renderWizard(); }
+};
+$("wzNext").onclick = ()=>{
+  if(WZ.step < 3){ WZ.step++; WZ.testError = ""; WZ.serverError = ""; renderWizard(); }
+};
+$("wzDone").onclick = ()=>{
+  const ok = WZ.setup && WZ.setup.complete;
+  closeWizard();
+  toast(ok ? "Настройка завершена" : "Мастер можно открыть снова", ok ? "good" : "");
+};
+$("wizardOverlay").onclick = e=>{ if(e.target === $("wizardOverlay")) closeWizard(); };
+document.addEventListener("keydown", e=>{
+  if(e.key === "Escape" && WZ.open) closeWizard();
+});
+$("btnWizard").onclick = ()=>openWizard(0);
+$("btnWizardAgain").onclick = async ()=>{
+  if(!confirm("Сбросить отметку мастера? Настройки, голоса и файлы останутся.")) return;
+  try{
+    await api("/api/setup/reset", {});
+    await loadSetup();
+    openWizard(0);
+  }catch(e){ toast(e.message,"bad"); }
+};
+$("btnUpdate").onclick = checkUpdates;
+
 /* ================================================= старт */
 (async function init(){
   await loadState();
+  try{
+    await loadSetup();
+    let seen = false;
+    try{ seen = !!localStorage.getItem("avWizardSeen"); }catch(e){}
+    if(WZ.setup && !WZ.setup.complete && !seen){
+      setTimeout(()=>{ if(!WZ.open) openWizard(); }, 450);
+    }
+  }catch(e){
+    console.warn("setup:", e);
+  }
   setInterval(async ()=>{
     try{
       const st = await api("/api/state");
