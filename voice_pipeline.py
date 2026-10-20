@@ -2104,22 +2104,29 @@ def build_jobs(notes, mode, force, fields=None):
         if mode in ("sentence", "both"):
             text = tgt_text(fields["sentence_src"])
             if text and (force or not tgt(fields["sentence_audio"])):
-                # вставляем чтение сложного слова в предложение (источник:
-                # отключено либо конкретное поле карточки)
-                text = inject_reading(text, n, reading=fields.get("reading", ""))
+                # режим «как есть»: движок получает кандзи и читает сам —
+                # без подстановки чтения из фуриганы
+                asis = (fields.get("reading") or "").strip().lower() == "asis"
+                if not asis:
+                    # вставляем чтение сложного слова в предложение
+                    # (источник: отключено либо конкретное поле карточки)
+                    text = inject_reading(text, n, reading=fields.get("reading", ""))
                 src_text = text          # исходник: в нём ещё есть латиница
-                # kanaize_from_fields: основное слово читается по
-                # ExpressionFurigana, остальное — автоматически
-                # (поля раскладываем в простые строки: внутри f лежит
-                #  формат AnkiConnect {"value": ...})
-                flat = {k: plain(v.get("value", ""))
-                        for k, v in f.items() if isinstance(v, dict)}
-                text = kanaize_from_fields(text, fields=flat, field_names=fields)
+                if not asis:
+                    # kanaize_from_fields: основное слово читается по
+                    # ExpressionFurigana, остальное — автоматически
+                    # (поля раскладываем в простые строки: внутри f лежит
+                    #  формат AnkiConnect {"value": ...})
+                    flat = {k: plain(v.get("value", ""))
+                            for k, v in f.items() if isinstance(v, dict)}
+                    text = kanaize_from_fields(text, fields=flat, field_names=fields)
                 if not _speakable(text):        # только пунктуация и медиа
                     continue
                 jobs.append((n["noteId"], fields["sentence_audio"], text, src_text))
         if mode in ("expression", "both"):
-            text = word_text(n, fields["word_src"], reading=fields.get("reading", ""))
+            asis = (fields.get("reading") or "").strip().lower() == "asis"
+            text = word_text(n, fields["word_src"],
+                             reading=("off" if asis else fields.get("reading", "")))
             src_text = text           # исходник: в нём ещё есть латиница
             if text and (force or not tgt(fields["word_audio"])):
                 # Фуригана для основного слова — из настраиваемого поля
@@ -2127,7 +2134,8 @@ def build_jobs(notes, mode, force, fields=None):
                                        {}).get("value", ""))
                 expression = plain(f.get(fields.get("word_src", "Expression"),
                                          {}).get("value", ""))
-                text = kanaize_card(text, expression=expression, furigana=furigana)
+                if not asis:
+                    text = kanaize_card(text, expression=expression, furigana=furigana)
                 if not _speakable(text):        # только пунктуация и медиа
                     continue
                 jobs.append((n["noteId"], fields["word_audio"], text, src_text))
@@ -2527,7 +2535,8 @@ def cmd_verify(args):
         return
     if args.limit:
         ids = ids[:args.limit]
-    checker = _pron_verifier(force=True)
+    checker = _pron_verifier(force=True,
+                             asr_model=getattr(args, "asr_model", None))
     if checker is None:
         raise SystemExit("Проверка произношения недоступна: нет faster-whisper "
                          "в питоне движка или модели в кэше.")

@@ -1026,7 +1026,8 @@ function fillSelect(sel, fields, keep){
   const prev = keep || sel.value;
   let html = '<option value="">— не используется —</option>';
   if(sel.id === "f_reading")
-    html = '<option value="">'+ (ST ? ST.reading_off : "Не подставлять") +'</option>';
+    html = '<option value="">'+ (ST ? ST.reading_off : "Не подставлять")
+          + '</option><option value="asis">Как есть (кандзи, без фуриганы)</option>';
   html += fields.map(f=>'<option value="'+esc(f)+'">'+esc(f)+"</option>").join("");
   sel.innerHTML = html;
   if(prev && fields.indexOf(prev) >= 0) sel.value = prev;

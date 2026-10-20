@@ -230,6 +230,8 @@ I18N_EN = {
     "Сервер:": "Server:",
     "Голосов:": "Voices:",
     "Не подставлять": "Do not substitute",
+    "Как есть (кандзи, без фуриганы)":
+        "As is (kanji, no furigana)",
     "Первый запуск грузит веса и CUDA — это может занять 1–2 минуты.":
         "The first start loads the weights and CUDA — it may take 1-2 minutes.",
     "SHA256 будет проверен после скачивания.":

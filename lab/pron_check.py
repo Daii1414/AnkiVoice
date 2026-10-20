@@ -37,6 +37,8 @@ LATIN = re.compile(r"([A-Za-z]+|[0-9]+)")
 
 # модели faster-whisper по убыванию качества (крупные — точнее, но тяжелее)
 _MODEL_ORDER = [
+    # внимание: kotoba-whisper в автоподборе (совместим ctranslate2 3.x)
+    # ломает в ctranslate2 4.x — после загрузки процесс падает
     "faster-whisper-large-v3-turbo",
     "faster-whisper-large-v3",
     "faster-whisper-medium",

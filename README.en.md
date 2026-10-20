@@ -256,6 +256,14 @@ Two buttons on the “Озвучка” tab:
 * **“Переделать подозрительные”** (Re-do doubtful ones) — re-voices only the
   tagged cards, picking the best take by content again.
 
+**How the reading is chosen.** In the “Источник чтения” select you can pick
+the field the reading comes from, or “Как есть (кандзи, без фуриганы)” — then
+the engine gets the kanji and reads it itself, with no furigana at all.
+Measured on the same 150 sentences: with the furigana the check flags 4, in
+“as is” mode it flags 12 — the model reads a term its own way, so the
+comparison is noisier. The furigana mode is better for checking; “as is” is
+fine when you want the natural reading.
+
 **We check sentences, not words.** An isolated word is transcribed unreliably:
 the measured “coverage” of a real failure and of a false alarm overlap
 completely, so there is no threshold that separates them. Words are still
