@@ -61,15 +61,21 @@ installer and unpack themselves on first launch — no separate installs).
 
 ## Quick start
 
-1. Download **`AnkiVoice-Setup-1.1.exe`** from the [Releases](https://github.com/Daii1414/AnkiVoice/releases)
+1. Download **`AnkiVoice-Setup-1.2.exe`** from the [Releases](https://github.com/Daii1414/AnkiVoice/releases)
    page — one file with everything inside.
 2. Run it: **“Далее”** → **“Установить”** → **“Завершить”** (Next → Install → Finish;
    the “Launch AnkiVoice” checkbox is on, so the app opens by itself).
-3. Point it to the GPT-SoVITS folder (it usually finds it automatically and
-   remembers the path).
-4. On the **“Голос”** (Voice) tab pick a voice → on the **“Поля колоды”**
+3. On first launch the **setup wizard** opens: check the GPT-SoVITS folder
+   (if the engine is missing, the “Download GPT-SoVITS” button and exact
+   unpack instructions are right there), connect AnkiConnect, start the
+   server and synthesize a test phrase. The wizard says exactly what to
+   download, where to put it and what to click — not just “check the folder”.
+4. Then: on the **“Голос”** (Voice) tab pick a voice → on the **“Поля колоды”**
    (Deck fields) tab pick a deck and fields → on the **“Озвучка”** (Dubbing)
    tab press **“Начать озвучку”** (Start dubbing).
+
+The **AnkiConnect** add-on code is `2055492159` (Anki → Tools → Add-ons →
+Get Add-ons). Restart Anki after installing it.
 
 The app starts a local server and opens a page in your browser — that is
 normal, nothing else needs to be installed.
@@ -132,6 +138,11 @@ The old tkinter window is still available via the `--classic` flag.
 
 ![App tab](doc/shots/app-dark.png)
 
+* **Setup wizard** — four steps: engine, AnkiConnect, server, test phrase.
+  It shows the status of each step and what to do when one is red. The wizard
+  opens by itself on first launch; later use the “Open wizard” button.
+* **Updates** — the “Check for updates” button shows the latest changelog,
+  downloads the installer and verifies its SHA256.
 * **GPT-SoVITS folder** — the path to the engine; the “Check” and “Browse…”
   buttons tell you exactly what is wrong instead of just “check the folder”.
 * **Diagnostics** — everything at once: tool, config, path, Anki, server,
@@ -251,7 +262,7 @@ The exe has diagnostics too: `AnkiVoice.exe doctor`.
 | Message | What to do |
 |---|---|
 | `Не найдена папка GPT-SoVITS` | Set the path: `gptsovits_path.txt`, the `GPT_SOVITS_ROOT` environment variable, or the “Browse…” button in the app |
-| `AnkiConnect недоступен` | Open Anki and make sure AnkiConnect is installed/enabled |
+| `AnkiConnect недоступен` | Open Anki; if the add-on is missing — Tools → Add-ons → Get Add-ons, code `2055492159`, then restart Anki |
 | `Референс X с — API требует 3–10 с` | Trim the clip to 3–10 seconds |
 | `Не получилось переключить... Перезапуск` | Normal: the pipeline restarts the server and retries |
 | `сервер вернул пустой звук` | Usually VRAM is occupied by other processes (browser, games). Close them or restart the server: `pipeline.bat serve --voice <voice>` |
@@ -294,7 +305,7 @@ The installer is built with Inno Setup 6 (the script is already in the repo):
 ISCC.exe AnkiVoice.iss
 ```
 
-→ produces `dist\AnkiVoice-Setup-1.1.exe`.
+→ produces `dist\AnkiVoice-Setup-1.2.exe`.
 
 ## Repository structure
 
@@ -325,8 +336,11 @@ zip), `test_*.ogg`, `logs/`.
 
 ## Updates and releases
 
-* **Update**: download the new installer from Releases and simply run it over
-  the old version — the engine path and settings are preserved.
+* **Update**: “Приложение” (App) tab → **“Проверить обновления”** (Check for
+  updates). The app shows the changelog, downloads the installer and verifies
+  its SHA256; the download never starts without a hash. Then click “Run
+  installer”. You can also download the new installer from Releases and run
+  it over the old version — the engine path and settings are preserved.
 * **Uninstall**: Start menu → “Удалить AnkiVoice” (settings remain and are
   picked up again on the next install).
 * A release is one file, `AnkiVoice-Setup-x.y.exe`, on [Releases](https://github.com/Daii1414/AnkiVoice/releases).
