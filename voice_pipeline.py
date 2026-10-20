@@ -2738,41 +2738,60 @@ def cmd_qc_deck(args):
     verdict_field = next((x for x in flds if x.lower() in
                           ("вердикт", "verdict", "comment", "комментарий")), None)
 
-    made = skipped = 0
+    # группируем записи: исходник и его варианты — одна карточка,
+    # чтобы слушать не 162 отдельных, а по одной на проблемный кусок
+    groups = {}
+    order = []
     for r in recs:
-        fp = os.path.join(d, r["file"])
-        if not os.path.exists(fp):
-            skipped += 1
+        key = (r.get("note"), r.get("text") or "")
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(r)
+
+    made = skipped = 0
+    for key in order:
+        items = sorted(groups[key], key=lambda x: x.get("attempt") or 0)
+        sounds = []
+        head = ""
+        details = ""
+        for r in items:
+            fp = os.path.join(d, r["file"])
+            if not os.path.exists(fp):
+                skipped += 1
+                continue
+            with open(fp, "rb") as f:
+                blob = f.read()
+            stored = ac("storeMediaFile", filename=r["file"], overwrite=True,
+                        data=base64.b64encode(blob).decode("ascii"))
+            fname = stored or r["file"]
+            att = r.get("attempt") or 0
+            label = ("Вариант %d" % att) if att else "Как было"
+            sounds.append("%s: [sound:%s]" % (label, fname))
+            if head:
+                continue
+            head = r.get("text") or "(пусто)"
+            extra = ""
+            if r.get("coverage") is not None:
+                extra = ("\nПокрытие: %.2f, ошибки: %.2f"
+                         % (r.get("coverage") or 0.0, r.get("cer") or 0.0))
+            if r.get("note"):
+                extra += "\nКарточка: %d, поле: %s" % (r["note"], r.get("field", ""))
+            if r.get("span"):
+                sp = r["span"]
+                extra += ("\nПроблемный участок: %.1f-%.1f c (услышали «%s»)"
+                          % (sp.get("start") or 0.0, sp.get("end") or 0.0,
+                             sp.get("heard", "")))
+            details = ("Причина: %s\nСтратегия: %s%s"
+                       % ("; ".join(r.get("reasons") or []) or "не указана",
+                          r.get("strategy", "?"), extra))
+        if not sounds:
             continue
-        with open(fp, "rb") as f:
-            blob = f.read()
-        stored = ac("storeMediaFile", filename=r["file"], overwrite=True,
-                    data=base64.b64encode(blob).decode("ascii"))
-        fname = stored or r["file"]
-        att = r.get("attempt") or 0
-        if att:
-            head = "Вариант %d: %s" % (att, r["text"] or "(пусто)")
-        else:
-            head = "Как было: %s" % (r["text"] or "(пусто)")
-        extra = ""
-        if r.get("coverage") is not None:
-            extra = ("\nПокрытие: %.2f, ошибки: %.2f"
-                     % (r.get("coverage") or 0.0, r.get("cer") or 0.0))
-        if r.get("note"):
-            extra += "\nКарточка: %d, поле: %s" % (r["note"], r.get("field", ""))
-        if r.get("span"):
-            sp = r["span"]
-            extra += ("\nПроблемный участок: %.1f–%.1f c (услышали «%s»)"
-                      % (sp.get("start") or 0.0, sp.get("end") or 0.0,
-                         sp.get("heard", "")))
-        body = ("Причина: %s\nСтратегия: %s%s\nФайл: %s (%.1f КБ)"
-                % ("; ".join(r["reasons"]) or "не указана",
-                   r.get("strategy", "?"), extra, fname, len(blob) / 1024))
         tail = ("\n\nВердикт: напиши «верно» (звук плохой) или "
-                "«ложное срабатывание» (звук нормальный): "
+                "«ложное срабатывание» (звух нормальный): "
                 if not verdict_field else "")
-        fields = {front: head,
-                  back: "%s%s\n\n[sound:%s]" % (body, tail, fname)}
+        body = "%s\n\n%s%s" % (details, "\n".join(sounds), tail)
+        fields = {front: head, back: body}
         if verdict_field:
             fields[verdict_field] = ""
         ac("addNote", note={
