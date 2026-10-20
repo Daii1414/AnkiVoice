@@ -132,7 +132,7 @@ DEFAULT_FIELDS = {
     "word_src": "Expression",          # поле со словом (основное слово карточки)
     "furigana_src": "ExpressionFurigana",  # поле с фуриганой к основному слову
     "word_audio": "ExpressionAudio",   # поле, куда писать звук слова
-    "reading": "mix",                    # источник чтения: "mix" — кандзи + чтение
+    "reading": "",                        # источник чтения: "" — авто (есть фуригана — чтение по ней, нет — кандзи;
                                         # читает сам (звучит целое); "mix" — кандзи +
                                         # чтение термина из фуриганы; "off" — всё кана;
                                         # имя поля — строго из него
@@ -2127,6 +2127,27 @@ def _speakable(text):
     return q2.sound_chars(text) > 0
 
 
+def reading_mode(fields, note, reading=""):
+    """Режим чтения для этой карточки.
+
+    * "asis" — всегда кандзи, движок читает сам;
+    * "mix" — термин всегда по фуригане;
+    * пусто (авто) — если в поле с фуриганой что-то есть, берём термин — по фуригане; если поля пустое — всё кандзи.
+
+    Решение принимается на каждую карточку: у чей есть фуригана — чтение по фуригане, а где ее нет — движок читает кандзи.
+
+    Режим переключается на карточку: у других колод фуригана есть — смешание кандзи, а где пусто — кандзи.
+    """
+    r = (reading or "").strip().lower()
+    if r == "asis":
+        return "asis"
+    if r == "mix":
+        return "mix"
+    name = fields.get("furigana_src") or "ExpressionFurigana"
+    val = plain(((note.get("fields") or {}).get(name) or {}).get("value", ""))
+    return "mix" if val.strip() else "asis"
+
+
 def build_jobs(notes, mode, force, fields=None):
     fields = fields or DEFAULT_FIELDS
     jobs = []
@@ -2146,7 +2167,7 @@ def build_jobs(notes, mode, force, fields=None):
             if text and (force or not tgt(fields["sentence_audio"])):
                 # режим «как есть»: движок получает кандзи и читает сам —
                 # без подстановки чтения из фуриганы
-                rmode = (fields.get("reading") or "").strip().lower()
+                rmode = reading_mode(fields, n, fields.get("reading", ""))
                 if rmode == "mix":
                     # кандзи + чтение термина из фуриганы:
                     # обычный текст читается в кандзи (контекст сохраняется),
@@ -2154,24 +2175,16 @@ def build_jobs(notes, mode, force, fields=None):
                     text = inject_reading_lenient(
                         text, n,
                         reading_field=fields.get("furigana_src", "ExpressionFurigana"))
-                elif rmode != "asis":
-                    # вставляем чтения из фуриганы
-                    # (см. вороде: пользователь должна сама читать
-                    # правильный от доменного чтения)
-                    text = inject_reading(text, n, reading=fields.get("reading", ""))
-                    # kanaize_from_fields: основное слово читается по
-                    # ExpressionFurigana, остальное — по словарю
-                    # (поля раскладываем в простые строки: внутри f лежит
-                    #  формат AnkiConnect {"value": ...})
-                    flat = {k: plain(v.get("value", ""))
-                            for k, v in f.items() if isinstance(v, dict)}
-                    text = kanaize_from_fields(text, fields=flat, field_names=fields)
+                else:
+                    # «только кандзи»: текст остаётся кандзи,
+                    # движок читает сам в контексте
+                    pass
                 src_text = text          # исходный текст: во что будет прознесено
                 if not _speakable(text):        # только пунктуация и медиа
                     continue
                 jobs.append((n["noteId"], fields["sentence_audio"], text, src_text))
         if mode in ("expression", "both"):
-            rmode = (fields.get("reading") or "").strip().lower()
+            rmode = reading_mode(fields, n, fields.get("reading", ""))
             asis = rmode == "asis"
             text = word_text(n, fields["word_src"],
                              reading=("off" if asis else fields.get("reading", "")))
@@ -3242,13 +3255,32 @@ def cmd_selftest(args):
         else:
             fail("чтение слова %s: %s (в чтении остались иероглифы)"
                  % (expr, w))
-    # режимы источника чтения (параметр reading): только off и конкретное поле
+    # режимы источника чтения (параметр reading): авто, mix, asis и конкретное поле
     print("  --   режимы источника чтения:")
-    if DEFAULT_FIELDS.get("reading") == "mix":
-        ok("по умолчанию: кандзи + чтение термина из фуриганы (mix)")
+    if DEFAULT_FIELDS.get("reading", "") == "":
+        ok("по умолчанию: авто (фуригана есть — по ней, нет — кандзи)")
     else:
-        fail("по умолчанию: reading=%r (ожидалось 'off')"
+        fail("по умолчанию: reading=%r (ожидалось '' — авто)"
              % DEFAULT_FIELDS.get("reading"))
+    # авто: решение принимается по каждой карточке
+    auto_f = {"fields": {"Expression": {"value": u"相欠き"},
+                          "ExpressionFurigana": {"value": u"相欠[あいが]き"},
+                          "Sentence": {"value": u"大工は相欠きにして高さを揃えた。"}}}
+    auto_n = {"fields": {"Expression": {"value": u"相欠き"},
+                          "ExpressionFurigana": {"value": ""},
+                          "Sentence": {"value": u"大工は相欠きにして高さを揃えた。"}}}
+    if reading_mode(DEFAULT_FIELDS, auto_f, "") == "mix":
+        ok("авто: фуригана есть — термин по ней (mix)")
+    else:
+        fail("авто: с фуриганой ожидался mix")
+    if reading_mode(DEFAULT_FIELDS, auto_n, "") == "asis":
+        ok("авто: фуриганы нет — кандзи (asis)")
+    else:
+        fail("авто: без фуриганы ожидался asis")
+    if reading_mode(DEFAULT_FIELDS, auto_f, "asis") == "asis":
+        ok("asis: принудительно кандзи, даже когда фуригана есть")
+    else:
+        fail("asis: ожидался asis")
     note_r = {"fields": {
         "Expression": {"value": u"相欠き"},
         "ExpressionFurigana": {"value": u"相欠[あいが]き"},
@@ -3430,10 +3462,10 @@ def main():
                    help="поле с фуриганой основного слова (по умолчанию "
                         "ExpressionFurigana); основное слово читается строго "
                         "по нему, всё остальное — автоматически")
-    p.add_argument("--reading", default="asis",
-                   help="источник чтения: off — не подставлять (движок читает "
-                        "сам), либо имя поля с готовым чтением слова "
-                        "(простое чтение или фуриганная разметка поля)")
+    p.add_argument("--reading", default="",
+                   help="режим чтения: \"\" — авто (есть фуригана — термин "
+                        "читается по ней, нет — кандзи), mix — всегда по "
+                        "фуригане, asis — только кандзи")
     p.add_argument("--force", action="store_true")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--speed", type=float, default=1.0)
@@ -3460,8 +3492,9 @@ def main():
     p.add_argument("--word-audio", default=None)
     p.add_argument("--furigana-src", default=None)
     p.add_argument("--reading", default=None,
-                   help="rezhim chteniya: mix (kandzi + chtenie termina iz furigany) / "
-                        "asis (tolko kandzi); esli ne ukazano - beretsya iz profila kolody")
+                   help="режим чтения: \"\" — авто (фуригана есть — термин по "
+                        "ней, нет — кандзи), mix, asis; если не указано — "
+                        "берётся из профиля колоды")
     p.add_argument("--asr-model", default=None)
     p.add_argument("--variants", type=int, default=0,
                    help="сколько вариантов синтеза сделать на каждое "
@@ -3485,10 +3518,10 @@ def main():
     p.add_argument("--furigana-src", default=None,
                    help="поле с фуриганой основного слова (по умолчанию "
                         "ExpressionFurigana)")
-    p.add_argument("--reading", default="asis",
-                   help="источник чтения: off — не подставлять (движок читает "
-                        "сам), либо имя поля с готовым чтением слова "
-                        "(простое чтение или фуриганная разметка поля)")
+    p.add_argument("--reading", default="",
+                   help="режим чтения: \"\" — авто (есть фуригана — термин "
+                        "читается по ней, нет — кандзи), mix — всегда по "
+                        "фуригане, asis — только кандзи")
     p.add_argument("--tag", default=None)
     p.add_argument("--force", action="store_true")
     p.add_argument("--seed", type=int, default=42)

@@ -1171,11 +1171,12 @@ class Handler(BaseHTTPRequestHandler):
         furi = fld("furigana_src", "furigana_src")
         if furi:
             args += ["--furigana-src", furi]
-        reading = (b.get("reading") or READING_OFF).strip()
-        if reading and reading != READING_OFF:
-            args += ["--reading", reading]
-        else:
-            args += ["--reading", "off"]
+        # режим чтения: "" (авто — решение по карточке), mix, asis
+        reading = (b.get("reading") or "").strip()
+        if reading == READING_OFF:
+            # старое значение из профилей v1.1: «движок читает сам»
+            reading = "asis"
+        args += ["--reading", reading]
         try:
             limit = int(b.get("limit") or 0)
         except (TypeError, ValueError):

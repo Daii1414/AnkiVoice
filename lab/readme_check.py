@@ -121,18 +121,30 @@ def main():
     if not claimed:
         fail("в README нет упоминания про 7 модулей установщика")
 
-    # ---- 7. режимов чтения ровно два, и оба описаны в README ----
+    # ---- 7. режимы чтения: авто (по полю с фуриганой) и только кандзи ----
     page = read("anki_web_page.py")
-    modes = re.findall(r'<option value="(mix|asis)">', page)
-    if sorted(set(modes)) != ["asis", "mix"]:
-        fail("в интерфейсе ожидались режимы mix и asis, найдено: %s" % sorted(set(modes)))
+    if '<option value="">' not in page:
+        fail("в интерфейсе нет режима «авто» (пустое значение)")
     else:
-        ok("в интерфейсе два режима чтения: mix и asis")
-    for mode in ("mix", "asis"):
-        if ("--reading %s" % mode) not in ru and mode not in ru:
-            fail("режим %s не описан в README.md" % mode)
+        ok("в интерфейсе есть режим «авто»")
+    if '<option value="asis">' not in page:
+        fail("в интерфейсе нет режима «только кандзи» (asis)")
+    else:
+        ok("в интерфейсе есть режим «только кандзи»")
+    pipe = read("voice_pipeline.py")
+    if "def reading_mode(" not in pipe:
+        fail("в voice_pipeline.py нет reading_mode() — режим не выбирается по карточке")
+    else:
+        ok("режим выбирается по карточке (reading_mode)")
+    for token in ("авто", "asis", "--reading"):
+        if token not in ru:
+            fail("в README.md нет упоминания: %s" % token)
         else:
-            ok("режим %s описан в README.md" % mode)
+            ok("в README.md описано: %s" % token)
+    if "auto" not in en.lower():
+        fail("в README.en.md не описан автоматический режим")
+    else:
+        ok("в README.en.md описан автоматический режим")
 
     # ---- 8. упоминания av_suspect в README не обещают метку, которой нет ----
     if "av_suspect" in ru:

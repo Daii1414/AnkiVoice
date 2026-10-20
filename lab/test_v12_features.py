@@ -334,6 +334,42 @@ def test_check_targets_spoken_text():
           "сверяем с произнесённым: %r" % vp.check_target(job))
 
 
+def test_reading_mode_auto():
+    """Авто-режим: есть фуригана — чтение по ней, нет — кандзи."""
+    fields = {"sentence_src": "Sentence", "sentence_audio": "SentenceAudio",
+              "word_src": "Expression", "word_audio": "ExpressionAudio",
+              "furigana_src": "ExpressionFurigana", "reading": ""}
+    with_f = {"fields": {"ExpressionFurigana": {"value": "\u65e2\u5b58\u5254\u4f53[\u3056\u3093\u304d\u3087\u3046\u3057\u304d]"}}}
+    without_f = {"fields": {"ExpressionFurigana": {"value": ""}}}
+    check(vp.reading_mode(fields, with_f, "") == "mix", "\u0441 \u0444\u0443\u0440\u0438\u0433\u0430\u043d\u043e\u0439 -> mix")
+    check(vp.reading_mode(fields, without_f, "") == "asis", "\u0431\u0435\u0437 \u0444\u0443\u0440\u0438\u0433\u0430\u043d\u044b -> asis")
+    check(vp.reading_mode(fields, with_f, "asis") == "asis", "\u044f\u0432\u043d\u044b\u0439 asis \u0432\u044b\u0438\u0433\u0440\u0430\u044f\u0435\u0442")
+    check(vp.reading_mode(fields, without_f, "mix") == "mix", "\u044f\u0432\u043d\u044b\u0439 mix \u0432\u044b\u0438\u0433\u0440\u0430\u044f\u0435\u0442")
+
+    # \u043a\u0430\u043a \u0443\u0445\u043e\u0434\u0438\u0442 \u0432 \u0440\u0435\u0436\u0438\u043c\u0435 \u043a\u0430\u043d\u0434\u0437\u0438 \u0434\u043b\u044f \u0444\u0440\u0430\u0437\u044b
+    note = {"noteId": 1, "fields": {
+        "Sentence": {"value": "\u65e2\u5b58\u5254\u4f53\u306f\u8010\u706b\u6027\u80fd\u3092\u78ba\u8a8d\u3059\u308b\u3002"},
+        "Expression": {"value": "\u65e2\u5b58\u5254\u4f53"},
+        "ExpressionFurigana": {"value": "\u65e2\u5b58\u5254\u4f53[\u3056\u3093\u304d\u3087\u3046\u3057\u304d]"}}}
+    jobs = vp.build_jobs([note], "both", True, fields=fields)
+    sent = [j for j in jobs if j[1] == "SentenceAudio"][0][2]
+    word = [j for j in jobs if j[1] == "ExpressionAudio"][0][2]
+    check("\u3056\u3093\u304d\u3087\u3046\u3057\u304d" in sent, "\u0447\u0442\u0435\u043d\u0438\u0435 \u0442\u0435\u0440\u043c\u0438\u043d\u0430 \u0438\u0437 \u0444\u0443\u0440\u0438\u0433\u0430\u043d\u044b: %r" % sent)
+    check("\u8010\u706b\u6027\u80fd" in sent, "\u043e\u0441\u0442\u0430\u043b\u044c\u043d\u043e\u0435 \u0442\u0435\u043a\u0441\u0442\u0430 \u043a\u0430\u043d\u0434\u0437\u0438: %r" % sent)
+    check(word == "\u3056\u3093\u304d\u3087\u3046\u3057\u304d", "\u0441\u043b\u043e\u0432\u043e \u0447\u0442\u0435\u043d\u0438\u0435 \u043f\u043e \u0444\u0443\u0440\u0438\u0433\u0430\u043d\u0435: %r" % word)
+
+    # \u0431\u0435\u0437 \u0444\u0443\u0440\u0438\u0433\u0430\u043d\u044b \u2014 \u0447\u0438\u0441\u0442\u044b\u0439 \u043a\u0430\u043d\u0434\u0437\u0438
+    note2 = {"noteId": 2, "fields": {
+        "Sentence": {"value": "\u8010\u706b\u6027\u80fd\u3092\u78ba\u8a8d\u3059\u308b\u3002"},
+        "Expression": {"value": "\u8010\u706b\u6027\u80fd"},
+        "ExpressionFurigana": {"value": ""}}}
+    jobs2 = vp.build_jobs([note2], "both", True, fields=fields)
+    sent2 = [j for j in jobs2 if j[1] == "SentenceAudio"][0][2]
+    word2 = [j for j in jobs2 if j[1] == "ExpressionAudio"][0][2]
+    check(sent2 == "\u8010\u706b\u6027\u80fd\u3092\u78ba\u8a8d\u3059\u308b\u3002", "\u0431\u0435\u0437 \u0444\u0443\u0440\u0438\u0433\u0430\u043d\u044b: %r" % sent2)
+    check(word2 == "\u8010\u706b\u6027\u80fd", "\u0441\u043b\u043e\u0432\u043e \u0431\u0435\u0437 \u0444\u0443\u0440\u0438\u0433\u0430\u043d\u044b: %r" % word2)
+
+
 def test_setup_status():
     eng = tempfile.mkdtemp(prefix="anki_voice_engine_")
     for name in ("g.ckpt", "s.pth", "r.wav"):
@@ -387,7 +423,7 @@ def main():
              test_pronunciation_compare, test_split_method_is_japanese_safe,
              test_pending_notes_limit, test_voice_args_guess_fallback,
              test_baseline_relative_limits, test_profile_fields_per_deck,
-             test_check_targets_spoken_text,
+             test_check_targets_spoken_text, test_reading_mode_auto,
              test_setup_status]
     failed = 0
     for t in tests:

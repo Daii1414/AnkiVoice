@@ -63,7 +63,7 @@ ogg files land straight in Anki fields. The internet is only needed to download 
 | | |
 |---|---|
 | 🎧 **Deck dubbing** | Writes `<audio>` with the sentence and the word straight into Anki fields. GPT-SoVITS clones the voice itself. |
-| 📖 **Two reading modes** | The engine reads the kanji itself - connected, in context - while the main term keeps the reading from the card's furigana. |
+| 📖 **Two reading modes** | The engine reads the kanji itself - connected, in context - while the main term keeps the reading from the card's furigana. No furigana - it reads the kanji itself. |
 | 🧩 **Per-deck settings** | Fields and reading mode belong to a deck: switch decks and its settings come with them. |
 | 🧪 **Quality control** | QC v2 measures several independent signals (silence, speech gaps, duplicate speech, clipping, level, speed) and re-synthesizes rejects on its own. |
 | 🎙 **Pronunciation check** | The app listens to its own audio and compares it with the text, showing where the sentence diverged. Advice, not a verdict - you decide. |
@@ -215,11 +215,13 @@ Light theme — the same tabs: [Dubbing](doc/shots/voice-light.png),
 
 ## What's new in 1.3
 
-* **Two reading modes, and the mixed one is the default.** The engine reads the
-  kanji itself (so the ordinary text stays connected), while the main term keeps
-  the reading from the card's furigana. The second mode is pure kanji - the
-  engine reads everything, terms included. The mode lives in the deck profile
-  together with the fields, so different decks can use different modes.
+* **Two reading modes, and the main one is picked automatically.** The engine
+  reads the kanji itself (so the ordinary text stays connected), while the main
+  term keeps the reading from the card's furigana. The second mode is pure
+  kanji - the engine reads everything, terms included.
+* **The mode is decided for every card.** If the furigana field is empty (or
+  there is no such field), the card is read in kanji - there is nothing to
+  substitute. You do not have to choose anything: "auto" is the default.
 * **Per-deck settings.** The fields and the reading mode belong to a deck:
   switch decks and their settings come with them.
 * **The pronunciation check is now advice.** It recognizes its own audio and
@@ -304,16 +306,17 @@ and dubbing goes on as usual. One piece takes about 0.5 s on a GPU.
 ## How kanji are read
 
 GPT-SoVITS can read kanji on its own - but on rare terms it picks its own
-reading. So there are two modes, switched in "Deck fields" → "Reading source":
+reading. So the reading mode is switched in "Deck fields" → "Reading source":
 
 | Mode | What the engine gets | When to pick it |
 |---|---|---|
-| **Kanji + the term's reading from the furigana** (default) | The whole text in kanji, except the main term - its reading is substituted from the furigana field | Study decks: the term sounds exactly as written on the card, and the rest stays connected and in context |
+| **Auto (default)** | If the furigana field has something in it - the whole text in kanji, except the main term, whose reading is substituted from the furigana. If the field is missing or empty - the whole text in kanji | Universal: exact reading where there is a furigana, ordinary reading where there is none |
 | **Kanji only (the engine reads it)** | The whole text in kanji, nothing substituted | Decks with ordinary words: the sound is the most connected |
 
 The mode is a **per-deck setting**: it is stored in the deck profile together
-with the fields. Leave difficult decks on the exact mode, the rest on plain
-kanji.
+with the fields. In the "auto" mode the decision is made **for every card**: an
+empty furigana field means "read the kanji yourself", and there is nothing to
+substitute.
 
 What "exact" and "plain" cost, measured on 150 sentences and a blind A/B on 10
 of them:
@@ -327,19 +330,23 @@ The card's furigana is the source of truth for the main term: the
 differently). Substitution rules: clean kana only, only when the term is
 found in the sentence as a whole, otherwise the card is left as it is.
 
-In the console this is the `--reading mix|asis` flag.
+In the console this is the `--reading ""|mix|asis` flag (empty = auto).
 ## How text becomes hiragana
 
-GPT-SoVITS parses Japanese with its own morphology (MeCab) and gets rare
-terms and katakana acronyms wrong. That is why the `kanaize()` pipeline
-prepares the text itself - **except in the "kanji only" mode, where the
-text goes to the engine as it is**: there is nothing to prepare, the
-engine reads it.
+The sentence goes to the engine **in kanji**: GPT-SoVITS reads the kanji
+itself, in the context of the sentence - that is what makes the sound connected
+instead of a set of separate pieces.
 
+The `kanaize()` pipeline prepares hiragana - but only where it is needed:
 
-GPT-SoVITS parses Japanese with its own morphology (MeCab) and gets rare terms
-and katakana abbreviations wrong — that is why the `kanaize()` pipeline
-prepares the text itself, strictly step by step:
+* **the main term** - in the mode with a furigana the reading is taken from the
+  card's furigana; if the furigana does not fit (the word is not found in the
+  text, the reading still has kanji in it) the word is converted to kana by our
+  own pipeline;
+* **in the "kanji only" mode** nothing is prepared: both the word and the
+  sentence go to the engine as they are, it reads them itself.
+
+The steps of `kanaize()`:
 
 1. **NFKC normalization** — full-width letters/digits and half-width katakana
    are folded into normal forms (punctuation is left alone);
@@ -374,7 +381,7 @@ write the audio is configurable (GUI: the “Поля колоды” tab; conso
 --word-src "Expression"               field with the word (furigana parsing works for Expression)
 --word-audio "ExpressionAudio"        field the word audio goes to
 --furigana-src "ExpressionFurigana"   field with the furigana of the main word
-    --reading mix|asis            reading mode (see above)
+    --reading ""|mix|asis         reading mode (see above; empty = auto)
 ```
 
 ## Console

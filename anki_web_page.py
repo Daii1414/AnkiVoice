@@ -1027,7 +1027,7 @@ function fillSelect(sel, fields, keep){
   const prev = keep || sel.value;
   let html = '<option value="">— не используется —</option>';
   if(sel.id === "f_reading")
-    html = '<option value="mix">Кандзи + чтение термина из фуриганы (рекомендуется)</option>'
+    html = '<option value="">Авто: есть фуригана — чтение по ней, нет — кандзи</option>'
           + '<option value="asis">Только кандзи (движок читает сам)</option>';
   // для источника чтения — всего два режима, поля не подставляем
   if(sel.id !== "f_reading")
@@ -1058,9 +1058,11 @@ async function loadFields(){
       if (prof[key] !== undefined && prof[key] !== null && prof[key] !== "")
         return prof[key];
       if (key === "reading"){
-        // rezhim chteniya - nastoyka profila kolody
+        // rezhim chteniya - nastoyka profila kolody; pustoe = avto
+        // (furigana est - chtenie po neey, net - kandidzi)
+        if (prof.reading === "asis" || prof.reading === "mix") return prof.reading;
         if (c.reading === "asis" || c.reading === "mix") return c.reading;
-        return (prof.reading === "asis") ? "asis" : "mix";
+        return "";
       }
       return (c[key] !== undefined && c[key] !== null && c[key] !== "")
         ? c[key] : (guess || "");

@@ -233,8 +233,8 @@ I18N_EN = {
     "Не подставлять": "Do not substitute",
     "Как есть (кандзи, без фуриганы)":
         "As is (kanji, no furigana)",
-    "Кандзи + чтение термина из фуриганы (рекомендуется)":
-        "Kanji + the term's reading from the furigana (recommended)",
+    "Авто: есть фуригана — чтение по ней, нет — кандзи":
+        "Auto: furigana present - use it, otherwise kanji",
     "Только кандзи (движок читает сам)":
         "Kanji only (the engine reads it)",
     "Собрать колоду «Брак»":
