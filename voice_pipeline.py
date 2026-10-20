@@ -2151,8 +2151,12 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
         try:
             key = (text, seed, speed)
             if key not in cache:
+                # содержание сверяем только у предложения: изолированное
+                # слово распознаётся ненадёжно (см. замер на 300 словах)
+                content_check = bool(verify) and (
+                    field == fields.get("sentence_audio"))
                 cache[key] = synth(v, text, seed=seed, speed=speed,
-                                   src=src_text, verify=verify,
+                                   src=src_text, verify=content_check,
                                    asr_model=asr_model)
                 time.sleep(0.2)
             blob, ext, sinfo = cache[key]
@@ -3352,7 +3356,10 @@ def main():
     p = sub.add_parser("verify", help="проверить произношение уже озвученных карточек")
     p.add_argument("--deck", default=None)
     p.add_argument("--tag", default=None, help="проверить карточки с тегом")
-    p.add_argument("--mode", choices=["sentence", "expression", "both"], default="both")
+    p.add_argument("--mode", choices=["sentence", "expression", "both"],
+                   default="sentence",
+                   help="что проверять: по умолчанию "
+                        "(слово проверяется ненадежно)")
     p.add_argument("--limit", type=int, default=None)
     p.add_argument("--sentence-src", default=None)
     p.add_argument("--sentence-audio", default=None)

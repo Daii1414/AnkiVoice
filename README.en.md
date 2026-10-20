@@ -256,6 +256,12 @@ Two buttons on the “Озвучка” tab:
 * **“Переделать подозрительные”** (Re-do doubtful ones) — re-voices only the
   tagged cards, picking the best take by content again.
 
+**We check sentences, not words.** An isolated word is transcribed unreliably:
+the measured “coverage” of a real failure and of a false alarm overlap
+completely, so there is no threshold that separates them. Words are still
+guarded by the acoustic QC (silence, tempo, length); the content check runs on
+sentences, where the recogniser has context.
+
 **The “Брак” (Rejects) deck — for your ears.** Doubtful pieces are collected
 into `AnkiVoice_Брак`: a card with the expected text, the reason, the coverage
 and the sounds — the original take and three variants side by side on one card.

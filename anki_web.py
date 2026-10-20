@@ -1118,7 +1118,9 @@ class Handler(BaseHTTPRequestHandler):
             if not deck:
                 return self._err("Сначала выбери колоду")
             args = ["verify", "--deck", deck,
-                    "--mode", (b.get("mode") or "both"),
+                    "--mode", "sentence",
+                    # содержание проверяем по предложениям: изолированное
+                    # слово распознаётся ненадежно, порога нет
                     "--sentence-audio", (b.get("sentence_audio") or "").strip(),
                     "--word-audio", (b.get("word_audio") or "").strip()]
             title = "Проверка произношения «%s»" % deck
