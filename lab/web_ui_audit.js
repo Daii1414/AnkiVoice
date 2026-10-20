@@ -176,12 +176,17 @@ function auditRunner() {
       rep.elements.push(d);
     }
 
-    // 4. сводка по «пустым» местам
+    // 4. сводка по местам, которые должны присутствовать в DOM
+    const notes = [];
     ["vlist", "auxList", "doctor", "log"].forEach((id) => {
       const e = document.getElementById(id);
-      rep.problems.push({ el: id,
-        what: e ? ("есть, текст " + e.innerText.trim().length + " симв.") : "элемента нет в DOM" });
+      if (!e) {
+        rep.problems.push({ el: id, what: "элемента нет в DOM" });
+        return;
+      }
+      notes.push({ el: id, what: "текст " + e.innerText.trim().length + " симв." });
     });
+    rep.notes = notes;
 
     return rep;
   })();
