@@ -256,16 +256,19 @@ Two buttons on the “Озвучка” tab:
 * **“Переделать подозрительные”** (Re-do doubtful ones) — re-voices only the
   tagged cards, picking the best take by content again.
 
-**Three ways to read — and the kanji one is now the default.** In the
+**Two ways to read — and the mixed one is now the default.** In the
 “Источник чтения” select:
 
-* **Как есть (кандзи)** — the engine gets the kanji and reads it itself, in
-  context. On 10 hard sentences this sounded better in 7 cases (2 preferred
-  the kana, 1 was a tie): the ordinary text stays connected instead of being
-  cut into kana pieces. **Now the default.**
 * **Кандзи + чтение термина из фуриганы** — the ordinary text is read from the
-  kanji (context preserved) and the term is read exactly as the furigana says.
-* **Всё кана** — everything is turned into kana first; the old behaviour.
+  kanji (context preserved, the words stay connected) and the term is read
+  exactly as the furigana says. Measured on the same 150 sentences: the
+  pronunciation check flags 2 here, against 4 for the old all-kana mode and 12
+  for the pure kanji one. **This is the default — and it needs the furigana
+  field to be filled in (see “Deck fields”).**
+* **Только кандзи (движок читает сам)** — the engine gets the kanji and reads
+  everything itself, terms included. It sounds the most natural (7 of 10
+  listeners preferred it over the all-kana mode), but the model then picks its
+  own reading for the term — which may differ from the furigana on the card.
 
 **We check sentences, not words.** An isolated word is transcribed unreliably:
 the measured “coverage” of a real failure and of a false alarm overlap
