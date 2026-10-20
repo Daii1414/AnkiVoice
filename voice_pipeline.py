@@ -1395,6 +1395,43 @@ def _base_reading(base, reading):
     return rest + reading                    # кана-окуригана своя + чтение
 
 
+def _kana_norm(s):
+    """Кана к сравнимому виду: катакана -> хирагана, мелкие -> полные."""
+    s = kata2hira(s or "")
+    for a, b in (("\u3041", "\u3042"), ("\u3043", "\u3044"), ("\u3045", "\u3046"),
+                 ("\u3047", "\u3048"), ("\u3049", "\u304a"), ("\u3083", "\u3084"),
+                 ("\u3085", "\u3086"), ("\u3087", "\u3088")):
+        s = s.replace(a, b)
+    return s
+
+
+def _reading_covers_word(base, reading):
+    """Чтение покрывает слово целиком, а не только иероглифы.
+
+    В колодах два формата разметки:
+      * «点群データ[てんぐんでーта]» — чтение на всё слово. Окуригану
+        («データ») добавлять нельзя: получится «データてんぐんでーта», и
+        «データ» прозвучит дважды.
+      * «アーク溶接棒[ようせつぼう]» — чтение только на иероглифы, окуригана
+        («アーク») нужна.
+
+    Различаем по звучанию: если окуригана уже звучит внутри чтения — значит,
+    чтение покрывает слово целиком.
+    """
+    base = (base or "").strip()
+    reading = _kana_norm(reading)
+    if not base or not reading:
+        return False
+    # окуригана в основе — всё, кроме иероглифов (по частям: она может
+    # быть и до иероглифов, и после)
+    parts = re.split(KANJI_RE.pattern, base)
+    for part in parts:
+        q = _kana_norm(part)
+        if q and q in reading:
+            return True
+    return False
+
+
 def furiga_pair(text):
     """(поверхность, чтение) для разметки «основа[чтение]…хвост».
 
@@ -1406,6 +1443,12 @@ def furiga_pair(text):
         return None, None
     parts = re.split(r"\[([^\[\]]*)\]", text)
     last = len(parts) - 1
+    # Одна скобка в самом конце: чтение либо на всё слово
+    # («点群データ[てんぐんでーта]» — окуригану добавлять нельзя, иначе
+    # «データ» прозвучит дважды), либо только на иероглифы
+    # («アイススケート場[じょう]» — окуригана нужна).
+    if len(parts) == 3 and parts[2] == "" and _reading_covers_word(parts[0], parts[1]):
+        return parts[0], parts[1].replace("\u30fb", "")
     surf, read = [], []
     i = 0
     while i < len(parts):
@@ -2135,6 +2178,24 @@ def _speakable(text):
     return q2.sound_chars(text) > 0
 
 
+def term_has_latin(note, fields):
+    """Есть ли в термине латиница или цифры (3D, PLATEAU, BIM/CIM, 2.0).
+
+    Такие термины движок читает лучше сам: собственная транслитерация
+    («3D» -> «すりーでぃー») звучит хуже и вводит модель в цикл
+    (замер: 96 секунд и покрытие 0.89 против 4 секунд и 1.00).
+    """
+    f = (note.get("fields") or {})
+    for name in (fields.get("furigana_src") or "ExpressionFurigana",
+                 fields.get("word_src") or "Expression"):
+        val = plain(f.get(name, {}).get("value", ""))
+        if "[" in val:
+            val = val.split("[", 1)[0]
+        if re.search(r"[0-9A-Za-z]", val):
+            return True
+    return False
+
+
 def reading_mode(fields, note, reading=""):
     """Режим чтения для этой карточки.
 
@@ -2170,12 +2231,18 @@ def build_jobs(notes, mode, force, fields=None):
             return plain(f.get(name, {}).get("value", ""), strip_media=True)
 
         src_text = ""
+        # Режим для этой карточки. Термины с латиницей или цифрами
+        # (3D, PLATEAU, BIM/CIM, 2.0) оставляем как есть: собственная
+        # транслитерация («3D» -> «すりーでぃー») читается хуже и вводит
+        # модель в цикл — замер: 96 с и покрытие 0.89 против 4 с и 1.00.
+        rmode = reading_mode(fields, n, fields.get("reading", ""))
+        if rmode == "mix" and term_has_latin(n, fields):
+            rmode = "asis"
         if mode in ("sentence", "both"):
             text = tgt_text(fields["sentence_src"])
             if text and (force or not tgt(fields["sentence_audio"])):
                 # режим «как есть»: движок получает кандзи и читает сам —
                 # без подстановки чтения из фуриганы
-                rmode = reading_mode(fields, n, fields.get("reading", ""))
                 if rmode == "mix":
                     # кандзи + чтение термина из фуриганы:
                     # обычный текст читается в кандзи (контекст сохраняется),
@@ -2192,7 +2259,6 @@ def build_jobs(notes, mode, force, fields=None):
                     continue
                 jobs.append((n["noteId"], fields["sentence_audio"], text, src_text))
         if mode in ("expression", "both"):
-            rmode = reading_mode(fields, n, fields.get("reading", ""))
             asis = rmode == "asis"
             text = word_text(n, fields["word_src"],
                              reading=("off" if asis else fields.get("reading", "")))

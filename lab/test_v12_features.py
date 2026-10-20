@@ -400,6 +400,69 @@ def test_broken_config_not_wiped():
             pass
 
 
+def test_furigana_not_doubled():
+    """Окуригана не должна попадать в чтение второй раз.
+
+    «点群データ[てんぐんでーта]» — чтение на всё слово: если добавить
+    окуригану «データ» ещё раз, получится «データてんぐんでーта» и модель
+    читает «データ» дважды.
+    """
+    check(vp.furiga_pair("\u70b9\u7fa4\u30c7\u30fc\u30bf[\u3066\u3093\u3050\u3093\u3067\u30fc\u305f]")
+          == ("\u70b9\u7fa4\u30c7\u30fc\u30bf", "\u3066\u3093\u3050\u3093\u3067\u30fc\u305f"),
+          "\u70b9\u7fa4\u30c7\u30fc\u30bf: \u0447\u0442\u0435\u043d\u0438\u0435 \u043d\u0430 \u0432\u0441\u0435 \u0441\u043b\u043e\u0432\u043e")
+    check(vp.furiga_pair("\u30d3\u30e5\u30fc\u5be9\u67fb[\u3073\u30e5\u30fc\u3057\u3093\u3055]")[1]
+          == "\u3073\u30e5\u30fc\u3057\u3093\u3055", "\u30d3\u30e5\u30fc\u5be9\u67fb: \u0431\u0435\u0437 \u0443\u0434\u0432\u043e\u0435\u043d\u0438\u044f")
+    check(vp.furiga_pair("\u30c7\u30fc\u30bf\u9023\u643a\u306e\u30aa\u30fc\u30c8\u30e1\u30fc\u30b7\u30e7\u30f3\u5316[\u3067\u30fc\u305f\u308c\u3093\u3051\u3044\u306e\u304a\u30fc\u30c8\u30e1\u30fc\u30b7\u30e7\u30f3\u304b]")[1]
+          == "\u3067\u30fc\u305f\u308c\u3093\u3051\u3044\u306e\u304a\u30fc\u30c8\u30e1\u30fc\u30b7\u30e7\u30f3\u304b",
+          "\u30c7\u30fc\u30bf\u9023\u643a\u306e\u30aa\u30fc\u30c8\u30e1\u30fc\u30b7\u30e7\u30f3\u5316: \u0431\u0435\u0437 \u0443\u0434\u0432\u043e\u0435\u043d\u0438\u044f")
+    # многочастная разметка: окуригана и «・» по-прежнему обрабатываются
+    check(vp.furiga_pair("\u9060\u96a3[\u3048\u3093\u304b\u304f]\u76e3\u7763[\u304b\u3093\u3068\u304f]\u30fb\u691c\u67fb[\u3051\u3093\u3055]")
+          == ("\u9060\u96a3\u76e3\u7763\u30fb\u691c\u67fb", "\u3048\u3093\u304b\u304f\u304b\u3093\u3068\u304f\u3051\u3093\u3055"),
+          "\u9060\u96a3\u76e3\u7763\u30fb\u691c\u67fb: \u0447\u0430\u0441\u0442\u0438\u0447\u043d\u0430\u044f \u0440\u0430\u0437\u043c\u0435\u0442\u043a\u0430")
+
+    # и в синтез уходит текст без удвоения
+    fields = {"sentence_src": "Sentence", "sentence_audio": "SentenceAudio",
+              "word_src": "Expression", "word_audio": "ExpressionAudio",
+              "furigana_src": "ExpressionFurigana", "reading": "mix"}
+    note = {"noteId": 1, "fields": {
+        "Sentence": {"value": "\u73fe\u5834\u78ba\u8a8d\u3067\u306f\u3001\u5efa\u7269\u73fe\u6cc1\u306e\u8a18\u9332\u306b\u3001\u70b9\u7fa4\u30c7\u30fc\u30bf\u3092\u7528\u3044\u305f\u3002"},
+        "Expression": {"value": "\u70b9\u7fa4\u30c7\u30fc\u30bf"},
+        "ExpressionFurigana": {"value": "\u70b9\u7fa4\u30c7\u30fc\u30bf[\u3066\u3093\u3050\u3093\u3067\u30fc\u305f]"}}}
+    jobs = vp.build_jobs([note], "sentence", True, fields=fields)
+    check(jobs and jobs[0][2] == "\u73fe\u5834\u78ba\u8a8d\u3067\u306f\u3001\u5efa\u7269\u73fe\u6cc1\u306e\u8a18\u9332\u306b\u3001\u3066\u3093\u3050\u3093\u3067\u30fc\u305f\u3092\u7528\u3044\u305f\u3002",
+          "\u0442\u0435\u043a\u0441\u0442 \u0431\u0435\u0437 \u0443\u0434\u0432\u043e\u0435\u043d\u0438\u044f")
+
+
+def test_latin_term_kept_as_is():
+    """Термины с латиницей или цифрами оставляем как есть.
+
+    Замер на карточках «3D\u90fd\u5e02\u30e2\u30c7\u30eb» и «PLATEAU»:
+    своя транслитерация («\u3059\u308a\u30fc\u3067\u3044\u30fc») читается хуже
+    (покрытие 0.89) и вводит модель в цикл (96 \u0441 \u0432\u043c\u0435\u0441\u0442\u043e
+    \u0432\u043c\u0435\u0441\u0442\u043e \u043f\u0440\u043e\u0442\u0438\u0432 \u0447\u0442\u043e \u0431\u044b\u0441\u0442\u043e\u0433\u043e \u0441\u0443\u043c\u043a\u0430).
+    """
+    fields = {"sentence_src": "Sentence", "sentence_audio": "SentenceAudio",
+              "word_src": "Expression", "word_audio": "ExpressionAudio",
+              "furigana_src": "ExpressionFurigana", "reading": "mix"}
+    note = {"noteId": 1, "fields": {
+        "Sentence": {"value": "\u90fd\u5e02\u306e\u666f\u89b3\u691c\u8a0e\u306b\u30013D\u90fd\u5e02\u30e2\u30c7\u30eb\u3092\u7528\u3044\u305f\u3002"},
+        "Expression": {"value": "3D\u90fd\u5e02\u30e2\u30c7\u30eb"},
+        "ExpressionFurigana": {"value": "3D\u90fd\u5e02\u30e2\u30c7\u30eb[\u3059\u308a\u30fc\u3067\u3044\u30fc\u3068\u3057\u3082\u3067\u308b]"}}}
+    check(vp.term_has_latin(note, fields) is True, "3D: \u0435\u0441\u0442\u044c \u043b\u0430\u0442\u0438\u043d\u0438\u0446\u0430")
+    jobs = vp.build_jobs([note], "sentence", True, fields=fields)
+    check(jobs and jobs[0][2] == "\u90fd\u5e02\u306e\u666f\u89b3\u691c\u8a0e\u306b\u30013D\u90fd\u5e02\u30e2\u30c7\u30eb\u3092\u7528\u3044\u305f\u3002",
+          "3D: \u0442\u0435\u043a\u0441\u0442 \u0431\u0435\u0437 \u043f\u043e\u0434\u0441\u0442\u0430\u043d\u043e\u0432\u043a\u0438")
+    # обычный термин с фуриганой остаётся с подстановкой
+    note2 = {"noteId": 2, "fields": {
+        "Sentence": {"value": "\u65b0\u305f\u306a\u5be9\u67fb\u65b9\u6cd5\u3068\u3057\u3066\u3001\u30d3\u30e5\u30fc\u5be9\u67fb\u3092\u78ba\u8a8d\u3057\u305f\u3002"},
+        "Expression": {"value": "\u30d3\u30e5\u30fc\u5be9\u67fb"},
+        "ExpressionFurigana": {"value": "\u30d3\u30e5\u30fc\u5be9\u67fb[\u3073\u30e5\u30fc\u3057\u3093\u3055]"}}}
+    check(vp.term_has_latin(note2, fields) is False, "\u30d3\u30e5\u30fc\u5be9\u67fb: \u043b\u0430\u0442\u0438\u043d\u0438\u0446\u044b \u043d\u0435\u0442")
+    jobs2 = vp.build_jobs([note2], "sentence", True, fields=fields)
+    check(jobs2 and jobs2[0][2].endswith("\u3057\u3093\u3055\u3092\u78ba\u8a8d\u3057\u305f\u3002"),
+          "\u30d3\u30e5\u30fc\u5be9\u67fb: \u0447\u0442\u0435\u043d\u0438\u0435 \u043f\u043e \u0444\u0443\u0440\u0438\u0433\u0430\u043d\u0435")
+
+
 def test_setup_status():
     eng = tempfile.mkdtemp(prefix="anki_voice_engine_")
     for name in ("g.ckpt", "s.pth", "r.wav"):
@@ -454,7 +517,8 @@ def main():
              test_pending_notes_limit, test_voice_args_guess_fallback,
              test_baseline_relative_limits, test_profile_fields_per_deck,
              test_check_targets_spoken_text, test_reading_mode_auto,
-             test_broken_config_not_wiped,
+             test_broken_config_not_wiped, test_furigana_not_doubled,
+             test_latin_term_kept_as_is,
              test_setup_status]
     failed = 0
     for t in tests:

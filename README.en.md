@@ -334,6 +334,16 @@ The card's furigana is the source of truth for the main term: the
 differently). Substitution rules: clean kana only, only when the term is
 found in the sentence as a whole, otherwise the card is left as it is.
 
+Two exceptions, both measured on cards with katakana terms:
+
+* a reading that covers the whole word ("点群データ[てんぐんでーた]") is taken
+  as it is - otherwise the okurigana ("データ") would be added a second time and
+  the word would be heard twice;
+* terms with latin letters or digits ("3D", "PLATEAU", "BIM/CIM", "2.0") are
+  left alone: the engine reads them better on its own, and our own
+  transcription ("3D" -> "すりーでぃー") sends the model into a loop - measured
+  96 seconds and coverage 0.89 against 4 seconds and 1.00.
+
 In the console this is the `--reading ""|mix|asis` flag (empty = auto).
 ## How text becomes hiragana
 
