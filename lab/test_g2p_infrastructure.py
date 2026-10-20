@@ -10,6 +10,7 @@
 
 import sys
 import os
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "pylibs"))
@@ -72,11 +73,16 @@ def test_domain_dict():
     print(f" 合印 in_train: {dd.in_train('合印')}, in_holdout: {dd.in_holdout('合印')}")
 
     # Save/load
-    dd.save("E:/TTS-проект/lab/test_domain_dict.json")
-    dd2 = DomainDictionary().load("E:/TTS-проект/lab/test_domain_dict.json")
+    path = os.path.join(tempfile.gettempdir(), "av_test_domain_dict.json")
+    dd.save(path)
+    dd2 = DomainDictionary().load(path)
     print(f"  loaded entries: {len(dd2.entries)}, 合印={dd2.lookup('合印').reading}")
     assert dd2.lookup("合印").reading == "アイジルシ"
     assert dd2.stats()["split_done"] == True
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
     print("  ✅ ПРОЙДЕН")
 
 
