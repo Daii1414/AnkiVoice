@@ -1033,7 +1033,9 @@ function fillSelect(sel, fields, keep){
   if(sel.id !== "f_reading")
     html += fields.map(f=>'<option value="'+esc(f)+'">'+esc(f)+"</option>").join("");
   sel.innerHTML = html;
-  if(prev && fields.indexOf(prev) >= 0) sel.value = prev;
+  if(prev && (fields.indexOf(prev) >= 0
+              || (sel.id === "f_reading" && (prev === "mix" || prev === "asis"))))
+    sel.value = prev;
 }
 async function loadFields(){
   const deck = $("deck2").value || $("deck").value;
@@ -1068,8 +1070,12 @@ async function loadFields(){
     fillSelect($("f_word_src"), FIELDS, pick("word_src", g.word_src));
     fillSelect($("f_word_aud"), FIELDS, pick("word_audio", g.word_audio));
     fillSelect($("f_furi"),     FIELDS, pick("furigana_src", g.furigana_src));
-    fillSelect($("f_reading"),  FIELDS, c.reading && c.reading !== (ST?ST.reading_off:"")
-                                        ? c.reading : "");
+    // режим чтения — настойка колоды (профиль),
+    // иначе — общий дефолт
+    const readMode = (prof.reading === "asis") ? "asis"
+                   : (prof.reading === "mix") ? "mix"
+                   : (c.reading === "asis") ? "asis" : "mix";
+    fillSelect($("f_reading"),  FIELDS, readMode);
     $("fieldsHint").innerHTML = "Полей в колоде: <b>"+FIELDS.length+"</b>. " +
       "Фуригана: <b>"+(g.furigana_src || c.furigana_src || "нет — слово прочитается автоматически")+"</b>.";
     banner("ankiBanner", null);
