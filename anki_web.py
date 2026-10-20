@@ -199,6 +199,20 @@ def guess_fields(fl):
             "furigana_src": furi}
 
 
+def deck_fields(deck):
+    """Поля карточек колоды + автоподбор ролей.
+
+    Нужно, чтобы озвучка работала, даже если пользователь не заходил
+    на вкладку «Поля колоды»: пустые имена полей подставляются по
+    фактическим полям выбранной колоды, а не остаются пустыми.
+    """
+    try:
+        fl = ag.list_note_fields(deck)
+    except Exception:
+        return [], {}
+    return fl, (guess_fields(fl) if fl else {})
+
+
 def read_voices_file():
     p = os.path.join(ag.code_dir(), "voices.json")
     try:
@@ -1008,13 +1022,30 @@ class Handler(BaseHTTPRequestHandler):
             return None, None
         if not deck:
             return None, None
+        # поля: что прислал клиент, иначе — автоподбор по полям колоды,
+        # иначе — умолчания пайплайна (пустые флаги не передаём)
+        g = {}
+        if not (b.get("sentence_src") or "").strip() \
+                or not (b.get("word_src") or "").strip():
+            _fl, g = deck_fields(deck)
+
+        def fld(key, guess_key):
+            v = (b.get(key) or "").strip()
+            if v:
+                return v
+            return (g.get(guess_key) or "").strip()
+
         args = ["voice", "--voice", voice, "--deck", deck,
-                "--mode", (b.get("mode") or "both"),
-                "--sentence-src", (b.get("sentence_src") or "").strip(),
-                "--sentence-audio", (b.get("sentence_audio") or "").strip(),
-                "--word-src", (b.get("word_src") or "").strip(),
-                "--word-audio", (b.get("word_audio") or "").strip()]
-        furi = (b.get("furigana_src") or "").strip()
+                "--mode", (b.get("mode") or "both")]
+        for flag, key, guess_key in (
+                ("--sentence-src", "sentence_src", "sentence_src"),
+                ("--sentence-audio", "sentence_audio", "sentence_audio"),
+                ("--word-src", "word_src", "word_src"),
+                ("--word-audio", "word_audio", "word_audio")):
+            v = fld(key, guess_key)
+            if v:
+                args += [flag, v]
+        furi = fld("furigana_src", "furigana_src")
         if furi:
             args += ["--furigana-src", furi]
         reading = (b.get("reading") or READING_OFF).strip()

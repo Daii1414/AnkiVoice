@@ -16,6 +16,7 @@ if ROOT not in sys.path:
 
 import anki_gui as ag
 import anki_web as aw
+import voice_pipeline as vp
 
 
 def check(cond, msg):
@@ -143,6 +144,56 @@ def test_installer_ships_runtime_modules():
     check("del _h" not in src, "del _h raises NameError and breaks the import")
 
 
+def test_pending_notes_limit():
+    """Лимит карточек = «сколько работы», а не «первые N в колоде».
+
+    Карточка без звука ищется поиском Anki: в поле звука лежит [sound:...].
+    """
+    check(vp._qfield("Sentence Audio") == '"Sentence Audio"', "поле с пробелом в кавычках")
+    check(vp._qfield("") == "SentenceAudio", "пустое имя поля")
+    captured = {}
+
+    def fake_ac(action, **kw):
+        captured["action"] = action
+        captured.update(kw)
+        return [11, 12, 13]
+
+    old_ac = vp.ac
+    vp.ac = fake_ac
+    try:
+        ids = vp._pending_notes([11, 12, 13, 14], 2, vp.resolve_fields(),
+                                mode="both")
+        check(ids == [11, 12], "берём первые limit незаписанных")
+        check(captured["action"] == "findNotes", "ищем через findNotes")
+        check("-SentenceAudio:*sound*" in captured["query"], "фильтр по звуку предложения")
+        check("-ExpressionAudio:*sound*" in captured["query"], "фильтр по звуку слова")
+    finally:
+        vp.ac = old_ac
+
+
+def test_voice_args_guess_fallback():
+    """Пустые поля карточки → автоподбор по полям колоды, а не пустые флаги."""
+    guess = {"sentence_src": "Sentence", "sentence_audio": "SentenceAudio",
+             "word_src": "Expression", "word_audio": "ExpressionAudio",
+             "furigana_src": "ExpressionFurigana"}
+    old = aw.deck_fields
+    aw.deck_fields = lambda deck: (list(guess.values()), dict(guess))
+    try:
+        handler = aw.Handler.__new__(aw.Handler)
+        args, _title = handler._args_voice({"voice": "narrator", "deck": "D",
+                                           "mode": "both", "limit": "0"})
+        check(args[args.index("--sentence-src") + 1] == "Sentence", "автоподбор текста")
+        check(args[args.index("--word-audio") + 1] == "ExpressionAudio", "автоподбор звука")
+        check(args[args.index("--furigana-src") + 1] == "ExpressionFurigana", "автоподбор фуриганы")
+        # то, что прислал клиент, главнее автоподбора
+        args2, _t2 = handler._args_voice({"voice": "narrator", "deck": "D",
+                                          "mode": "both", "limit": "0",
+                                          "sentence_src": "MyText"})
+        check(args2[args2.index("--sentence-src") + 1] == "MyText", "выбор клиента главнее")
+    finally:
+        aw.deck_fields = old
+
+
 def test_setup_status():
     eng = tempfile.mkdtemp(prefix="anki_voice_engine_")
     for name in ("g.ckpt", "s.pth", "r.wav"):
@@ -193,6 +244,7 @@ def test_setup_status():
 def main():
     tests = [test_version_tuple, test_release_parse, test_download_sha,
              test_busy_download_no_deadlock, test_installer_ships_runtime_modules,
+             test_pending_notes_limit, test_voice_args_guess_fallback,
              test_setup_status]
     failed = 0
     for t in tests:

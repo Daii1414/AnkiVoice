@@ -102,8 +102,31 @@ h2{font-size:14px;margin:0 0 12px;font-weight:650;letter-spacing:.2px;
   padding:18px 20px;margin-bottom:16px;box-shadow:var(--shadow)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-@media(max-width:900px){.grid2,.grid3{grid-template-columns:1fr}
-  .app{grid-template-columns:1fr}.sidebar{display:none}}
+@media(max-width:900px){
+  .grid2,.grid3{grid-template-columns:1fr}
+  .app{grid-template-columns:1fr;grid-template-rows:56px auto 1fr}
+  /* В узком окне сайдбар превращается в горизонтальную панель вкладок:
+     раньше он просто скрывался и переключить вкладку было нечем. */
+  .sidebar{
+    display:flex;flex-direction:row;gap:6px;align-items:center;overflow-x:auto;
+    position:sticky;top:56px;height:auto;padding:8px 10px;z-index:19;
+    border-right:none;border-bottom:1px solid var(--border);scrollbar-width:none}
+  .sidebar::-webkit-scrollbar{display:none}
+  .sidebar .nav{width:auto;flex:none;white-space:nowrap;padding:8px 12px}
+  .sidebar .nav .badge{margin-left:6px}
+  .side-foot{display:none}
+  .main{padding:16px 14px 48px}
+  .topbar{gap:10px;padding:0 12px}
+  .brand{flex:none}
+  .chips{min-width:0;overflow-x:auto;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .tblwrap{overflow-x:auto}
+}
+@media(max-width:560px){
+  .brandname{display:none}
+  .chip{padding:4px 9px;font-size:11.5px}
+  .main{padding:14px 10px 40px}
+}
 
 label.f{display:block;font-size:12.5px;color:var(--sub);margin-bottom:6px;font-weight:600}
 .row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
@@ -321,7 +344,7 @@ select{cursor:pointer}
 <div class="app">
 
   <div class="topbar">
-    <div class="brand"><span class="logo">A</span> AnkiVoice</div>
+    <div class="brand"><span class="logo">A</span> <span class="brandname">AnkiVoice</span></div>
     <div class="chips">
       <span class="chip" id="chipVer">v…</span>
       <span class="chip" id="chipAnki"><span class="dot"></span>Anki: …</span>
@@ -431,6 +454,7 @@ select{cursor:pointer}
       </div>
 
       <div class="card">
+        <div class="tblwrap">
         <table class="tbl">
           <thead><tr><th style="width:44%">Роль</th><th>Поле карточки</th></tr></thead>
           <tbody>
@@ -447,6 +471,7 @@ select{cursor:pointer}
                 <td><select id="f_reading"></select></td></tr>
           </tbody>
         </table>
+        </div>
         <div class="hint">
           <b>Что чем читается.</b> Основное слово — всегда по строке
           «Фуригана слова»; если она пустая, слово читается автоматически.
@@ -690,6 +715,8 @@ const esc = s => String(s==null?"":s).replace(/[&<>"]/g,
 let ST = null;            // последний /api/state
 let FIELDS = [];          // поля выбранной колоды
 let RUNNING = false;
+let NOTHING_TO_DO = false;   // пайплайн сказал «озвучивать нечего»
+let STOPPED_BY_USER = false; // остановка по кнопке — это не ошибка
 let SSE = null;
 let WZ = {open:false, step:0, setup:null, busy:false, timer:null,
           runId:null, path:"", voice:"", text:"", testError:"", serverError:""};
@@ -728,6 +755,8 @@ document.querySelectorAll(".nav").forEach(b=>{
     document.querySelectorAll(".panel").forEach(x=>x.classList.remove("on"));
     b.classList.add("on");
     $("p-"+b.dataset.tab).classList.add("on");
+    // на вкладке полей показываем поля колоды сразу, без лишнего клика
+    if(b.dataset.tab === "anki" && !FIELDS.length) loadFields();
   };
 });
 function goTab(name){
@@ -847,13 +876,28 @@ function onDeckPick(){
   if(!d) return;
   saveCfg({deck:d});
   if(d !== $("deck2").value) $("deck2").value = d;
+  // поля относятся к конкретной колоде: сменили колоду — перечитать
+  clearFieldSelects();
+  loadFields();
 }
 $("deck").onchange = onDeckPick;
-$("deck2").onchange = ()=>{ if($("deck2").value) $("deck").value = $("deck2").value; };
+$("deck2").onchange = ()=>{
+  if($("deck2").value){
+    $("deck").value = $("deck2").value;
+    onDeckPick();
+  }
+};
 $("btnDecks").onclick = ()=>loadDecks($("deck").value);
 
 /* ================================================= поля колоды */
 const FIELD_IDS = ["sent_src","sent_aud","word_src","word_aud","furi","reading"];
+function clearFieldSelects(){
+  FIELD_IDS.forEach(id=>{
+    const el = $("f_"+id);
+    if(el) el.innerHTML = '<option value="">— не используется —</option>';
+  });
+  $("fieldsSaved").textContent = "";
+}
 function fillSelect(sel, fields, keep){
   const prev = keep || sel.value;
   let html = '<option value="">— не используется —</option>';
@@ -1048,12 +1092,25 @@ document.querySelectorAll("#segMode button").forEach(b=>{
   b.onclick = ()=>{ setMode(b.dataset.v); saveCfg({mode:b.dataset.v}); };
 });
 
+/* Значение поля: сначала то, что выбрано во вкладке «Поля колоды»,
+   потом сохранённое в конфиге. Иначе настройка, сохранённая в прошлый
+   раз, молча не применялась и озвучка уходила с пустыми полями. */
+function fieldVal(id, key){
+  const el = $("f_"+id);
+  const v = el ? el.value : "";
+  if(v) return v;
+  const c = (ST && ST.cfg) || {};
+  return c[key] || "";
+}
 function collectVoiceArgs(){
   return {
     kind:"voice", voice:$("voice").value, deck:$("deck").value, mode:mode(),
-    sentence_src:$("f_sent_src").value, sentence_audio:$("f_sent_aud").value,
-    word_src:$("f_word_src").value, word_audio:$("f_word_aud").value,
-    furigana_src:$("f_furi").value, reading:$("f_reading").value,
+    sentence_src:fieldVal("sent_src","sentence_src"),
+    sentence_audio:fieldVal("sent_aud","sentence_audio"),
+    word_src:fieldVal("word_src","word_src"),
+    word_audio:fieldVal("word_aud","word_audio"),
+    furigana_src:fieldVal("furi","furigana_src"),
+    reading:fieldVal("reading","reading"),
     limit:$("limit").value, force:$("force").checked
   };
 }
@@ -1066,10 +1123,12 @@ $("btnStart").onclick = async ()=>{
 $("btnCheck").onclick = ()=>{
   if(!$("deck").value) return toast("Сначала выбери колоду","bad");
   runOp({kind:"check", deck:$("deck").value,
-    sentence_audio:$("f_sent_aud").value, word_audio:$("f_word_aud").value});
+    sentence_audio:fieldVal("sent_aud","sentence_audio"),
+    word_audio:fieldVal("word_aud","word_audio")});
 };
 $("btnSelftest").onclick = ()=>runOp({kind:"selftest"});
 $("btnStop").onclick = async ()=>{
+  STOPPED_BY_USER = true;
   try{
     const j = await api("/api/stop", {});
     toast(j.ok ? "Останавливаю…" : (j.error || "Нечего останавливать"), j.ok?"":"bad");
@@ -1091,6 +1150,8 @@ async function runOp(payload){
 }
 function beginRunUI(r){
   resetProgress();
+  NOTHING_TO_DO = false;
+  STOPPED_BY_USER = false;
   RUNNING = true;
   $("btnStart").disabled = true;
   $("btnCheck").disabled = true;
@@ -1120,9 +1181,28 @@ function endRunUI(s){
     (s && s.code != null ? " — код " + s.code : "");
   $("progPct").textContent = ok ? "✓ завершено" : "✗ есть ошибки";
   $("progPct").style.color = ok ? "var(--ok)" : "var(--err)";
-  if(!ok) banner("voiceBanner","bad",
+  const t = (s && s.title) || "";
+  let done = "Готово.";
+  if(/Озвучка/.test(t)) done = "Результат записан в колоду.";
+  else if(/Проверка колоды/.test(t)) done = "Проверка колоды завершена.";
+  else if(/Самопроверка/.test(t)) done = "Проверка окружения завершена.";
+  else if(/Тест синтеза/.test(t)) done = "Тестовый звук готов.";
+  else if(/Сканирование/.test(t)) done = "Сканирование завершено.";
+  if(ok && NOTHING_TO_DO){
+    banner("voiceBanner","warn",
+      "<b>Озвучивать было нечего.</b> У выбранных карточек уже есть звук " +
+      "(или пустой текст). Увеличь лимит карточек или включи " +
+      "«Пересобрать всё заново».");
+  }else if(STOPPED_BY_USER){
+    banner("voiceBanner","warn",
+      "<b>Остановлено.</b> Уже озвучённое сохранено, остальное — " +
+      "в следующий раз.");
+  }else if(!ok && /Проверка колоды/.test(t)){
+    banner("voiceBanner","warn",
+      "<b>Проверка нашла проблемы.</b> Список карточек — в журнале ниже.");
+  }else if(!ok) banner("voiceBanner","bad",
     "<b>Завершилось с ошибкой (код "+(s?s.code:"?")+").</b> Посмотри журнал ниже.");
-  else banner("voiceBanner","good","<b>Готово.</b> Результат записан в колоду.");
+  else banner("voiceBanner","good","<b>Готово.</b> "+done);
 }
 function showLastRun(s){
   $("prog").className = "prog";
@@ -1157,6 +1237,8 @@ function openLog(since){
 function appendLine(log, line){
   const empty = log.querySelector(".l-dim");
   if(empty) empty.remove();
+  // пайплайн сообщил, что озвучивать нечего — это не «готово»
+  if(/уже озвучено|нечего озвучивать/i.test(line)) NOTHING_TO_DO = true;
   let cls = "";
   if(/^OK\s+\[/.test(line)) cls = "l-ok";
   else if(/^FAIL\s+\[/.test(line)) cls = "l-err";

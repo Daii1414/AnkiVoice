@@ -2130,14 +2130,75 @@ def _fields_from_args(args):
     )
 
 
+def _qfield(name):
+    """Имя поля в поисковом запросе Anki (с пробелами — в кавычках)."""
+    name = (name or "").strip()
+    if not name:
+        return "SentenceAudio"
+    if re.search(r"[\s:]", name):
+        return '"%s"' % name
+    return name
+
+
+def _pending_notes(ids, limit, fields, mode="both"):
+    """Первые `limit` заметок, которым ещё нужен звук.
+
+    Лимит «озвучить 10 карточек» должен означать «10 карточек работы».
+    Раньше брались первые N заметок колоды, и на почти озвученной колоде
+    приложение отвечало «всё уже озвучено», хотя не озвучено ещё сотня.
+
+    Звук в Anki лежит в поле как [sound:...], поэтому «карточка без звука»
+    ищется поиском: deck:"..." -Поле:*sound*.
+    """
+    fields = fields or DEFAULT_FIELDS
+    parts = []
+    if mode in ("sentence", "both"):
+        parts.append("-" + _qfield(fields.get("sentence_audio")) + ":*sound*")
+    if mode in ("expression", "both"):
+        parts.append("-" + _qfield(fields.get("word_audio")) + ":*sound*")
+    if parts:
+        q = "(" + " OR ".join(parts) + ")"
+        try:
+            pend = ac("findNotes", query=q)
+        except SystemExit:
+            pend = None
+        if pend is not None:
+            keep = set(ids)
+            return [i for i in pend if i in keep][:limit]
+    # запасной путь: читаем заметки кусками и смотрим поля сами
+    need = []
+    for chunk in _chunks(ids, 400):
+        for n in notes_info(chunk):
+            f = n.get("fields", {})
+
+            def _val(key):
+                return plain(f.get(key, {}).get("value", ""), strip_media=True)
+
+            def _has(key):
+                return plain(f.get(key, {}).get("value", ""))
+
+            need_sent = _val(fields["sentence_src"]) and not _has(fields["sentence_audio"])
+            need_word = _val(fields["word_src"]) and not _has(fields["word_audio"])
+            if need_sent or need_word:
+                need.append(n["noteId"])
+                if len(need) >= limit:
+                    return need
+    return need
+
+
+def _chunks(seq, n):
+    for i in range(0, len(seq), n):
+        yield seq[i:i + n]
+
+
 def cmd_voice(args):
     fields = _fields_from_args(args)
     if args.deck:
         ids = ac("findNotes", query='deck:"%s"' % args.deck)
-        if args.limit:
-            ids = ids[:args.limit]
         if not ids:
             raise SystemExit("Колода '%s' пуста." % args.deck)
+        if args.limit:
+            ids = _pending_notes(ids, args.limit, fields, mode=args.mode)
     elif args.ids:
         ids = [int(x) for x in args.ids]
     else:
