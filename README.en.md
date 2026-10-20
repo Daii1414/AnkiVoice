@@ -145,6 +145,8 @@ via the `--classic` flag.
 * **What to voice** — “word + sentence” (the usual choice), sentence only or
   word only; a card limit (0 = all); “rebuild everything” ignores cards that
   are already done.
+* **The limit is an amount of work**, not a position in the deck: “voice 20
+  cards” takes the 20 cards that have no audio yet, not the first twenty.
 * **“Начать озвучку”** (Start dubbing) — the main button; next to it are
   **“Остановить”** (Stop), **“Проверить колоду”** (Check deck) and
   **“Самопроверка”** (Self-test).
@@ -158,7 +160,9 @@ via the `--classic` flag.
 
 * **Deck** + the **“Поля выбранной колоды”** (Fields of the selected deck)
   button — fills the role table automatically from the template
-  (Sentence / Expression / \*Audio / Furigana).
+  (Sentence / Expression / \*Audio / Furigana). The fields also fill
+  themselves in: pick a deck and the app reads its fields and matches the
+  roles; you can still change them by hand on the “Поля колоды” tab.
 * Table rows: sentence text, sentence audio, main word, word audio,
   **word furigana ← field** and the reading source.
 * An empty choice in the “→” column means “do not write audio”. Empty
