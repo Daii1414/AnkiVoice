@@ -2,7 +2,7 @@
 
 [Русский](README.md) | **English**
 
-> **Local Japanese audio for Anki — context-aware kanji readings via Haqumei (Sudachi/UniDic fallback), voices via GPT-SoVITS. Fully offline, nothing to install.**
+> **Local Japanese audio for Anki — context-aware kanji readings via Haqumei (Sudachi/UniDic fallback), voices via GPT-SoVITS. Fully offline, no Python setup required.**
 
 AnkiVoice voices Anki decks with GPT-SoVITS. It reads kanji with a modern
 dictionary, can substitute trusted readings from a card's furigana, clones
@@ -14,6 +14,24 @@ The full technical description (architecture, all logic, bug history) is in
 
 *The app interface is currently in Russian; UI labels are quoted as they
 appear, with English explanations.*
+
+## What's new in 1.2
+
+* **First-run setup wizard** — four steps (engine, AnkiConnect, server, test
+  phrase) with concrete instructions: what to download, where to unpack it and
+  what to click. Until the setup is finished, the wizard opens by itself on
+  every launch.
+* **Update check** — the “Check for updates” button on the “Приложение” tab
+  shows the changelog, downloads the installer and **always** verifies its
+  SHA256 (if the release has no hash, downloading is refused). The hash is
+  checked once more before the installer is started.
+* **Live diagnostics** — the “Приложение” tab shows the state of the engine,
+  Anki, the server, the voices and the test, and says what exactly is wrong
+  instead of “check the folder”.
+* Smaller things: a version chip in the header, protection against a repeated
+  download, v1.2 tests.
+
+The full changelog is in the [v1.2 release](https://github.com/Daii1414/AnkiVoice/releases/tag/v1.2).
 
 ## Built on
 
@@ -140,7 +158,9 @@ The old tkinter window is still available via the `--classic` flag.
 
 * **Setup wizard** — four steps: engine, AnkiConnect, server, test phrase.
   It shows the status of each step and what to do when one is red. The wizard
-  opens by itself on first launch; later use the “Open wizard” button.
+  opens by itself until the setup is finished; later use the “Open wizard” button.
+
+![Setup wizard](doc/shots/wizard-dark.png)
 * **Updates** — the “Check for updates” button shows the latest changelog,
   downloads the installer and verifies its SHA256.
 * **GPT-SoVITS folder** — the path to the engine; the “Check” and “Browse…”
