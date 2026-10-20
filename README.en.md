@@ -346,7 +346,7 @@ ISCC.exe AnkiVoice.iss
 | `kana_stress.py` | A battery of 63 difficult words for reading checks |
 | `anki_tts.py` | Old standalone script, kept for history, unused |
 | `doc/` | UI screenshots and engine media for the README |
-| `lab/` | Tests and helper scripts (not included in the installer) |
+| `lab/` | Tests and helper scripts; only five of its modules are shipped in the installer — the reading system (provenance, domain dictionary, resolver) and QC v2 |
 | `.github/workflows/checks.yml` | CI: compile and tests on every push |
 | `README.md`, `README.en.md`, `PROJECT.md` | Instructions (RU/EN) and the full technical description |
 | `LICENSE` | AGPL-3.0 |
