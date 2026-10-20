@@ -232,6 +232,14 @@ I18N_EN = {
     "Не подставлять": "Do not substitute",
     "Как есть (кандзи, без фуриганы)":
         "As is (kanji, no furigana)",
+    "Кандзи + чтение термина из фуриганы (рекомендуется)":
+        "Kanji + the term's reading from the furigana (recommended)",
+    "Только кандзи (движок читает сам)":
+        "Kanji only (the engine reads it)",
+    "Собрать колоду «Брак»":
+        "Build the “Брак” deck",
+    "Сводка по вердиктам":
+        "Verdict summary",
     "Первый запуск грузит веса и CUDA — это может занять 1–2 минуты.":
         "The first start loads the weights and CUDA — it may take 1-2 minutes.",
     "SHA256 будет проверен после скачивания.":

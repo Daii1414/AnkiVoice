@@ -428,7 +428,8 @@ select{cursor:pointer}
           <button class="btn" id="btnCheck">Проверить колоду</button>
           <button class="btn" id="btnSelftest">Самопроверка</button>
           <button class="btn" id="btnVerify" title="Распознать уже озвученные карточки и найти те, где модель потеряла кусок фразы">Проверить произношение</button>
-          <button class="btn" id="btnRedoSuspect" title="Переделать только те карточки, которые проверка признала подозрительными (тег av_suspect)">Переделать подозрительные</button>
+             <button class="btn" id="btnQCDeck" title="Собрать колоду «Брак»: сомнительные куски с вариантами — послушаешь и напишешь вердикт">Собрать колоду «Брак»</button>
+             <button class="btn" id="btnVerdicts" title="Сводка по твоим вердиктам из колоды «Брак» — покажет, где наши пороги занижены">Сводка по вердиктам</button>
         </div>
 
         <div class="spacer" style="height:16px"></div>
@@ -1026,10 +1027,11 @@ function fillSelect(sel, fields, keep){
   const prev = keep || sel.value;
   let html = '<option value="">— не используется —</option>';
   if(sel.id === "f_reading")
-    html = '<option value="asis">Как есть (кандзи)</option>'
-          + '<option value="mix">Кандзи + чтение термина из фуриганы</option>'
-          + '<option value="">'+ (ST ? ST.reading_off : "Всё кана") +'</option>';
-  html += fields.map(f=>'<option value="'+esc(f)+'">'+esc(f)+"</option>").join("");
+    html = '<option value="mix">Кандзи + чтение термина из фуриганы (рекомендуется)</option>'
+          + '<option value="asis">Только кандзи (движок читает сам)</option>';
+  // для источника чтения — всего два режима, поля не подставляем
+  if(sel.id !== "f_reading")
+    html += fields.map(f=>'<option value="'+esc(f)+'">'+esc(f)+"</option>").join("");
   sel.innerHTML = html;
   if(prev && fields.indexOf(prev) >= 0) sel.value = prev;
 }
@@ -1264,17 +1266,11 @@ $("btnCheck").onclick = ()=>{
     word_audio:fieldVal("word_aud","word_audio")});
 };
 $("btnSelftest").onclick = ()=>runOp({kind:"selftest"});
-$("btnRedoSuspect").onclick = ()=>{
-  if(!$("deck").value) return toast("Сначала выбери колоду","bad");
-  if(!$("voice").value) return toast("Сначала выбери голос","bad");
-  runOp({kind:"voice", voice:$("voice").value, deck:$("deck").value, mode:mode(),
-         sentence_src:fieldVal("sent_src","sentence_src"),
-         sentence_audio:fieldVal("sent_aud","sentence_audio"),
-         word_src:fieldVal("word_src","word_src"),
-         word_audio:fieldVal("word_aud","word_audio"),
-         furigana_src:fieldVal("furi","furigana_src"),
-         reading:fieldVal("reading","reading"), limit:"0", force:true,
-         only_suspect:true});
+$("btnQCDeck").onclick = ()=>{
+  runOp({kind:"qc-deck"});
+};
+$("btnVerdicts").onclick = ()=>{
+  runOp({kind:"verdicts"});
 };
 $("btnVerify").onclick = ()=>{
   if(!$("deck").value) return toast("Сначала выбери колоду","bad");

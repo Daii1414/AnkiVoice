@@ -132,7 +132,7 @@ DEFAULT_FIELDS = {
     "word_src": "Expression",          # поле со словом (основное слово карточки)
     "furigana_src": "ExpressionFurigana",  # поле с фуриганой к основному слову
     "word_audio": "ExpressionAudio",   # поле, куда писать звук слова
-    "reading": "asis",                   # источник чтения: "asis" — кандзи, движок
+    "reading": "mix",                    # источник чтения: "mix" — кандзи + чтение
                                         # читает сам (звучит целое); "mix" — кандзи +
                                         # чтение термина из фуриганы; "off" — всё кана;
                                         # имя поля — строго из него
@@ -2001,30 +2001,24 @@ def synth(v, text, seed=42, speed=1.0, _oom_retry=True, src=None,
                            "coverage": 1.0, "cer": 0.0}
                 cov = res.get("coverage")
                 _PRON_STATE["checked"] += 1
-                if res.get("fail"):
-                    # модель потеряла кусок фразы или сказала не то —
-                    # однозначный брак, пробуем другой вариант
-                    _PRON_STATE["bad"] += 1
-                    sigs = list(sigs) + ["содержание: %s (покрытие %.2f, ошибки %.2f)"
-                                         % (res.get("verdict"), res.get("coverage", 0.0),
-                                            res.get("cer", 0.0))]
-                    ok = False
-                elif res.get("suspect"):
-                    # «похоже, но не уверен»: попробуем ещё пару сидов и
-                    # оставим лучшее, а карточку пометим
+                # Проверка содержания — совещательная, не приговор: по замеру
+                # на 27 размеченных карточках подтверждённых браков 2, а ложных
+                # срабатываний 25 (ASR переворачивает доменные термины). Поэтому
+                # она не бракует карточку и не ставит метку, а показывает цифры.
+                _PRON_STATE["note"] = res.get("verdict", "")
+                if res.get("fail") or res.get("suspect"):
                     _PRON_STATE["suspect"] = _PRON_STATE.get("suspect", 0) + 1
                     suspect = res
-                else:
-                    _PRON_STATE["note"] = res.get("verdict", "")
+                    print("  [проверка содержания] %s: %s (покрытие %.2f, ошибка %.2f) — совет, не приговор"
+                          % (text[:24], res.get("verdict"), cov or 0.0, res.get("cer") or 0.0))
         if ok:
-            info = {"suspect": bool(suspect), "coverage": cov}
+            # совещательно: цифры в отчёте, но карточка не бракуется
+            # и меткой не помечается — решение за тобой
+            info = {"suspect": False, "coverage": cov}
             if suspect:
                 info["signals"] = suspect.get("verdict")
                 info["heard"] = suspect.get("heard")
-                print("  [%s] подозрительно: %s (покрытие %.2f, ошибки %.2f)"
-                      % (text[:24], suspect.get("verdict"), cov or 0.0,
-                         suspect.get("cer") or 0.0))
-            return blob, ext, info
+                info["pron_coverage"] = cov
         # запоминаем лучший по содержанию (если проверяли произношение)
         if cov is not None and (best is None or cov > best[2]):
             best = (blob, ext, cov, list(sigs))
@@ -2218,16 +2212,12 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
             done += 1
             print("OK   [%d] %-16s %s (%s, %.0f КБ)"
                   % (nid, field, text[:40], ext, len(blob) / 1024))
-            if sinfo.get("suspect"):
-                # содержание не совпало даже у лучшего варианта: помечаем
-                # карточку и кладём звук в папку брака для прослушивания
-                mark_suspect(nid, field, text, blob, ext, sinfo)
-            else:
-                # переделали и проверили — метка больше не нужна
-                try:
-                    ac("removeTags", notes=[nid], tags="av_suspect::" + field)
-                except Exception:
-                    pass
+            # проверка содержания больше ничего не решает: метку снимаем,
+            # решение принимаешь ты (колода «Брак» и вердикты в ней)
+            try:
+                ac("removeTags", notes=[nid], tags="av_suspect::" + field)
+            except Exception:
+                pass
         except SystemExit as e:
             failed += 1
             print("FAIL [%d] %s: %s" % (nid, field, e))
@@ -2619,11 +2609,8 @@ def cmd_verify(args):
         report.append(row)
         if res.get("fail") or res.get("suspect"):
             bad += 1
-            try:
-                ac("addTags", notes=[nid], tags="av_suspect::" + field)
-            except Exception:
-                pass
-            print("  %-8s note=%-14d покрытие=%.2f ошибки=%.2f  %s"
+            # метку не ставим: проверка совещательная
+            print("  %-8s note=%-14d покрытие=%.2f ошибка=%.2f  %s"
                   % (field[:8], nid, res.get("coverage") or 0.0,
                      res.get("cer") or 0.0, res.get("verdict")))
             if res.get("heard"):
@@ -2946,10 +2933,19 @@ def cmd_qc_deck(args):
         if ftext in fresh_fronts:
             continue
         try:
+            keep = ""
+            try:
+                _n = notes_info([nid])[0]
+                _b = (_n.get("fields") or {}).get(back, {}) or {}
+                _v = _b.get("value") or ""
+                if "Вердикт:" in _v:
+                    keep = "  " + _v.split("Вердикт:")[1].strip()
+            except Exception:
+                pass
             ac("updateNoteFields", note={
                 "id": nid,
                 "fields": {front: "Устарело — эта карточка больше не в проверке",
-                           back: "Можно удалить."}})
+                           back: "Можно удалить." + keep}})
             stale += 1
         except SystemExit:
             pass
@@ -2971,6 +2967,16 @@ def cmd_verdicts(args):
     По этим отметкам видно, где наши пороги стоит подвинуть.
     """
     deck = args.deck or "AnkiVoice_Брак"
+    # istoriya verdiktov iz proshlyh raundov (koloda peresbiraetsya,
+    # a otmetki ostayutsia zdes)
+    history = []
+    hist_path = os.path.join(os.environ.get("APPDATA") or "", "AnkiVoice",
+                           "verdicts_history.json")
+    try:
+        with open(hist_path, encoding="utf-8") as f:
+            history = json.load(f) or []
+    except Exception:
+        history = []
     ids = ac("findNotes", query='deck:"%s"' % deck)
     if not ids:
         print("Колода '%s' пуста — нечего читать." % deck)
@@ -2994,6 +3000,12 @@ def cmd_verdicts(args):
     except Exception:
         pass
     true_bad, false_alarm, unknown = [], [], []
+    # из истории: front -> (покрытие, вердикт)
+    hist_map = {}
+    for h in history:
+        f0 = (h.get("front") or "").strip()
+        if f0:
+            hist_map[f0] = (h.get("coverage"), h.get("verdict") or "")
     for n in notes:
         f = n.get("fields") or {}
         verdict = ""
@@ -3027,6 +3039,23 @@ def cmd_verdicts(args):
             true_bad.append(item)
         else:
             unknown.append(item)
+    # добавляем вердикты из истории (тех карточек в колоде уже может не быть)
+    deck_fronts = set()
+    for n in notes:
+        flds = n.get("fields") or {}
+        vals = [((flds.get(k) or {}).get("value") or "").strip() for k in flds]
+        deck_fronts.add(vals[0] if vals else "")
+    for f0, (cov0, v0) in hist_map.items():
+        if f0 in deck_fronts:
+            continue
+        low0 = v0.lower()
+        item0 = (cov0, f0)
+        if "ложн" in low0 or "нет" in low0 or "ok" in low0:
+            false_alarm.append(item0)
+        elif "верно" in low0 or "да" in low0 or "плох" in low0:
+            true_bad.append(item0)
+        else:
+            unknown.append(item0)
     total = len(true_bad) + len(false_alarm) + len(unknown)
     print("Колода '%s': вердиктов %d из %d карточек" % (deck, total, len(notes)))
     print("  брак подтверждён: %d, ложных срабатываний: %d, без ответа: %d"
@@ -3202,8 +3231,8 @@ def cmd_selftest(args):
                  % (expr, w))
     # режимы источника чтения (параметр reading): только off и конкретное поле
     print("  --   режимы источника чтения:")
-    if DEFAULT_FIELDS.get("reading") == "asis":
-        ok("по умолчанию: кандзи (asis) — движок читает сам")
+    if DEFAULT_FIELDS.get("reading") == "mix":
+        ok("по умолчанию: кандзи + чтение термина из фуриганы (mix)")
     else:
         fail("по умолчанию: reading=%r (ожидалось 'off')"
              % DEFAULT_FIELDS.get("reading"))
@@ -3417,7 +3446,7 @@ def main():
     p.add_argument("--word-src", default=None)
     p.add_argument("--word-audio", default=None)
     p.add_argument("--furigana-src", default=None)
-    p.add_argument("--reading", default="asis")
+    p.add_argument("--reading", default="mix")
     p.add_argument("--asr-model", default=None)
     p.add_argument("--variants", type=int, default=0,
                    help="сколько вариантов синтеза сделать на каждое "
