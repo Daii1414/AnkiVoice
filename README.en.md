@@ -120,7 +120,9 @@ The **AnkiConnect** add-on code is `2055492159` (Anki → Tools → Add-ons → 
 Add-ons). Restart Anki after installing the add-on.
 
 The app starts a local server and opens a page in your browser — that is
-normal, nothing else needs to be installed.
+normal, nothing else needs to be installed. The server only accepts its own
+requests: another site open in the same browser cannot start dubbing or close
+the app.
 
 The **EN** button in the header switches the interface to English (and back). It installs into your user profile
 (`%LOCALAPPDATA%\Programs\AnkiVoice`) and does not ask for administrator
@@ -256,9 +258,10 @@ Two buttons on the “Озвучка” tab:
 
 **The “Брак” (Rejects) deck — for your ears.** Doubtful pieces are collected
 into `AnkiVoice_Брак`: a card with the expected text, the reason, the coverage
-and the audio itself. Type “верно” or “ложное сбатывание” into the “Вердикт”
-field and `pipeline.bat verdicts` shows whether our thresholds are too low or
-too high.
+and the sounds — the original take and three variants side by side on one card.
+Type “верно” (the sound really is bad) or “ложное сработавание” (the sound is fine)
+into the “Вердикт” field and `pipeline.bat verdicts` shows whether our
+thresholds are too low or too high.
 
 **Where exactly it was lost.** With the Japanese acoustic model
 (`reazon-research/japanese-wav2vec2-base-rs35kh`, ~370 MB in the HuggingFace

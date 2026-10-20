@@ -2785,11 +2785,11 @@ def cmd_qc_deck(args):
             details = ("Причина: %s\nСтратегия: %s%s"
                        % ("; ".join(r.get("reasons") or []) or "не указана",
                           r.get("strategy", "?"), extra))
+            details += ("\nЧто делать: послушай звуки. Если все варианты плохие — "
+                        "напиши «верно», если звук нормальный — «ложное срабатывание».")
         if not sounds:
             continue
-        tail = ("\n\nВердикт: напиши «верно» (звук плохой) или "
-                "«ложное срабатывание» (звух нормальный): "
-                if not verdict_field else "")
+        tail = "\n\nВердикт: " if not verdict_field else ""
         body = "%s\n\n%s%s" % (details, "\n".join(sounds), tail)
         fields = {front: head, back: body}
         if verdict_field:
@@ -2847,10 +2847,14 @@ def cmd_verdicts(args):
             if k.lower() in ("вердикт", "verdict", "комментарий", "comment"):
                 verdict = val
                 break
-            # в модели «Простая» отдельного поля нет — ищем пометку в тексте
-            if not verdict and ("Вердикт" in val or "верно" in val.lower()
-                                 or "ложное" in val.lower()):
-                verdict = val
+            # в модели «Простая» отдельного поля нет — берём текст ПОСЛЕ
+            # пометки «Вердикт:», иначе за ответ сойдёт сама подпись
+            if not verdict:
+                m = re.search(r"Вердикт[^:\n]*:(.*)$", val, re.S)
+                if m:
+                    got = m.group(1).strip().strip("_").strip()
+                    verdict = got
+                    break
         if not verdict:
             continue
         cov = None
