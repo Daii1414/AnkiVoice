@@ -29,7 +29,7 @@ def check(cond, msg):
 
 
 def test_version_tuple():
-    check(ag.version_tuple("v1.2.1") == (1, 2, 1), "v1.2.1")
+    check(ag.version_tuple("v1.3.1") == (1, 3, 1), "v1.3.1")
     check(ag.version_tuple("1.10") > ag.version_tuple("1.9"), "1.10 > 1.9")
     check(ag.version_tuple("") == (0,), "empty")
 
@@ -398,7 +398,7 @@ def main():
             failed += 1
             print("FAIL", t.__name__)
             traceback.print_exc()
-    print("\nv1.2 features: %d/%d" % (len(tests) - failed, len(tests)))
+    print("\nv1.3 features: %d/%d" % (len(tests) - failed, len(tests)))
     return 1 if failed else 0
 
 

@@ -41,6 +41,7 @@ ogg files land straight in Anki fields. The internet is only needed to download 
 - [Requirements](#requirements)
 - [Quick start](#quick-start)
 - [Interface (four tabs)](#interface-four-tabs)
+- [What's new in 1.3](#whats-new-in-13)
 - [What's new in 1.2](#whats-new-in-12)
 - [Pronunciation check](#pronunciation-check)
 - [How kanji are read](#how-kanji-are-read)
@@ -103,7 +104,7 @@ unpack themselves.
 
 ## Quick start
 
-1. Download **`AnkiVoice-Setup-1.2.exe`** from the
+1. Download **`AnkiVoice-Setup-1.3.exe`** from the
    [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) page — one
    file with everything inside.
 2. Run it: **“Далее” → “Установить” → “Завершить”** (Next → Install → Finish;
@@ -211,6 +212,27 @@ Light theme — the same tabs: [Dubbing](doc/shots/voice-light.png),
 [Deck fields](doc/shots/anki-light.png), [Voice](doc/shots/sound-light.png),
 [App](doc/shots/app-light.png). A full-page snapshot:
 [voice-dark-full.png](doc/shots/voice-dark-full.png).
+
+## What's new in 1.3
+
+* **Two reading modes, and the mixed one is the default.** The engine reads the
+  kanji itself (so the ordinary text stays connected), while the main term keeps
+  the reading from the card's furigana. The second mode is pure kanji - the
+  engine reads everything, terms included. The mode lives in the deck profile
+  together with the fields, so different decks can use different modes.
+* **Per-deck settings.** The fields and the reading mode belong to a deck:
+  switch decks and their settings come with them.
+* **The pronunciation check is now advice.** It recognizes its own audio and
+  compares it with the text, and shows where the sentence diverged. But the
+  decision is yours: the "Брак" deck collects the doubtful pieces with three
+  variants each, and your labels come back as a summary.
+* **English interface.** The EN button in the header switches the language.
+* **The local server accepts only its own requests** - it checks the address,
+  the origin and a per-run key, so another site in the same browser cannot
+  start dubbing or close the app.
+* **Fixed:** the synthesis used to be dropped when the pronunciation check was
+  off, and it always made nine variants per card. Now it makes one when there is
+  nothing to compare, and the log tells the truth.
 
 ## What's new in 1.2
 
@@ -428,7 +450,7 @@ set ENGINE=C:\Path\To\GPT-SoVITS
 ISCC.exe AnkiVoice.iss
 ```
 
-→ produces `dist\AnkiVoice-Setup-1.2.exe`.
+→ produces `dist\AnkiVoice-Setup-1.3.exe`.
 
 **tests** (Python 3.12+, no GPU and no network needed):
 

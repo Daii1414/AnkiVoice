@@ -6,6 +6,7 @@
 
 | Version | Support |
 |---|---|
+| 1.3.x | ✅ current |
 | 1.2.x | ✅ current |
 | 1.1.x | ⚠️ security fixes only |
 | < 1.1 | ❌ |
