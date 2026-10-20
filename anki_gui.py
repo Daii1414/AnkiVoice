@@ -1063,7 +1063,7 @@ def run_gui(open_tab=None):
             # источник чтения необычного слова: отключено / конкретное поле
             # (поле может содержать простое чтение либо фуриганную разметку)
             self.READ_OFF = "Не подставлять (движок сам)"
-            tk.Label(body, text="Чтение слова ← источник", font=F_SMALL,
+            tk.Label(body, text="Источник чтения", font=F_SMALL,
                      bg=C["card"], fg=C["sub"]
                      ).grid(row=3, column=0, sticky="w", padx=(0, 8), pady=4)
             self.var_reading = tk.StringVar(value=self.READ_OFF)

@@ -2,7 +2,7 @@
 ; Сборка установщика AnkiVoice для Windows (Inno Setup 6).
 ;
 ;   Скомпилировать:  ISCC.exe AnkiVoice.iss
-;   На выходе:       dist\AnkiVoice-Setup-1.0.exe  — один файл, всё внутри.
+;   На выходе:       dist\AnkiVoice-Setup-1.1.exe  — один файл, всё внутри.
 ;
 ; Установка — профильная, в папку пользователя ({localappdata}\Programs):
 ; без запроса прав администратора и без UAC. Это принципиально: пайплайн при

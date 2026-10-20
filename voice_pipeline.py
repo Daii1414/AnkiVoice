@@ -122,7 +122,7 @@ TTS_URL = "http://%s:%d" % (TTS_HOST, TTS_PORT)
 DEFAULT_START_CONFIG = os.path.join("GPT_SoVITS", "configs", "tts_infer.yaml")
 
 # Какие поля карточки читать (текст) и куда писать (звук). Можно переопределить
-# на вкладке «Anki» / через CLI — разные колоды называют поля по-разному.
+# на вкладке «Поля колоды» / через CLI — разные колоды называют поля по-разному.
 DEFAULT_FIELDS = {
     "sentence_src": "Sentence",        # поле с текстом предложения
     "sentence_audio": "SentenceAudio",  # поле, куда писать звук предложения
