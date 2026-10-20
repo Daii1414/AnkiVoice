@@ -442,26 +442,36 @@ def _update_set(**kw):
 
 def start_update_download():
     with UPDATE_LOCK:
-        if UPDATE["phase"] in ("downloading", "verifying"):
+        if UPDATE["phase"] in ("checking", "downloading", "verifying"):
             # снимок собираем здесь же: update_snapshot() берёт тот же
             # нереентерабельный UPDATE_LOCK и повесил бы поток навсегда
             d = dict(UPDATE)
             d["percent"] = (min(100, int(d["received"] * 100 / d["total"]))
                             if d["total"] else 0)
             return d, None
+        # ставим фазу ДО сетевого запроса: два быстрых клика иначе могли
+        # запустить два потока, пишущих в один .part
+        UPDATE.update(phase="checking", received=0, total=0, error="",
+                      path="", expected="", actual="", tag="", asset="")
     try:
         info = release_info()
     except Exception as e:
+        _update_set(phase="error", error="Не удалось проверить обновления: %s" % (e,))
         return None, "Не удалось проверить обновления: %s" % (e,)
     if not info.get("available"):
+        _update_set(phase="idle")
         return None, "Установленная версия уже последняя."
     asset = info.get("asset") or {}
     if not asset.get("url"):
+        _update_set(phase="error",
+                    error="В релизе нет установщика AnkiVoice-Setup-*.exe.")
         return None, "В релизе нет установщика AnkiVoice-Setup-*.exe."
     expected = (asset.get("sha256") or "").lower()
     if not re.match(r"^[0-9a-f]{64}$", expected):
-        return None, ("В релизе нет SHA256 установщика — скачивание "
-                      "без проверки запрещено.")
+        msg = ("В релизе нет SHA256 установщика — скачивание "
+               "без проверки запрещено.")
+        _update_set(phase="error", error=msg)
+        return None, msg
     name = os.path.basename(asset.get("name") or "")
     if not re.match(r"^AnkiVoice-Setup-[0-9A-Za-z._-]+\.exe$", name):
         safe = re.sub(r"[^0-9A-Za-z._-]+", "_",

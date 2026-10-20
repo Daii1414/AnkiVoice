@@ -1435,7 +1435,6 @@ function openWizard(step){
 function closeWizard(){
   WZ.open = false;
   $("wizardOverlay").classList.remove("on");
-  try{ localStorage.setItem("avWizardSeen", "1"); }catch(e){}
 }
 function renderWizard(){
   const s = WZ.setup;
@@ -1758,7 +1757,9 @@ function renderUpdateProgress(s){
   const total = s.total || 0, got = s.received || 0;
   const pct = s.percent || (total ? Math.min(100, Math.round(got*100/total)) : 0);
   let h = "";
-  if(s.phase === "downloading" || s.phase === "verifying"){
+  if(s.phase === "checking"){
+    h = '<div>Проверяю релиз на GitHub…</div>';
+  }else if(s.phase === "downloading" || s.phase === "verifying"){
     h = '<div>Скачиваю установщик…</div>'+
       '<div class="update-bar"><i style="width:'+pct+'%"></i></div>'+
       '<div class="update-meta">'+fmtMb(got)+' из '+fmtMb(total)+' · '+pct+'%</div>';
@@ -1820,9 +1821,9 @@ $("btnUpdate").onclick = checkUpdates;
   await loadState();
   try{
     await loadSetup();
-    let seen = false;
-    try{ seen = !!localStorage.getItem("avWizardSeen"); }catch(e){}
-    if(WZ.setup && !WZ.setup.complete && !seen){
+    // Пока настройка не завершена, мастер открывается при каждом запуске.
+    // Раньше закрытие ставило avWizardSeen и навсегда отключало этот показ.
+    if(WZ.setup && !WZ.setup.complete){
       setTimeout(()=>{ if(!WZ.open) openWizard(); }, 450);
     }
   }catch(e){

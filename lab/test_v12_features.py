@@ -115,6 +115,11 @@ def test_busy_download_no_deadlock():
         check(err is None, "busy re-entry error")
         check(snap["phase"] == "downloading", "busy phase")
         check(snap["percent"] == 50, "busy percent")
+
+        with aw.UPDATE_LOCK:
+            aw.UPDATE.update(phase="checking", received=0, total=0)
+        snap2, err2 = aw.start_update_download()
+        check(err2 is None and snap2["phase"] == "checking", "checking re-entry")
     finally:
         with aw.UPDATE_LOCK:
             aw.UPDATE.clear()
