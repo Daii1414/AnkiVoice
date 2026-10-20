@@ -226,6 +226,16 @@ def compare(expected, wild, heard):
             "verdict": verdict, "fail": fail, "suspect": suspect}
 
 
+def _looks_foreign(expected, heard):
+    """Услышали не японский? Тогда вердикт по содержанию невозможен."""
+    exp_jp = any("\u3040" <= ch <= "\u30ff" for ch in (expected or ""))
+    if not exp_jp:
+        return False
+    lat = sum(1 for ch in (heard or "") if ch.isascii() and ch.isalpha())
+    kana = sum(1 for ch in (heard or "") if "\u3040" <= ch <= "\u30ff")
+    return lat >= 3 and kana == 0
+
+
 class Verifier(object):
     """Распознаёт наш звук и сравнивает с ожидаемым текстом.
 
@@ -324,6 +334,12 @@ class Verifier(object):
         res = compare(expected, wild, heard)
         res["heard"] = heard
         res["heard_raw"] = heard_raw
+        # Язык не тот: короткое слово с латинским чтением ASR уводит в
+        # английский («He come to BIM» вместо «スキャン・トゥ・BIM»). Судить
+        # по такому нельзя — это «не разобрано», а не брак.
+        if _looks_foreign(expected, heard):
+            res["verdict"] = "не разобрано"
+            res["fail"] = False
         res["ok"] = not res.get("fail")
         res["suspect"] = res["verdict"] == "подозрительно"
         return res

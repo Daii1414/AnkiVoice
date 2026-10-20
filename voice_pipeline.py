@@ -1281,8 +1281,8 @@ def _parse_furigana(furigana: str, expression: str = "") -> str:
         if not expr or base == expr or not re.search(
                 r"[\u3005\u3400-\u4dbf\u4e00-\u9fff]", base):
             # разметка на всё слово (либо выражение не известно) -> одно чтение
-            return _content(segs[idxs[0]])
-    return _concat()
+            return _content(segs[idxs[0]]).replace("\u30fb", "")
+    return _concat().replace("\u30fb", "")
 
 
 def kanaize_card(text, expression=None, furigana=None):
@@ -1410,7 +1410,10 @@ def furiga_pair(text):
             read.append(_base_reading(parts[i], parts[i + 1]))
             i += 1
         i += 1
-    return "".join(surf), "".join(read)
+    # «・» в чтении — это разделитель морфем, а не знак для произнесения:
+    # с ним модель начинает коверкать фразу (проверено: на «スキャン・トゥ・BIM»
+    # выходило «тй-»). Убираем.
+    return "".join(surf), "".join(read).replace("\u30fb", "")
 
 
 def expression_inject_pair(note, reading_field):

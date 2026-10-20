@@ -238,6 +238,8 @@ makes the app recognize its own audio and compare it with the text.
 
 * **the model lost a chunk** — the app re-synthesizes with another seed by
   itself and keeps the best take;
+* **“·” in a furigana reading** no longer breaks the synthesis: it separates
+  morphemes, it is not something to pronounce;
 * **still in doubt** — the card is tagged `av_suspect` (find it in Anki with
   `tag:av_suspect`) and the audio is saved to `lab\rejected` so you can
   listen and decide.
