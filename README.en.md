@@ -120,7 +120,9 @@ The **AnkiConnect** add-on code is `2055492159` (Anki → Tools → Add-ons → 
 Add-ons). Restart Anki after installing the add-on.
 
 The app starts a local server and opens a page in your browser — that is
-normal, nothing else needs to be installed. It installs into your user profile
+normal, nothing else needs to be installed.
+
+The **EN** button in the header switches the interface to English (and back). It installs into your user profile
 (`%LOCALAPPDATA%\Programs\AnkiVoice`) and does not ask for administrator
 rights. To uninstall: Start menu → “Удалить AnkiVoice” (settings and voices
 are kept).
@@ -251,6 +253,25 @@ Two buttons on the “Озвучка” tab:
   get the `av_suspect` tag right away;
 * **“Переделать подозрительные”** (Re-do doubtful ones) — re-voices only the
   tagged cards, picking the best take by content again.
+
+**The “Брак” (Rejects) deck — for your ears.** Doubtful pieces are collected
+into `AnkiVoice_Брак`: a card with the expected text, the reason, the coverage
+and the audio itself. Type “верно” or “ложное сбатывание” into the “Вердикт”
+field and `pipeline.bat verdicts` shows whether our thresholds are too low or
+too high.
+
+**Where exactly it was lost.** With the Japanese acoustic model
+(`reazon-research/japanese-wav2vec2-base-rs35kh`, ~370 MB in the HuggingFace
+cache) the app aligns the expected text straight against the audio and shows
+the time span where the sentence diverged. Without the model it falls back to
+comparing the recognized text — coarser, but it still works.
+
+**Thresholds are per voice.** One voice may sit at 0.95 coverage, another at
+0.85. The app measures the norm from the accepted pieces and compares against
+it, not against one global number.
+
+**Fields are per deck.** Field settings are stored in a per-deck profile: pick
+another deck and its fields are applied.
 
 On a real collection: 56 voiced pieces, 4 of them broken; after the automatic
 re-do only 1 was left (an exotic term worth listening to). No false positives

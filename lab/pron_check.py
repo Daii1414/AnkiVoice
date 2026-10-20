@@ -4,21 +4,22 @@
 
 Зачем. GPT-SoVITS режет текст на куски (так устроен text_split_method),
 и на стыках модель может «потерять» фрагмент или придумать лишний.
-Длительность при этом нормальная, поэтому старый QC (тишина, длина, дубль,
-обрезка) такое пропускает: файл выглядит и звучит как речь, но это не то
-предложение. На замерах на реальных карточках так ломались примерно 4%
-озвученных предложений — их длина была в норме, а содержание — мусор.
+Длительность при этом нормальная, и старый QC (тишина/длина/дубль) такое
+не видит: файл выглядит и звучит как речь, но это не то предложение.
 
 Как проверяем.
   1. Ожидаемый текст -> кана (наша же разметка) + маска латиницы и цифр:
      ASR читает «TIN» как японское слово, и это не ошибка синтеза.
   2. Распознаём СВОЙ же звук (faster-whisper, если он есть в питоне движка).
-  3. Сравниваем покрытие: доля ожидаемой каны, которую удалось услышать
-     (LCS). «Модель пропустила кусок» — покрытие низкое; «прочитала
-     слово не так» — покрытие высокое, а CER большой. Это разные поломки,
-     и лечатся они по-разному.
-  4. Порог: абсолютный пол + своя база по голосу (у разных голосов и
-     колод CER разный, сравнивать надо с соседями, а не с нуля).
+  3. Сравниваем:
+       покрытие — доля ожидаемой речи, которую удалось услышать (LCS).
+                  «модель пропустила кусок» -> низкое покрытие;
+       cer      — доля несовпадений: «прочитала не так» -> высокий cer,
+                  а покрытие высокое.
+  4. Где именно поехало: по таймстемпам слов ASR находим первое расхождение
+     и отдаём временной участок (секунды) — его можно послушать отдельно.
+  5. Неразборчивое: если ASR неуверен (низкий средний лог-вероятность) или
+     ушёл в другой алфавит — это «не разобрано», а не брак.
 
 Модель нужна одна: faster-whisper в питоне движка и скачанные веса.
 Если их нет — проверка просто выключена, приложение работает как раньше.
@@ -44,16 +45,17 @@ _MODEL_ORDER = [
     "faster-whisper-tiny",
 ]
 
-# Пороги подобраны на замерах (43 озвученные карточки):
-#   покрытие  median 0.90 | у двух настоящих галлюцинаций 0.31 и 0.46
-#   следующий «хороший» клип — 0.58. Значит 0.55 отделяет мусор от нормы.
-#   CER       median 0.17 | мусор 0.97-1.09 | норма до 0.42
+# --- пороги (абсолютные; относительные считаются по своей базе) -----------
 COVER_FAIL = 0.55         # ниже — модель потеряла кусок фразы
 COVER_SUSPECT = 0.80      # ниже — стоит послушать или переделать
 CER_FAIL = 0.85           # услышали совсем другое предложение
 CER_SUSPECT = 0.45        # местами прочитано не так
 MIN_MORAS = 8             # короче — ASR слишком ненадёжен, не судим
 MIN_SECONDS = 1.2         # короче — то же
+MIN_SEC_PER_MORA = 0.055  # быстрее — физически не успеть прочитать
+LOW_CONFIDENCE = -0.85     # средний лог-вероятность ASR ниже — не доверяем
+ACOUSTIC_FAIL = 0.50      # акустическое покрытие ниже — кусок реально потерян
+HIGH_NOSPEECH = 0.6        # ASR решил, что это не речь
 
 
 def hf_cache_dirs():
@@ -82,11 +84,13 @@ def cached_models():
                 continue
             mid = n[len("models--"):].replace("--", "/")
             found[mid] = os.path.join(hub, n)
+
     def rank(mid):
         for i, pref in enumerate(_MODEL_ORDER):
             if pref in mid:
                 return i
         return len(_MODEL_ORDER)
+
     return sorted(found.items(), key=lambda kv: rank(kv[0]))
 
 
@@ -99,6 +103,32 @@ def pick_model(explicit=None):
         return env
     models = cached_models()
     return models[0][0] if models else None
+
+
+SMALL_KANA = {
+    "\u3041": "\u3042", "\u3043": "\u3044", "\u3045": "\u3046",
+    "\u3047": "\u3048", "\u3049": "\u304a",
+    "\u3083": "\u3084", "\u3085": "\u3086", "\u3087": "\u3088",
+    "\u308e": "\u308f", "\u3095": "\u3096", "\u3096": "\u3099",
+}
+PUNCT = "\u3001\u3002\u3000-\u2026,.;:!?\u300c\u300d\u300e\u300f()[]\u30fb"
+
+
+def norm_char(ch):
+    """Один знак в сравнимом виде: мелкий кана -> обычный, пунктуация вон."""
+    if ch in PUNCT or ch.isspace():
+        return ""
+    return SMALL_KANA.get(ch, ch)
+
+
+def normalize_kana(s):
+    """Приводим каны к сравнимому виду.
+
+    ASR не различает мелкие каны (ぃ пишет как い) и может поставить свою
+    пунктуацию. Это не ошибка синтеза, поэтому сравниваем «нормализованные»
+    строки: мелкие каны -> обычные, пунктуация выбрасывается.
+    """
+    return "".join(x for x in (norm_char(c) for c in (s or "")) if x)
 
 
 def expected_kana_masked(text, kanaize):
@@ -126,32 +156,6 @@ def expected_kana_masked(text, kanaize):
     return "".join(exp), wild
 
 
-SMALL_KANA = {
-    "\u3041": "\u3042", "\u3043": "\u3044", "\u3045": "\u3046",
-    "\u3047": "\u3048", "\u3049": "\u304a",
-    "\u3083": "\u3084", "\u3085": "\u3086", "\u3087": "\u3088",
-    "\u308e": "\u308f", "\u3095": "\u3096", "\u3096": "\u3099",
-}
-PUNCT = "\u3001\u3002\u3000-\u2026,.;:!?\u300c\u300d\u300e\u300f()[]"
-
-
-def norm_char(ch):
-    """Один знак в сравнимом виде: мелкий кана -> обычный, пунктуация вон."""
-    if ch in PUNCT or ch.isspace():
-        return ""
-    return SMALL_KANA.get(ch, ch)
-
-
-def normalize_kana(s):
-    """Приводим каны к сравнимому виду.
-
-    ASR не различает мелкие каны (ぃ пишет как い) и может поставить свою
-    пунктуацию. Это не ошибка синтеза, поэтому сравниваем «нормализованные»
-    строки: мелкие каны -> обычные, пунктуация выбрасывается.
-    """
-    return "".join(x for x in (norm_char(c) for c in (s or "")) if x)
-
-
 def _lcs_len(a, b):
     if not a or not b:
         return 0
@@ -164,7 +168,17 @@ def _lcs_len(a, b):
     return prev[-1]
 
 
-def compare(expected, wild, heard):
+def _looks_foreign(expected, heard):
+    """Услышали не японский? Тогда вердикт по содержанию невозможен."""
+    exp_jp = any("\u3040" <= ch <= "\u30ff" for ch in (expected or ""))
+    if not exp_jp:
+        return False
+    lat = sum(1 for ch in (heard or "") if ch.isascii() and ch.isalpha())
+    kana = sum(1 for ch in (heard or "") if "\u3040" <= ch <= "\u30ff")
+    return lat >= 3 and kana == 0
+
+
+def compare(expected, wild, heard, limits=None):
     """Сравнение ожидаемой каны и услышанной.
 
     coverage — доля ожидаемого, что удалось услышать (LCS по не-маскированным
@@ -176,7 +190,13 @@ def compare(expected, wild, heard):
     Латиница в expected помечена заглушкой WILD: она совпадает с любым
     услышанным куском, а «лишнее» рядом с ней (модель прочитала TIN как
     японское слово) ошибкой не считается.
+
+    limits — свои пороги (присваиваются по своей базе, см. baseline).
     """
+    lim = dict(COVER_FAIL=COVER_FAIL, COVER_SUSPECT=COVER_SUSPECT,
+               CER_FAIL=CER_FAIL, CER_SUSPECT=CER_SUSPECT, MIN_MORAS=MIN_MORAS)
+    if limits:
+        lim.update(limits)
     heard = normalize_kana(heard)
     exp = list(expected)                 # с заглушками, индексы совпадают с wild
     h = list(heard)
@@ -212,13 +232,13 @@ def compare(expected, wild, heard):
     cost = dp[n_full][m]
     cov = _lcs_len(plain, h) / float(n)
     cer = cost / float(n)
-    if n < MIN_MORAS:
+    if n < lim["MIN_MORAS"]:
         verdict, fail, suspect = "коротко", False, False
-    elif cov < COVER_FAIL:
+    elif cov < lim["COVER_FAIL"]:
         verdict, fail, suspect = "пропущено", True, False
-    elif cer > CER_FAIL:
+    elif cer > lim["CER_FAIL"]:
         verdict, fail, suspect = "не то предложение", True, False
-    elif cov < COVER_SUSPECT or cer > CER_SUSPECT:
+    elif cov < lim["COVER_SUSPECT"] or cer > lim["CER_SUSPECT"]:
         verdict, fail, suspect = "подозрительно", False, True
     else:
         verdict, fail, suspect = "ок", False, False
@@ -226,28 +246,39 @@ def compare(expected, wild, heard):
             "verdict": verdict, "fail": fail, "suspect": suspect}
 
 
-def _looks_foreign(expected, heard):
-    """Услышали не японский? Тогда вердикт по содержанию невозможен."""
-    exp_jp = any("\u3040" <= ch <= "\u30ff" for ch in (expected or ""))
-    if not exp_jp:
-        return False
-    lat = sum(1 for ch in (heard or "") if ch.isascii() and ch.isalpha())
-    kana = sum(1 for ch in (heard or "") if "\u3040" <= ch <= "\u30ff")
-    return lat >= 3 and kana == 0
+def locate_span(expected, wild, words):
+    """Где именно поехало: первое слово, на котором текст разошёлся.
+
+    words — слова с таймстемпами от ASR: [{"start":..,"end":..,"text":..}].
+    Возвращает (start, end, услышано, ожидалось) или None.
+    """
+    exp = normalize_kana(expected)
+    pos = 0
+    for w in words or []:
+        wn = normalize_kana(w.get("text", ""))
+        if not wn:
+            continue
+        seg = exp[pos:pos + len(wn)]
+        if seg != wn:
+            return (w.get("start"), w.get("end"), w.get("text", ""), seg)
+        pos += len(wn)
+    return None
 
 
 class Verifier(object):
     """Распознаёт наш звук и сравнивает с ожидаемым текстом.
 
     Модель грузится один раз и держится в процессе (5–10 с на прогретом
-    кэше, проверка клипа — около 0.5 с на GPU).
+    кэше, сама проверка клипа — около 0.5 с на GPU).
     """
 
-    def __init__(self, model=None, device=None, compute_type="int8", kanaize=None):
+    def __init__(self, model=None, device=None, compute_type="int8", kanaize=None,
+                 limits=None):
         self.model_id = model
         self.device = device
         self.compute_type = compute_type
         self.kanaize = kanaize
+        self.limits = limits or {}
         self._model = None
         self._tried = False
         self.error = ""
@@ -294,18 +325,29 @@ class Verifier(object):
         return self._model
 
     # ---------------------------------------------------------------- audio
-    def transcribe(self, path):
-        """path -> текст (японский)."""
+    def transcribe(self, path, words=True):
+        """path -> (текст, слова, метаданные)."""
         model = self.load()
         if model is None:
-            return ""
-        segs, _info = model.transcribe(path, language="ja", beam_size=1,
-                                       vad_filter=False,
-                                       condition_on_previous_text=False)
-        return "".join(s.text for s in segs)
+            return "", [], {}
+        segs, info = model.transcribe(path, language="ja", beam_size=1,
+                                      vad_filter=False,
+                                      condition_on_previous_text=False,
+                                      word_timestamps=words)
+        text = "".join(s.text for s in segs)
+        wlist = []
+        for s in segs:
+            for w in (getattr(s, "words", None) or []):
+                wlist.append({"start": getattr(w, "start", None),
+                              "end": getattr(w, "end", None),
+                              "text": getattr(w, "word", "") or ""})
+        meta = {"avg_logprob": getattr(info, "avg_logprob", None),
+                "no_speech_prob": getattr(info, "no_speech_prob", None),
+                "duration": getattr(info, "duration", None)}
+        return text, wlist, meta
 
     def transcribe_bytes(self, blob, ext="wav", workdir=None):
-        """blob -> текст: пишем во временный файл и распознаём."""
+        """blob -> (текст, слова, метаданные)."""
         import tempfile
         fd, path = tempfile.mkstemp(suffix="." + (ext or "wav"), dir=workdir)
         try:
@@ -320,7 +362,7 @@ class Verifier(object):
 
     # ---------------------------------------------------------------- verdict
     def check(self, blob, ext, src_text, kanaize=None):
-        """Проверить кусок: {ok, coverage, cer, heard, verdict}."""
+        """Проверить кусок: {ok, coverage, cer, heard, verdict, span...}."""
         kanaize = kanaize or self.kanaize
         if kanaize is None:
             return {"ok": True, "verdict": "нет разметки", "coverage": 1.0, "cer": 0.0}
@@ -329,17 +371,76 @@ class Verifier(object):
         if n_jp < MIN_MORAS:
             return {"ok": True, "verdict": "коротко", "coverage": 1.0,
                     "cer": 0.0, "n_jp": n_jp}
-        heard_raw = self.transcribe_bytes(blob, ext)
-        heard = kanaize(heard_raw) if heard_raw.strip() else ""
-        res = compare(expected, wild, heard)
+        path = self._write_temp(blob, ext)
+        try:
+            raw, words, meta = self._transcribe_path(path)
+            return self._judge(expected, wild, raw, words, meta, path,
+                               kanaize, n_jp)
+        finally:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+
+    def _write_temp(self, blob, ext):
+        import tempfile
+        fd, path = tempfile.mkstemp(suffix="." + (ext or "wav"))
+        with os.fdopen(fd, "wb") as f:
+            f.write(blob)
+        return path
+
+    def _transcribe_path(self, path):
+        return self.transcribe(path)
+
+    def _judge(self, expected, wild, raw, words, meta, path, kanaize, n_jp):
+        heard = kanaize(raw) if raw.strip() else ""
+        res = compare(expected, wild, heard, limits=self.limits)
         res["heard"] = heard
-        res["heard_raw"] = heard_raw
-        # Язык не тот: короткое слово с латинским чтением ASR уводит в
-        # английский («He come to BIM» вместо «スキャン・トゥ・BIM»). Судить
-        # по такому нельзя — это «не разобрано», а не брак.
-        if _looks_foreign(expected, heard):
-            res["verdict"] = "не разобрано"
-            res["fail"] = False
+        res["heard_raw"] = raw
+        res["avg_logprob"] = meta.get("avg_logprob")
+        res["no_speech_prob"] = meta.get("no_speech_prob")
+        res["duration"] = meta.get("duration")
+        # акустическое выравнивание: где именно потерялся кусок
+        al = None
+        try:
+            import align_ja
+            if align_ja.available():
+                al = align_ja.align(path, expected)
+        except Exception:
+            al = None
+        if al and al.get("reliable"):
+            res["coverage_acoustic"] = al.get("coverage")
+            if al.get("worst"):
+                res["span"] = {"start": al["worst"]["start"],
+                               "end": al["worst"]["end"],
+                               "heard": al["worst"]["text"],
+                               "expected": al["worst"]["text"]}
+            # акустика верит больше, чем текст ASR: сильно разошедшееся
+            # выравнивание — почти наверняка реальная потеря
+            cov_a = al.get("coverage")
+            if cov_a is not None and cov_a < ACOUSTIC_FAIL:
+                if not res.get("fail"):
+                    res["fail"] = True
+                    res["verdict"] = "пропущено (по звуку)"
+                    res.setdefault("sigs", []).append(
+                        "акустика: покрытие %.2f" % cov_a)
+        # ASR неуверен или ушёл в другой алфавит — судить не по чему
+        conf = meta.get("avg_logprob")
+        nos = meta.get("no_speech_prob")
+        dur = meta.get("duration")
+        if conf is not None and conf < LOW_CONFIDENCE:
+            res["verdict"], res["fail"] = "не разобрано (ASR неуверен)", False
+        elif nos is not None and nos > HIGH_NOSPEECH:
+            res["verdict"], res["fail"] = "не разобрано (не похоже на речь)", False
+        elif dur and n_jp and dur < MIN_SEC_PER_MORA * n_jp:
+            res["verdict"], res["fail"] = "не разобрано (слишком коротко)", False
+        elif _looks_foreign(expected, heard):
+            res["verdict"], res["fail"] = "не разобрано", False
+        else:
+            span = locate_span(expected, wild, words)
+            if span:
+                res["span"] = {"start": span[0], "end": span[1],
+                               "heard": span[2], "expected": span[3]}
         res["ok"] = not res.get("fail")
-        res["suspect"] = res["verdict"] == "подозрительно"
+        res["suspect"] = res["verdict"].startswith("подозрительно")
         return res

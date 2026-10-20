@@ -1,4 +1,10 @@
 # -*- coding: utf-8 -*-
+import json
+
+try:                       # словарь английского интерфейса (необязателен)
+    from i18n_en import I18N_EN
+except Exception:          # pragma: no cover
+    I18N_EN = {}
 """anki_web_page.py — HTML/CSS/JS веб-интерфейса AnkiVoice (одним файлом).
 
 Отдельный модуль, чтобы anki_web.py остался читаемым: сервер — про HTTP
@@ -351,6 +357,7 @@ select{cursor:pointer}
       <span class="chip" id="chipTts"><span class="dot"></span>Сервер: …</span>
       <span class="chip" id="chipRun" style="display:none"><span class="dot"></span>Выполняется</span>
       <button class="btn sm ghost" id="btnTheme" title="Сменить тему">◐ Тема</button>
+      <button class="btn sm ghost" id="btnLang" title="Русский / English">EN</button>
     </div>
   </div>
 
@@ -714,6 +721,75 @@ select{cursor:pointer}
 <div class="toast" id="toast"></div>
 
 <script>
+/*__I18N__*/
+let LANG = "ru";
+function trText(s){
+  if(!I18N) return s;
+  const key = s.trim();
+  if(!key) return s;
+  let tr = I18N[key];
+  if(tr === undefined) tr = I18N[key.replace(/\u00a0/g, " ")];
+  if(tr === undefined) tr = I18N[key.replace(/\u00a0/g, " ").replace(/\s+/g, " ")];
+  if(tr === undefined) return s;
+  return s.replace(key, tr);
+}
+function translateNode(n){
+  if(!n || n.nodeType!==3) return;
+  const cur = n.nodeValue;
+  if(LANG!=="en"){
+    // возвращаем русский текст, который запомнили при переводе
+    if(n.__ru !== undefined && cur !== n.__ru) n.nodeValue = n.__ru;
+    return;
+  }
+  const nt = trText(cur);
+  if(nt !== cur){
+    if(n.__ru === undefined) n.__ru = cur;
+    n.nodeValue = nt;
+  }
+}
+function translateDom(root){
+  if(!I18N || !root) return;
+  if(root.nodeType===3){ translateNode(root); return; }
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  const nodes = []; let n;
+  while((n = w.nextNode())) nodes.push(n);
+  for(const x of nodes) translateNode(x);
+  if(root.querySelectorAll){
+    root.querySelectorAll("[title]").forEach(el=>{
+      if(el.__ruTitle === undefined) el.__ruTitle = el.title;
+      const tr = I18N[el.title] || I18N[el.title.replace(/\u00a0/g, " ")];
+      if(tr) el.title = tr; });
+    root.querySelectorAll("[placeholder]").forEach(el=>{
+      if(el.__ruPh === undefined) el.__ruPh = el.placeholder;
+      const tr = I18N[el.placeholder];
+      if(tr) el.placeholder = tr; });
+  }
+}
+function applyLang(){
+  document.documentElement.lang = LANG;
+  const b = $("btnLang");
+  if(b) b.textContent = LANG==="ru" ? "EN" : "RU";
+  translateDom(document.body);
+  if(LANG==="ru"){
+    document.querySelectorAll("[title]").forEach(el=>{
+      if(el.__ruTitle !== undefined) el.title = el.__ruTitle; });
+    document.querySelectorAll("[placeholder]").forEach(el=>{
+      if(el.__ruPh !== undefined) el.placeholder = el.__ruPh; });
+  }
+}
+try{
+  const mo = new MutationObserver(muts=>{
+    if(LANG!=="en") return;
+    for(const m of muts){
+      for(const nd of m.addedNodes){
+        if(nd.nodeType===3) translateNode(nd);
+        else if(nd.nodeType===1) translateDom(nd);
+      }
+      if(m.type==="characterData") translateNode(m.target);
+    }
+  });
+  mo.observe(document.body,{childList:true,subtree:true,characterData:true});
+}catch(e){}
 "use strict";
 const $ = id => document.getElementById(id);
 const esc = s => String(s==null?"":s).replace(/[&<>"]/g,
@@ -772,6 +848,12 @@ function goTab(name){
 }
 
 /* ================================================= тема */
+$("btnLang").onclick = ()=>{
+  LANG = (LANG==="ru") ? "en" : "ru";
+  saveCfg({lang:LANG});
+  applyLang();
+  toast(LANG==="en" ? "English interface" : "Русский интерфейс");
+};
 $("btnTheme").onclick = ()=>{
   const nx = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
   document.documentElement.dataset.theme = nx;
@@ -938,10 +1020,16 @@ async function loadFields(){
       return;
     }
     const g = j.guess || {};
-    // значения по умолчанию из конфига, иначе — автоподбор
+    // сначала профиль этой колоды, потом общие значения конфига,
+    // иначе — автоподбор по названиям полей
     const c = ST.cfg || {};
-    const pick = (key, guess) => (c[key] !== undefined && c[key] !== null && c[key] !== "")
-      ? c[key] : (guess || "");
+    const prof = ((c.profiles) || {})[deck] || {};
+    const pick = (key, guess) => {
+      if (prof[key] !== undefined && prof[key] !== null && prof[key] !== "")
+        return prof[key];
+      return (c[key] !== undefined && c[key] !== null && c[key] !== "")
+        ? c[key] : (guess || "");
+    };
     fillSelect($("f_sent_src"), FIELDS, pick("sentence_src", g.sentence_src));
     fillSelect($("f_sent_aud"), FIELDS, pick("sentence_audio", g.sentence_audio));
     fillSelect($("f_word_src"), FIELDS, pick("word_src", g.word_src));
@@ -972,6 +1060,7 @@ $("btnSaveFields").onclick = ()=>{
   });
   if(!g.reading) g.reading = (ST && ST.reading_off) || "Не подставлять (движок сам)";
   g.deck = $("deck2").value || $("deck").value;
+  g.profile_deck = g.deck;          // сохраняем в профиль этой колоды
   saveCfg(g).then(()=>{
     $("fieldsSaved").textContent = "✓ сохранено";
     $("fieldsSaved").style.color = "var(--ok)";
@@ -1944,6 +2033,8 @@ $("btnUpdate").onclick = checkUpdates;
 /* ================================================= старт */
 (async function init(){
   await loadState();
+  LANG = (ST && ST.cfg && ST.cfg.lang) || "ru";
+  applyLang();
   try{
     await loadSetup();
     // Пока настройка не завершена, мастер открывается при каждом запуске.
@@ -1987,3 +2078,7 @@ $("btnUpdate").onclick = checkUpdates;
 </body>
 </html>
 """
+
+# словарь подставляем в страницу: разметка и динамика переводятся на лету
+HTML = HTML.replace("/*__I18N__*/",
+                    "const I18N = " + json.dumps(I18N_EN, ensure_ascii=False) + ";")

@@ -750,9 +750,20 @@ class Handler(BaseHTTPRequestHandler):
             for k in ("gptsovits_path", "theme", "deck", "voice", "mode",
                       "sentence_src", "sentence_audio", "word_src",
                       "word_audio", "furigana_src", "reading", "limit",
-                      "verify_pronunciation", "asr_model"):
+                      "verify_pronunciation", "asr_model", "lang"):
                 if k in b:
                     cfg[k] = b[k]
+            # настройки полей — ещё и в профиль колоды: у разных колод
+            # названия полей разные
+            field_keys = ("sentence_src", "sentence_audio", "word_src",
+                          "word_audio", "furigana_src", "reading")
+            pdeck = (b.get("profile_deck") or b.get("deck") or "").strip()
+            if pdeck and any(k in b for k in field_keys):
+                profs = cfg.setdefault("profiles", {})
+                prof = profs.setdefault(pdeck, {})
+                for k in field_keys:
+                    if k in b:
+                        prof[k] = b[k]
             ag.save_config(cfg)
             # сразу проверяем папку — говорим, что именно не так
             p = (cfg.get("gptsovits_path") or "").strip()

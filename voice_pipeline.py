@@ -1828,6 +1828,69 @@ def pron_status():
     return v.available()
 
 
+# ------------------------------------------- база: своя норма для голоса
+# Абсолютные пороги не годятся для всех: у одного голоса «норма» 0.95, у
+# другого 0.85, а у модели с тяжёлым чтением — 0.80. Поэтому держим свою
+# базу по голосу (медиана покрытия по принятым кускам) и считаем пороги
+# относительно неё, с абсолютным «полом» снизу.
+BASELINE_FILE = "pron_baseline.json"
+BASE_DROP_FAIL = 0.35       # насколько ниже своей нормы — уже брак
+BASE_DROP_SUSPECT = 0.14    # насколько ниже — сомнительно
+COVER_FLOOR = 0.50          # ниже этого не опускаемся ни при какой базе
+COVER_SUSPECT_FLOOR = 0.62
+
+
+def baseline_path():
+    return os.path.join(os.environ.get("APPDATA") or "",
+                        "AnkiVoice", BASELINE_FILE)
+
+
+def load_baselines():
+    try:
+        with open(baseline_path(), encoding="utf-8") as f:
+            return json.load(f) or {}
+    except Exception:
+        return {}
+
+
+def save_baselines(data):
+    try:
+        d = os.path.dirname(baseline_path())
+        if d and not os.path.isdir(d):
+            os.makedirs(d, exist_ok=True)
+        with open(baseline_path(), "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=1)
+    except Exception as e:
+        print("  (базу сохранить не удалось: %r)" % (e,))
+
+
+def update_baseline(voice, coverages):
+    """Пересчитать норму голоса по принятым кускам."""
+    vals = sorted(float(c) for c in coverages if c is not None and 0 < c <= 1.05)
+    if len(vals) < 20:
+        return None
+    med = vals[len(vals) // 2]
+    low = vals[max(0, int(len(vals) * 0.05))]
+    data = load_baselines()
+    data[voice] = {"median": round(med, 4), "p05": round(low, 4),
+                   "n": len(vals), "at": time.strftime("%Y-%m-%d %H:%M:%S")}
+    save_baselines(data)
+    return data[voice]
+
+
+def baseline_limits(voice):
+    """Пороги для голоса: свои, если база есть, иначе абсолютные."""
+    b = (load_baselines() or {}).get(voice or "")
+    if not b or not b.get("median"):
+        return {}
+    med = float(b["median"])
+    return {
+        "COVER_FAIL": max(COVER_FLOOR, round(med - BASE_DROP_FAIL, 3)),
+        "COVER_SUSPECT": max(COVER_SUSPECT_FLOOR, round(med - BASE_DROP_SUSPECT, 3)),
+    }
+
+
+
 def synth(v, text, seed=42, speed=1.0, _oom_retry=True, src=None,
           verify=None, asr_model=None):
     """Синтез с проверкой качества на входе в колоду.
@@ -1883,6 +1946,7 @@ def synth(v, text, seed=42, speed=1.0, _oom_retry=True, src=None,
         if ok:
             checker = _pron_verifier()
             if checker is not None:
+                checker.limits = baseline_limits(v.get("name"))
                 try:
                     res = checker.check(blob, ext, src or text)
                 except Exception:
@@ -2294,15 +2358,29 @@ def cmd_clone(args):
                 tag=args.tag or args.voice, force=args.force)
 
 
-def _fields_from_args(args):
-    """Собрать конфиг полей из CLI/GUI-аргументов (пустые = дефолт)."""
+def profile_for(deck):
+    """Сохранённые настройки полей для этой колоды (профиль)."""
+    profs = (_read_app_config() or {}).get("profiles") or {}
+    return profs.get(deck or "") or {}
+
+
+def _fields_from_args(args, deck=None):
+    """Поля: аргументы CLI -> профиль колоды -> дефолты пайплайна."""
+    prof = profile_for(deck) if deck else {}
+
+    def pick(key, cli):
+        v = getattr(args, cli, None)
+        if v:
+            return v
+        return prof.get(key) or None
+
     return resolve_fields(
-        sentence_src=getattr(args, "sentence_src", None),
-        sentence_audio=getattr(args, "sentence_audio", None),
-        word_src=getattr(args, "word_src", None),
-        word_audio=getattr(args, "word_audio", None),
-        furigana_src=getattr(args, "furigana_src", None),
-        reading=getattr(args, "reading", None),
+        sentence_src=pick("sentence_src", "sentence_src"),
+        sentence_audio=pick("sentence_audio", "sentence_audio"),
+        word_src=pick("word_src", "word_src"),
+        word_audio=pick("word_audio", "word_audio"),
+        furigana_src=pick("furigana_src", "furigana_src"),
+        reading=pick("reading", "reading"),
     )
 
 
@@ -2368,7 +2446,7 @@ def _chunks(seq, n):
 
 
 def cmd_voice(args):
-    fields = _fields_from_args(args)
+    fields = _fields_from_args(args, deck=args.deck)
     tag = getattr(args, "tag", None)
     if args.deck:
         ids = ac("findNotes", query='deck:"%s"' % args.deck)
@@ -2405,7 +2483,7 @@ def cmd_verify(args):
     фуригана), достаём звук из Anki и сверяем: покрытие ожидаемой речи и
     число расхождений. Печатаем таблицу и пишем отчёт рядом с браком.
     """
-    fields = _fields_from_args(args)
+    fields = _fields_from_args(args, deck=args.deck)
     if args.deck:
         ids = ac("findNotes", query='deck:"%s"' % args.deck)
     elif args.tag:
@@ -2443,9 +2521,15 @@ def cmd_verify(args):
         if not data:
             continue
         res = checker.check(data, "ogg", src_text)
+        voice = ""
+        m2 = re.search(r"tts_(.+?)_\d+_", m.group(1)) if m else None
+        if m2:
+            voice = m2.group(1)
         row = {"note": nid, "field": field, "coverage": res.get("coverage"),
                "cer": res.get("cer"), "verdict": res.get("verdict"),
-               "expected": text, "heard": res.get("heard", "")}
+               "expected": text, "heard": res.get("heard", ""),
+               "src": src_text, "voice": voice, "span": res.get("span"),
+               "avg_logprob": res.get("avg_logprob"), "file": m.group(1) if m else ""}
         report.append(row)
         if res.get("fail") or res.get("suspect"):
             bad += 1
@@ -2459,6 +2543,103 @@ def cmd_verify(args):
             if res.get("heard"):
                 print("     ждали: %s" % text[:60])
                 print("     услышали: %s" % res["heard"][:60])
+    # норму голоса пересчитываем по принятым кускам — на ней строим пороги
+    by_voice = {}
+    for row in report:
+        v = row.get("voice") or ""
+        if v and row.get("verdict") in ("ок", "подозрительно"):
+            by_voice.setdefault(v, []).append(row.get("coverage") or 0.0)
+    for v, covs in by_voice.items():
+        info = update_baseline(v, covs)
+        if info:
+            print("Норма голоса '%s': покрытие p05=%.2f медиана=%.2f (кусков: %d)"
+                  % (v, info["p05"], info["median"], info["n"]))
+    # подозрительные кладём в папку брака: из неё собирается колода
+    # «AnkiVoice_Брак» с полем «Вердикт» — послушать и решить
+    if bad and not getattr(args, "no_review", False):
+        added = 0
+        for row in report:
+            if not (row.get("verdict", "").startswith("пропущено")
+                    or row.get("verdict", "").startswith("не то")
+                    or row.get("verdict", "").startswith("подозрительно")):
+                continue
+            fn = row.get("file") or ""
+            fp = os.path.join(QC_REJECT_DIR, fn)
+            try:
+                if fn and os.path.exists(fp):
+                    with open(fp, "rb") as fh:
+                        blob = fh.read()
+                else:
+                    blob = base64.b64decode(
+                        ac("retrieveMediaFile", filename=fn) or "")
+            except Exception:
+                continue
+            if not blob:
+                continue
+            if not os.path.isdir(QC_REJECT_DIR):
+                os.makedirs(QC_REJECT_DIR, exist_ok=True)
+            with open(fp, "wb") as fh:
+                fh.write(blob)
+            rec = {"file": fn, "text": row.get("expected", ""),
+                   "reasons": ["%s (покрытие %.2f, ошибки %.2f)"
+                               % (row.get("verdict"), row.get("coverage") or 0.0,
+                                  row.get("cer") or 0.0)],
+                   "attempt": 0, "strategy": "проверка содержания",
+                   "coverage": row.get("coverage"), "cer": row.get("cer"),
+                   "note": row.get("note"), "field": row.get("field"),
+                   "span": row.get("span"), "voice": row.get("voice")}
+            with open(os.path.join(QC_REJECT_DIR, "index.jsonl"), "a",
+                      encoding="utf-8") as fh:
+                fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            added += 1
+        if added:
+            print("Подозрительных в папке брака: %d — собери колоду: "
+                  "pipeline.bat qc-deck" % added)
+
+    # варианты: переозвучиваем подозрительное несколькими сидами, чтобы
+    # выбрать лучший на слух
+    nvar = int(getattr(args, "variants", 0) or 0)
+    if nvar and bad:
+        print("\nДелаю по %d вариантов на каждое подозрительное..." % nvar)
+        v = get_voice("narrator")
+        for row in report:
+            if not row.get("verdict", "").startswith(("пропущено", "не то",
+                                                      "подозрительно")):
+                continue
+            voice = row.get("voice") or "narrator"
+            try:
+                vv = get_voice(voice)
+            except Exception:
+                vv = v
+            text = row.get("expected") or ""
+            if not text:
+                continue
+            for k in range(1, nvar + 1):
+                try:
+                    blob, ext = synth(vv, text, seed=42 + k * 17,
+                                      src=row.get("src") or text)
+                except SystemExit:
+                    continue
+                fn = "var_%d_%d_%d_%d.%s" % (row.get("note") or 0, k,
+                                              int(time.time()) % 100000,
+                                              k, ext)
+                try:
+                    if not os.path.isdir(QC_REJECT_DIR):
+                        os.makedirs(QC_REJECT_DIR, exist_ok=True)
+                    with open(os.path.join(QC_REJECT_DIR, fn), "wb") as fh:
+                        fh.write(blob)
+                    rec = {"file": fn, "text": text,
+                           "reasons": ["вариант %d на слух" % k],
+                           "attempt": k, "strategy": "вариант %d (сид %d)"
+                                       % (k, 42 + k * 17),
+                           "note": row.get("note"), "field": row.get("field"),
+                           "coverage": row.get("coverage")}
+                    with open(os.path.join(QC_REJECT_DIR, "index.jsonl"), "a",
+                              encoding="utf-8") as fh:
+                        fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                except Exception as e:
+                    print("  вариант не сохранился: %r" % (e,))
+
     print("\nПроверено %d кусков, сомнительных: %d" % (len(report), bad))
     if report:
         try:
@@ -2556,11 +2737,24 @@ def cmd_qc_deck(args):
                     data=base64.b64encode(blob).decode("ascii"))
         fname = stored or r["file"]
         head = "【%d】%s" % (r["attempt"], r["text"] or "(пусто)")
-        body = ("Причина: %s\nСтратегия: %s\nФайл: %s (%.1f КБ)"
+        extra = ""
+        if r.get("coverage") is not None:
+            extra = ("\nПокрытие: %.2f, ошибки: %.2f"
+                     % (r.get("coverage") or 0.0, r.get("cer") or 0.0))
+        if r.get("note"):
+            extra += "\nКарточка: %d, поле: %s" % (r["note"], r.get("field", ""))
+        if r.get("span"):
+            sp = r["span"]
+            extra += ("\nПроблемный участок: %.1f–%.1f c (услышали «%s»)"
+                      % (sp.get("start") or 0.0, sp.get("end") or 0.0,
+                         sp.get("heard", "")))
+        body = ("Причина: %s\nСтратегия: %s%s\nФайл: %s (%.1f КБ)"
                 % ("; ".join(r["reasons"]) or "не указана",
-                   r.get("strategy", "?"), fname, len(blob) / 1024))
+                   r.get("strategy", "?"), extra, fname, len(blob) / 1024))
+        tail = ("\n\nВердикт (верно / ложное срабатывание): "
+                if not verdict_field else "")
         fields = {front: head,
-                  back: "%s\n\n[sound:%s]" % (body, fname)}
+                  back: "%s%s\n\n[sound:%s]" % (body, tail, fname)}
         if verdict_field:
             fields[verdict_field] = ""
         ac("addNote", note={
@@ -2574,6 +2768,92 @@ def cmd_qc_deck(args):
     print("Послушай каждую и впиши в поле «Вердикт»: «верно» либо "
           "\"ложное срабатывание\" — по этим записям подстроятся пороги.")
     return made
+
+
+
+def cmd_verdicts(args):
+    """Прочитать твои вердикты из колоды «Брак» и посчитать статистику.
+
+    Вердикт пишешь в поле «Вердикт» карточки: «верно» (звук действительно
+    плохой) или «ложное срабатывание» (звук нормальный, детектор ошибся).
+    По этим отметкам видно, где наши пороги стоит подвинуть.
+    """
+    deck = args.deck or "AnkiVoice_Брак"
+    ids = ac("findNotes", query='deck:"%s"' % deck)
+    if not ids:
+        print("Колода '%s' пуста — нечего читать." % deck)
+        return
+    notes = notes_info(ids)
+    # индекс: имя файла -> запись (там лежит покрытие)
+    index = {}
+    idx_path = os.path.join(QC_REJECT_DIR, "index.jsonl")
+    try:
+        with open(idx_path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    r = json.loads(line)
+                except Exception:
+                    continue
+                if r.get("file"):
+                    index[r["file"]] = r
+    except Exception:
+        pass
+    true_bad, false_alarm, unknown = [], [], []
+    for n in notes:
+        f = n.get("fields") or {}
+        verdict = ""
+        for k, v in f.items():
+            val = (v.get("value") or "").strip()
+            if k.lower() in ("вердикт", "verdict", "комментарий", "comment"):
+                verdict = val
+                break
+            # в модели «Простая» отдельного поля нет — ищем пометку в тексте
+            if not verdict and ("Вердикт" in val or "верно" in val.lower()
+                                 or "ложное" in val.lower()):
+                verdict = val
+        if not verdict:
+            continue
+        cov = None
+        for k, v in f.items():
+            m = re.search(r"Файл:\s*(\S+)", v.get("value") or "")
+            if m:
+                rec = index.get(m.group(1))
+                if rec:
+                    cov = rec.get("coverage")
+        low = verdict.lower()
+        item = (cov, n["noteId"])
+        if "ложн" in low or "нет" in low or "ok" in low:
+            false_alarm.append(item)
+        elif "верно" in low or "да" in low or "плох" in low:
+            true_bad.append(item)
+        else:
+            unknown.append(item)
+    total = len(true_bad) + len(false_alarm) + len(unknown)
+    print("Колода '%s': вердиктов %d из %d карточек" % (deck, total, len(notes)))
+    print("  брак подтверждён: %d, ложных срабатываний: %d, без ответа: %d"
+          % (len(true_bad), len(false_alarm), len(unknown)))
+    def covs(lst):
+        return sorted(c for c, _ in lst if c is not None)
+    cb, cf = covs(true_bad), covs(false_alarm)
+    if cb:
+        print("  у брака покрытие: min=%.2f med=%.2f max=%.2f"
+              % (cb[0], cb[len(cb)//2], cb[-1]))
+    if cf:
+        print("  у ложных срабатываний: min=%.2f med=%.2f max=%.2f"
+              % (cf[0], cf[len(cf)//2], cf[-1]))
+        print("  -> порог «подозрительно» стоит поднять до %.2f"
+              % max(0.60, cf[-1] + 0.03))
+    if cb:
+        print("  -> порог «брак» можно поставить на %.2f"
+              % max(0.45, min(cb) + 0.03))
+    if unknown:
+        print("  без ответа: %d карточек (послушай и допиши «верно»/«ложное»)"
+              % len(unknown))
+    return total
+
 
 
 def cmd_check(args):
@@ -2940,6 +3220,14 @@ def main():
     p.add_argument("--furigana-src", default=None)
     p.add_argument("--reading", default="off")
     p.add_argument("--asr-model", default=None)
+    p.add_argument("--variants", type=int, default=0,
+                   help="сколько вариантов синтеза сделать на каждое "
+                        "подозрительное (для выбора на слух)")
+    p.add_argument("--no-review", action="store_true",
+                   help="не складывать подозрительное в папку брака")
+
+    p = sub.add_parser("verdicts", help="прочитать твои вердикты из колоды «Брак»")
+    p.add_argument("--deck", default="AnkiVoice_Брак")
 
     p = sub.add_parser("make-deck", help="клонировать + озвучить + проверить")
     p.add_argument("--voice", required=True)
@@ -2993,7 +3281,8 @@ def main():
               "serve": cmd_serve, "test": cmd_test,
               "clone": cmd_clone, "voice": cmd_voice, "make-deck": cmd_make_deck,
               "check": cmd_check, "scan": cmd_scan, "qc-deck": cmd_qc_deck,
-              "verify": cmd_verify, "selftest": cmd_selftest}[args.cmd](args)
+              "verify": cmd_verify, "verdicts": cmd_verdicts,
+              "selftest": cmd_selftest}[args.cmd](args)
     if args.cmd == "check" and result is False:
         sys.exit(1)
 

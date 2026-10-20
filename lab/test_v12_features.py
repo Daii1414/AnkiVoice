@@ -4,6 +4,7 @@
 Ничего не требует от машины: сеть и GPT-SoVITS подменяются заглушками.
 """
 import hashlib
+import json
 import os
 import sys
 import tempfile
@@ -232,6 +233,75 @@ def test_voice_args_guess_fallback():
         aw.deck_fields = old
 
 
+def test_baseline_relative_limits():
+    """Пороги считаются от своей нормы голоса, но не ниже пола."""
+    import tempfile as _tf
+    old_appdata = os.environ.get("APPDATA")
+    tmp = _tf.mkdtemp(prefix="av_baseline_")
+    os.environ["APPDATA"] = tmp
+    try:
+        os.makedirs(os.path.join(tmp, "AnkiVoice"), exist_ok=True)
+        with open(os.path.join(tmp, "AnkiVoice", "pron_baseline.json"), "w",
+                  encoding="utf-8") as f:
+            json.dump({"narrator": {"median": 0.95, "p05": 0.9, "n": 100}},
+                      f, ensure_ascii=False)
+        lim = vp.baseline_limits("narrator")
+        check(abs(lim["COVER_FAIL"] - 0.60) < 0.001,
+              "порог брака от нормы: %r" % lim)
+        check(abs(lim["COVER_SUSPECT"] - 0.81) < 0.001,
+              "порог подозрительного от нормы: %r" % lim)
+        # другого голоса — абсолютные пороги
+        check(vp.baseline_limits("kakuzu") == {}, "без базы — абсолютные пороги")
+        # пол: норма не должна опустить порог ниже пола
+        with open(os.path.join(tmp, "AnkiVoice", "pron_baseline.json"), "w",
+                  encoding="utf-8") as f:
+            json.dump({"narrator": {"median": 0.70, "n": 100}}, f, ensure_ascii=False)
+        lim2 = vp.baseline_limits("narrator")
+        check(lim2["COVER_FAIL"] >= vp.COVER_FLOOR, "порог не ниже пола: %r" % lim2)
+    finally:
+        if old_appdata is None:
+            os.environ.pop("APPDATA", None)
+        else:
+            os.environ["APPDATA"] = old_appdata
+
+
+def test_profile_fields_per_deck():
+    """У каждой колоды — свои настройки полей."""
+    import tempfile as _tf
+    old_appdata = os.environ.get("APPDATA")
+    tmp = _tf.mkdtemp(prefix="av_profile_")
+    os.environ["APPDATA"] = tmp
+    try:
+        os.makedirs(os.path.join(tmp, "AnkiVoice"), exist_ok=True)
+        with open(os.path.join(tmp, "AnkiVoice", "config.json"), "w",
+                  encoding="utf-8") as f:
+            json.dump({"profiles": {"Колода A": {"sentence_src": "Text",
+                                                "word_src": "Term"}}},
+                      f, ensure_ascii=False)
+        prof = vp.profile_for("Колода A")
+        check(prof.get("sentence_src") == "Text", "профиль колоды: %r" % prof)
+
+        class _A:
+            deck = "Колода A"
+            sentence_src = None
+            sentence_audio = None
+            word_src = None
+            word_audio = None
+            furigana_src = None
+            reading = None
+        f = vp._fields_from_args(_A(), deck="Колода A")
+        check(f["sentence_src"] == "Text", "поля из профиля: %r" % f)
+        check(f["word_src"] == "Term", "слово из профиля: %r" % f)
+        # колода без профиля — дефолты пайплайна
+        f2 = vp._fields_from_args(_A(), deck="Колода B")
+        check(f2["sentence_src"] == "Sentence", "дефолт без профиля: %r" % f2)
+    finally:
+        if old_appdata is None:
+            os.environ.pop("APPDATA", None)
+        else:
+            os.environ["APPDATA"] = old_appdata
+
+
 def test_setup_status():
     eng = tempfile.mkdtemp(prefix="anki_voice_engine_")
     for name in ("g.ckpt", "s.pth", "r.wav"):
@@ -284,6 +354,7 @@ def main():
              test_busy_download_no_deadlock, test_installer_ships_runtime_modules,
              test_pronunciation_compare, test_split_method_is_japanese_safe,
              test_pending_notes_limit, test_voice_args_guess_fallback,
+             test_baseline_relative_limits, test_profile_fields_per_deck,
              test_setup_status]
     failed = 0
     for t in tests:
