@@ -239,7 +239,7 @@ last. In practice:
 * a deck with `ExpressionFurigana` → “Word furigana ← field” =
   `ExpressionFurigana`, “Reading source” = “Do not substitute”;
 * a deck without furigana → leave both rows at their defaults: the word and
-  the sentence are read by the built-in Haqumei core, with Sudachi 0.7 +
+  the sentence are read by the built-in Haqumei core, with Sudachi 0.7 and
   UniDic 20261015 as the fallback.
 
 In the console these are the flags `--furigana-src FIELD` (furigana of the main
