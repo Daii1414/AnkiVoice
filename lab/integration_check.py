@@ -14,8 +14,9 @@ import subprocess
 import sys
 import tempfile
 
-sys.path.insert(0, r"E:\TTS-проект")
-os.chdir(r"E:\TTS-проект")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+os.chdir(ROOT)
 import voice_pipeline as vp  # noqa: E402
 import numpy as np  # noqa: E402
 

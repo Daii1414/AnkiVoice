@@ -1,7 +1,8 @@
 """Юнит-тест критерия качества на реальных измерениях из колод."""
 import sys, os
-sys.path.insert(0, r"E:\TTS-проект")
-os.chdir(r"E:\TTS-проект")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+os.chdir(ROOT)
 import voice_pipeline as vp
 
 # (текст, длительность, речь, ожидание)
@@ -41,3 +42,4 @@ for text, dur, snd, want in CASES:
           % (mark, text[:30], dur, snd, "пропустить" if got else "мусор",
              "пропустить" if want else "мусор"))
 print("\nошибок: %d/%d" % (bad, len(CASES)))
+sys.exit(1 if bad else 0)

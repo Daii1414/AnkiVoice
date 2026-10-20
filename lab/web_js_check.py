@@ -10,7 +10,7 @@ import subprocess
 import sys
 import tempfile
 
-sys.path.insert(0, r"E:\TTS-проект")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from anki_web_page import HTML  # noqa: E402
 
 m = re.search(r"<script>(.*?)</script>", HTML, re.S)

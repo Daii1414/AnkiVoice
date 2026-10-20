@@ -49,6 +49,7 @@ Name: "desktopicon"; Description: "Создать значок на рабоче
 Source: "{#MyFiles}\AnkiVoice.exe";         DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyFiles}\pipeline.bat";          DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyFiles}\README.md";            DestDir: "{app}"; Flags: ignoreversion
+Source: "{#MyFiles}\README.en.md";         DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyFiles}\PROJECT.md";           DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyFiles}\LICENSE";              DestDir: "{app}"; Flags: ignoreversion
 ; пайплайн (exe только запускает его — живёт на диске, обновляется git pull)

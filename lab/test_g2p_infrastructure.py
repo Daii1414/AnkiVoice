@@ -12,7 +12,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, r"E:\TTS-проект\lab\pylibs")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "pylibs"))
 
 from domain_dict import DomainDictionary, ReadingSource
 from g2p_provenance import ReadingCandidate, best_candidate, is_high_confidence, confidence_from_delta
@@ -155,7 +155,7 @@ def test_option1_vs_option2():
         ("合印", "あいじるし", True),   # Опция 1 должна выиграть
         ("合印", "あいいん", True),     # Опция 1 (другое чтение)
         ("六百", None, False),           # Только опция 2
-        ("生花", "いけばна", True),     # Опция 1 (domain override)
+        ("生花", "いけばな", True),     # Опция 1 (domain override)
         ("今日", None, False),           # Только опция 2
         ("殿", None, False),             # Только опция 2
     ]
