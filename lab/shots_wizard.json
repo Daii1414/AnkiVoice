@@ -1,0 +1,4 @@
+[
+  { "out": "wizard-dark.png", "url": "http://127.0.0.1:8796/", "tab": "voice", "theme": "dark",
+    "wait": "document.querySelectorAll('#deck option').length>0" }
+]

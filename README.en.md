@@ -17,9 +17,9 @@
 </p>
 
 <p align="center"><b>Local Japanese audio for Anki decks, voiced by GPT-SoVITS.</b><br>
-Reads kanji with a context-aware dictionary (Haqumei), substitutes the trusted
-reading from the card's furigana, and writes finished ogg files straight into
-Anki fields. The internet is only needed to download it.</p>
+The engine reads the kanji itself - connected, in the context of the sentence -
+while the reading of the main term comes from the card's furigana. Finished
+ogg files land straight in Anki fields. The internet is only needed to download it.</p>
 
 <p align="center">
   <a href="#features">Features</a> •
@@ -42,6 +42,7 @@ Anki fields. The internet is only needed to download it.</p>
 - [Quick start](#quick-start)
 - [Interface (four tabs)](#interface-four-tabs)
 - [What's new in 1.2](#whats-new-in-12)
+- [Pronunciation check](#pronunciation-check)
 - [How kanji are read](#how-kanji-are-read)
 - [How text becomes hiragana](#how-text-becomes-hiragana)
 - [Card fields](#card-fields)
@@ -60,34 +61,35 @@ Anki fields. The internet is only needed to download it.</p>
 
 | | |
 |---|---|
-| 🎧 **Card audio** | Writes `<audio>` with the voiced sentence and word straight into Anki fields. GPT-SoVITS clones the voice itself. |
-| 📖 **Smart reading** | Kanji are read by Haqumei in sentence context; the card's furigana is the source of truth for the main word. |
-| 🧪 **Quality control** | QC v2 measures several independent signals (silence, speech gaps, duplicated speech, clipping, level, speed) and re-synthesizes rejects on its own. |
+| 🎧 **Deck dubbing** | Writes `<audio>` with the sentence and the word straight into Anki fields. GPT-SoVITS clones the voice itself. |
+| 📖 **Two reading modes** | The engine reads the kanji itself - connected, in context - while the main term keeps the reading from the card's furigana. |
+| 🧩 **Per-deck settings** | Fields and reading mode belong to a deck: switch decks and its settings come with them. |
+| 🧪 **Quality control** | QC v2 measures several independent signals (silence, speech gaps, duplicate speech, clipping, level, speed) and re-synthesizes rejects on its own. |
+| 🎙 **Pronunciation check** | The app listens to its own audio and compares it with the text, showing where the sentence diverged. Advice, not a verdict - you decide. |
 | 🧙 **First-run wizard** | Four steps: GPT-SoVITS folder, AnkiConnect, server, test phrase. It tells you what to download, where to put it and what to click. |
-| 🔄 **In-app updates** | “Check for updates”: changelog, installer download and a mandatory SHA256 check. |
+| 🔄 **In-app updates** | "Check for updates": changelog, installer download and a mandatory SHA256 check. |
+| 🌐 **Two languages** | The whole interface in English and Russian - switch with the EN button in the header. |
 | 🔒 **Fully local** | The page works offline, without a CDN. The only outbound request is the update check. |
-| 🧩 **Transparent** | No telemetry, no accounts. AGPL-3.0 — the sources are open. |
-
+| 🧩 **Transparent** | No telemetry, no accounts. AGPL-3.0 - the sources are open. |
 ## How it works
 
 ```
 Anki card
    │
-   ├─► ExpressionFurigana field ──► trusted reading of the main word
-   │
-   ├─► kanaize(): Haqumei in sentence context → hiragana
-   │      (Sudachi + UniDic and pyopenjtalk as fallbacks)
+   ├─► reading mode (a per-deck setting)
+   │      ├─► "kanji only": the engine reads the kanji itself
+   │      └─► "kanji + reading from furigana": the term keeps the card's reading
    │
    ├─► GPT-SoVITS (127.0.0.1:9880) ──► ogg
    │
-   └─► QC v2: signal check ──► card in Anki
+   ├─► QC v2: quality signals ──► re-synthesis of rejects
+   │
+   └─► pronunciation check (advice): ASR compares audio with text
 ```
 
-AnkiVoice does not copy the engine's code:
-[GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) runs as a normal local
-server, the app sends it text and receives the audio. That is why GPT-SoVITS's
-own web UI and any of its voices keep working alongside AnkiVoice.
-
+AnkiVoice does not copy the engine's code: [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS)
+runs as an ordinary local server, the app sends it text and takes the sound back.
+So the engine's own web interface and any of its voices keep working next to it.
 ## Requirements
 
 1. **Windows 10/11** and a CUDA GPU (6 GB of VRAM is comfortable).
@@ -212,142 +214,106 @@ Light theme — the same tabs: [Dubbing](doc/shots/voice-light.png),
 
 ## What's new in 1.2
 
-* **First-run setup wizard** — four steps (engine, AnkiConnect, server, test
-  phrase) with concrete instructions: what to download, where to unpack it and
-  what to click. Until the setup is finished, the wizard opens by itself on
-  every launch.
-* **Update check** — the “Check for updates” button on the “Приложение” tab
-  shows the changelog, downloads the installer and **always** verifies its
-  SHA256 (if the release has no hash, downloading is refused). The hash is
-  checked once more before the installer is started.
-* **Live diagnostics** — the “Приложение” tab shows the state of the engine,
-  Anki, the server, the voices and the test.
-* **The installer now ships the reading subsystems** — five modules from `lab/`
-  are added to the installed app: the reading system (provenance, domain
-  dictionary, resolver) and QC v2. They never reached the installer before, so
-  the app silently ran on the simple “is there sound” criterion.
+* **First-run wizard** - four steps (engine, AnkiConnect, server, test phrase)
+  and concrete instructions: what to download, where to unpack it and what to
+  click. Until the setup is finished the wizard opens on every start.
+* **Update check** - the "Check for updates" button on the "App" tab shows the
+  changelog, downloads the installer and **always** verifies its SHA256
+  (without a hash in the release the download is refused). The hash is checked
+  again before the installer starts.
+* **Live diagnostics** - the "App" tab shows the state of the engine, Anki,
+  the server, the voices and the test phrase.
+* **The installer ships the reading stack** - 7 modules from `lab/` are now in
+  the installed app: the reading system (provenance, domain dictionary,
+  resolver), QC v2 and the pronunciation check. They used to be missing, and
+  the app silently worked on the simple "has audio" criterion.
+* **Two reading modes** - the engine reads the kanji itself, the term keeps
+  the reading from the furigana. The mode is set **per deck** (in the deck
+  profile): difficult decks keep the exact mode, the rest plain kanji.
+* **Pronunciation check in the app** - it recognizes its own audio, compares
+  it with the text and shows where the sentence diverged. You decide: the
+  "Брак" deck and the labels in it.
+* **English interface** - the EN button in the header switches the language.
+* **The local server accepts only its own requests** - it checks the address,
+  the origin and a per-run key, so another site in the same browser cannot
+  start dubbing or close the app.
 
-The full list of changes is in [CHANGELOG.md](CHANGELOG.md) and in the
-[v1.2 release](https://github.com/Daii1414/AnkiVoice/releases/tag/v1.2).
+The full list of changes is in [CHANGELOG.md](CHANGELOG.md) and in
+[release v1.2](https://github.com/Daii1414/AnkiVoice/releases/tag/v1.2).
+## Pronunciation check
 
-### Pronunciation check
+GPT-SoVITS sometimes **loses a chunk of a sentence or invents extra**: the
+duration looks normal, the sound is speech, but the content is wrong. A
+"silence / length / duplicate" check cannot see that.
 
-GPT-SoVITS sometimes **loses a chunk of a phrase or invents an extra one**:
-the duration is fine, the sound is speech, but the content is not. A
-silence/length/loop check cannot see that — on 43 voiced cards it happened to
-roughly one sentence out of twenty.
+On the "Dubbing" tab, **"Check pronunciation"**: the app recognizes its own
+audio (faster-whisper) and compares it with the text it was asked to say. The
+divergence is reported to a fraction of a second - you see right away where the
+sentence went apart.
 
-On the “Озвучка” tab, **“Проверять произношение”** (Check pronunciation)
-makes the app recognize its own audio and compare it with the text.
+**This is advice, not a verdict.** Measured on 27 labeled cards: 2 confirmed
+failures against 25 false alarms - the recognizer mangles domain terms
+("だいくはこうさぶ" → "ないくはこうさぶん"), and by text alone they cannot be
+told apart from a real mistake. So the check
 
-* **the model lost a chunk** — the app re-synthesizes with another seed by
-  itself and keeps the best take;
-* **“·” in a furigana reading** no longer breaks the synthesis: it separates
-  morphemes, it is not something to pronounce;
-* **still in doubt** — the card is tagged `av_suspect` (find it in Anki with
-  `tag:av_suspect`) and the audio is saved to `lab\rejected` so you can
-  listen and decide.
+* does not reject a card and does not tag it;
+* prints the coverage, the error rate and the diverging span in the log;
+* collects the doubtful pieces into a **"Брак" (Rejects) deck**, three
+  variants each. Listen and write down "верно" or "ложное срабатывание".
 
-Two buttons on the “Озвучка” tab:
+Three buttons on the "Dubbing" tab:
 
-* **“Проверить произношение”** (Check pronunciation) — recognizes the cards you
-  have already voiced and shows where the model lost a chunk. Doubtful cards
-  get the `av_suspect` tag right away;
-* **“Переделать подозрительные”** (Re-do doubtful ones) — re-voices only the
-  tagged cards, picking the best take by content again.
+* **"Check pronunciation"** - recognizes the cards you have already voiced;
+* **"Build the “Брак” deck"** - collects the doubtful pieces with variants;
+* **"Verdict summary"** - counts your labels and shows where our thresholds
+  sit too low.
 
-**Two ways to read — and the mixed one is now the default.** In the
-“Источник чтения” select:
-
-* **Кандзи + чтение термина из фуриганы** — the ordinary text is read from the
-  kanji (context preserved, the words stay connected) and the term is read
-  exactly as the furigana says. Measured on the same 150 sentences: the
-  pronunciation check flags 2 here, against 4 for the old all-kana mode and 12
-  for the pure kanji one. **This is the default — and it needs the furigana
-  field to be filled in (see “Deck fields”).**
-* **Только кандзи (движок читает сам)** — the engine gets the kanji and reads
-  everything itself, terms included. It sounds the most natural (7 of 10
-  listeners preferred it over the all-kana mode), but the model then picks its
-  own reading for the term — which may differ from the furigana on the card.
-
-**We check sentences, not words.** An isolated word is transcribed unreliably:
-the measured “coverage” of a real failure and of a false alarm overlap
-completely, so there is no threshold that separates them. Words are still
-guarded by the acoustic QC (silence, tempo, length); the content check runs on
-sentences, where the recogniser has context.
-
-**The “Брак” (Rejects) deck — for your ears.** Doubtful pieces are collected
-into `AnkiVoice_Брак`: a card with the expected text, the reason, the coverage
-and the sounds — the original take and three variants side by side on one card.
-Type “верно” (the sound really is bad) or “ложное сработавание” (the sound is fine)
-into the “Вердикт” field and `pipeline.bat verdicts` shows whether our
-thresholds are too low or too high.
-
-**Where exactly it was lost.** With the Japanese acoustic model
-(`reazon-research/japanese-wav2vec2-base-rs35kh`, ~370 MB in the HuggingFace
-cache) the app aligns the expected text straight against the audio and shows
-the time span where the sentence diverged. Without the model it falls back to
-comparing the recognized text — coarser, but it still works.
+**We check sentences, not words.** An isolated word is transcribed
+unreliably: the zones "real failure" and "false alarm" overlap completely. The
+word is guarded by the acoustic QC (silence, tempo, length).
 
 **Thresholds are per voice.** One voice may sit at 0.95 coverage, another at
 0.85. The app measures the norm from the accepted pieces and compares against
 it, not against one global number.
 
-**Fields are per deck.** Field settings are stored in a per-deck profile: pick
-another deck and its fields are applied.
-
-On a real collection: 56 voiced pieces, 4 of them broken; after the automatic
-re-do only 1 was left (an exotic term worth listening to). No false positives
-on the checked deck.
-
-Requirements: `faster-whisper` in the GPT-SoVITS Python and one downloaded
-model (in the HuggingFace cache). Without them the toggle simply does nothing
-and dubbing works as before. One clip costs about 0.5 s on a GPU.
-
-Separately about the text: it is no longer split the Chinese way (`cut5`) —
-that is exactly where chunks were lost. Short sentences (a typical card) are
-synthesized whole, long ones are split at “。”.
-
+What it needs: `faster-whisper` in the GPT-SoVITS python and one downloaded
+model (in the HuggingFace cache). Without them the check simply does not run
+and dubbing goes on as usual. One piece takes about 0.5 s on a GPU.
 ## How kanji are read
 
-GPT-SoVITS accepts text only, so somebody has to read the kanji. On the
-“Поля колоды” tab that is the job of **two different rows**, and they are easy
-to mix up:
+GPT-SoVITS can read kanji on its own - but on rare terms it picks its own
+reading. So there are two modes, switched in "Deck fields" → "Reading source":
 
-| Row | What it does | Default |
+| Mode | What the engine gets | When to pick it |
 |---|---|---|
-| **Word furigana ← field** | Reads **only the main word** strictly from that field's furigana; everything else is read automatically. Always active when a field is selected, even if “Reading source” is set to “Do not substitute” | `ExpressionFurigana` |
-| **Reading source** | The older way: substitutes a ready-made reading **into the whole sentence**, not only into the main word. Switched on only by picking a field explicitly | “Do not substitute” (`off`) |
+| **Kanji + the term's reading from the furigana** (default) | The whole text in kanji, except the main term - its reading is substituted from the furigana field | Study decks: the term sounds exactly as written on the card, and the rest stays connected and in context |
+| **Kanji only (the engine reads it)** | The whole text in kanji, nothing substituted | Decks with ordinary words: the sound is the most connected |
 
-If both rows are set, the **furigana wins** for the main word — it is applied
-last. In practice:
+The mode is a **per-deck setting**: it is stored in the deck profile together
+with the fields. Leave difficult decks on the exact mode, the rest on plain
+kanji.
 
-* a deck with `ExpressionFurigana` → “Word furigana ← field” =
-  `ExpressionFurigana`, “Reading source” = “Do not substitute”;
-* a deck without furigana → leave both rows at their defaults: the word and
-  the sentence are read by the built-in Haqumei core, with Sudachi 0.7 and
-  UniDic 20261015 as the fallback.
+What "exact" and "plain" cost, measured on 150 sentences and a blind A/B on 10
+of them:
 
-In the console these are the flags `--furigana-src FIELD` (furigana of the main
-word) and `--reading off|FIELD` (a ready-made reading for the whole sentence).
+* in sound, plain kanji wins - 7 votes out of 10;
+* but in 12 sentences out of 150 the model read the term differently from the
+  card (`麻院[あさすさ]` → "アサイン"). In the mixed mode it is 2 out of 150.
 
-Safety rules for the substitution: hiragana/katakana only, only if the word is
-found in the sentence, otherwise the card is left as is.
+The card's furigana is the source of truth for the main term: the
+`ExpressionFurigana` field (or another one, if the deck names it
+differently). Substitution rules: clean kana only, only when the term is
+found in the sentence as a whole, otherwise the card is left as it is.
 
-**What furigana buys you (measured on real cards):**
-
-* readings from the field and the automatic Haqumei reading **match in 77% of
-  cases** (a random sample of 100 cards with non-empty furigana);
-* for domain terms the **field is more precise**: `亜鉛鍍金` → あえん**めっき**
-  (the core gives あえんときん), `I形梁` → あいがた**ば**り, `IAEE` → by letters;
-* sometimes the field contains junk or a list of readings — then automation
-  saves the day;
-* the rest is markup, spaces and variants that sound the same.
-
-Bottom line: a deck with `ExpressionFurigana` → furigana on; without furigana →
-both rows by default, Haqumei reads (Sudachi is the fallback).
-
+In the console this is the `--reading mix|asis` flag.
 ## How text becomes hiragana
+
+GPT-SoVITS parses Japanese with its own morphology (MeCab) and gets rare
+terms and katakana acronyms wrong. That is why the `kanaize()` pipeline
+prepares the text itself - **except in the "kanji only" mode, where the
+text goes to the engine as it is**: there is nothing to prepare, the
+engine reads it.
+
 
 GPT-SoVITS parses Japanese with its own morphology (MeCab) and gets rare terms
 and katakana abbreviations wrong — that is why the `kanaize()` pipeline
@@ -386,27 +352,28 @@ write the audio is configurable (GUI: the “Поля колоды” tab; conso
 --word-src "Expression"               field with the word (furigana parsing works for Expression)
 --word-audio "ExpressionAudio"        field the word audio goes to
 --furigana-src "ExpressionFurigana"   field with the furigana of the main word
---reading off|FIELD                   a ready-made reading for the whole sentence (see above)
+    --reading mix|asis            reading mode (see above)
 ```
 
 ## Console
 
-`pipeline.bat` is the same thing in a console; it finds the engine folder on
+`pipeline.bat` is the same thing in the console; it finds the engine folder on
 its own:
 
 ```
-pipeline.bat list              list the voices
-pipeline.bat selftest          check the environment (run this when in trouble)
+pipeline.bat list              list of voices
+pipeline.bat selftest          check the environment (run it when in trouble)
 pipeline.bat test --voice madara --text "こんにちは"
 pipeline.bat voice --voice madara --deck "Архитектура" --mode both
-pipeline.bat check --deck "Архитектура"          full deck check
-pipeline.bat check --deck "Архитектура" --fast   same without downloading audio
+pipeline.bat verify --deck "Архитектура"    check the pronunciation of what is voiced
+pipeline.bat qc-deck                         build the "Брак" deck with variants
+pipeline.bat verdicts                        summary of your verdicts
+pipeline.bat check --deck "Архитектура"          full check of a deck
+pipeline.bat check --deck "Архитектура" --fast   the same without downloading audio
 pipeline.bat scan --apply     find voices in the engine and add them to voices.json
-pipeline.bat doctor           short environment diagnostics
 ```
 
-The exe has diagnostics too: `AnkiVoice.exe doctor`.
-
+Diagnostics are available in the exe as well: `AnkiVoice.exe doctor`.
 ## Updates
 
 * **From the app**: the “Приложение” tab → **“Проверить обновления”**. The
@@ -473,7 +440,13 @@ python lab/test_g2p_infrastructure.py
 python lab/test_v12_features.py
 python lab/web_js_check.py
 python lab/integration_check.py
+python lab/readme_check.py
 ```
+
+`lab/readme_check.py` compares the READMEs with the code: the files listed in
+the layout table, the images, the table-of-contents anchors, the console
+commands, the number of reading modes and the modules shipped with the
+installer. If they drift apart, it fails.
 
 `lab/robust_tests.py` — 10 robustness checks of the pipeline; it needs a
 running Anki. CI runs everything else on every push
@@ -494,10 +467,13 @@ windows-latest.
 | `sudachi_g2p.py` | Fallback “reader” helper: SudachiPy 0.7 + UniDic dictionary |
 | `g2p_core.py` | Haqumei reading core: word in sentence context, pron form |
 | `kana_stress.py` | A battery of 63 difficult words for reading checks |
+| `i18n_en.py` | Dictionary of the English interface (RU/EN) |
+| `lab/pron_check.py` | Pronunciation check: recognition, coverage, quarantine, locating the divergence |
+| `lab/align_ja.py` | Experimental acoustic alignment with a Japanese CTC model (off by default) |
 | `pyruntime.zip` | Bundled Python + Haqumei 0.12.2 + SudachiPy 0.7 (~44 MB, unpacks itself) |
 | `sudachidict.zip` | Sudachi core dictionary 20261015 (~73 MB, unpacked by the helper) |
 | `voices.json` | Voice registry: weights, references, prompt, sampling |
-| `lab/` | Reading system and QC v2 modules (five files are shipped) + tests and dev tools |
+| `lab/` | Reading system and QC v2 modules (7 files ship with the installer) + tests and dev tools |
 | `doc/` | UI screenshots, logo, engine media, measurement reports |
 | `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md` | History, development rules, security policy |
 | `.github/` | CI, issue and pull request templates |

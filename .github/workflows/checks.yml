@@ -42,6 +42,7 @@ jobs:
           python lab/test_v12_features.py
           python lab/web_js_check.py
           python lab/integration_check.py
+          python lab/readme_check.py
 
   installer:
     name: installer (windows)

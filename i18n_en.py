@@ -29,7 +29,8 @@ I18N_EN = {
     # --- вкладка «Озвучка» ---
     "Озвучка колоды": "Deck dubbing",
     "Основное слово читается строго по фуригане, всё остальное — автоматически.":
-        "The main word is read strictly from its furigana, everything else automatically.",
+        "The engine reads the kanji itself, the main word keeps the card's furigana. "
+    "Reading mode and fields are in \u201cDeck fields\u201d.",
     "Колода": "Deck",
     "⟳ Обновить": "⟳ Refresh",
     "Загружаю колоды из Anki…": "Loading decks from Anki…",
