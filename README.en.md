@@ -226,6 +226,30 @@ Light theme — the same tabs: [Dubbing](doc/shots/voice-light.png),
 The full list of changes is in [CHANGELOG.md](CHANGELOG.md) and in the
 [v1.2 release](https://github.com/Daii1414/AnkiVoice/releases/tag/v1.2).
 
+### Pronunciation check
+
+GPT-SoVITS sometimes **loses a chunk of a phrase or invents an extra one**:
+the duration is fine, the sound is speech, but the content is not. A
+silence/length/loop check cannot see that — on 43 voiced cards it happened to
+roughly one sentence out of twenty.
+
+On the “Озвучка” tab, **“Проверять произношение”** (Check pronunciation)
+makes the app recognize its own audio and compare it with the text.
+
+* **the model lost a chunk** — the app re-synthesizes with another seed by
+  itself and keeps the best take;
+* **still in doubt** — the card is tagged `av_suspect` (find it in Anki with
+  `tag:av_suspect`) and the audio is saved to `lab\rejected` so you can
+  listen and decide.
+
+Requirements: `faster-whisper` in the GPT-SoVITS Python and one downloaded
+model (in the HuggingFace cache). Without them the toggle simply does nothing
+and dubbing works as before. One clip costs about 0.5 s on a GPU.
+
+Separately about the text: it is no longer split the Chinese way (`cut5`) —
+that is exactly where chunks were lost. Short sentences (a typical card) are
+synthesized whole, long ones are split at “。”.
+
 ## How kanji are read
 
 GPT-SoVITS accepts text only, so somebody has to read the kanji. On the
