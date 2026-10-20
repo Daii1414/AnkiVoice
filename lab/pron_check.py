@@ -105,20 +105,51 @@ def expected_kana_masked(text, kanaize):
     """Ожидаемая кана + маска «здесь латиница/цифры».
 
     kanaize — функция перевода в кана (у нас это voice_pipeline.kanaize).
+    Латиницу тоже переводим в кана (она будет произнесена по буквам) и
+    маскируем каждый знак: длина маски обязана совпадать с длиной каны,
+    иначе выравнивание едет.
     """
     exp, wild = [], []
     for part in LATIN.split(text or ""):
         if not part:
             continue
-        if LATIN.fullmatch(part):
-            for _ in part:
-                exp.append(WILD)
+        is_latin = bool(LATIN.fullmatch(part))
+        for ch in kanaize(part):
+            if is_latin:
+                exp.append(WILD)          # сколько знаков в кана — столько и масок
                 wild.append(True)
-        else:
-            for ch in kanaize(part):
-                exp.append(ch)
-                wild.append(False)
+            else:
+                nch = norm_char(ch)
+                if nch:
+                    exp.append(nch)
+                    wild.append(False)
     return "".join(exp), wild
+
+
+SMALL_KANA = {
+    "\u3041": "\u3042", "\u3043": "\u3044", "\u3045": "\u3046",
+    "\u3047": "\u3048", "\u3049": "\u304a",
+    "\u3083": "\u3084", "\u3085": "\u3086", "\u3087": "\u3088",
+    "\u308e": "\u308f", "\u3095": "\u3096", "\u3096": "\u3099",
+}
+PUNCT = "\u3001\u3002\u3000-\u2026,.;:!?\u300c\u300d\u300e\u300f()[]"
+
+
+def norm_char(ch):
+    """Один знак в сравнимом виде: мелкий кана -> обычный, пунктуация вон."""
+    if ch in PUNCT or ch.isspace():
+        return ""
+    return SMALL_KANA.get(ch, ch)
+
+
+def normalize_kana(s):
+    """Приводим каны к сравнимому виду.
+
+    ASR не различает мелкие каны (ぃ пишет как い) и может поставить свою
+    пунктуацию. Это не ошибка синтеза, поэтому сравниваем «нормализованные»
+    строки: мелкие каны -> обычные, пунктуация выбрасывается.
+    """
+    return "".join(x for x in (norm_char(c) for c in (s or "")) if x)
 
 
 def _lcs_len(a, b):
@@ -136,50 +167,63 @@ def _lcs_len(a, b):
 def compare(expected, wild, heard):
     """Сравнение ожидаемой каны и услышанной.
 
-    coverage — доля ожидаемого, что удалось услышать (LCS);
-    cer      — доля несовпадений (замены+вставки+удаления);
-    skipped  — куски, которые прозвучали вместо ожидаемого.
+    coverage — доля ожидаемого, что удалось услышать (LCS по не-маскированным
+              знакам): «модель потеряла кусок фразы» -> низкое покрытие;
+    cer      — доля несовпадений: замены + удаления + лишнее;
+    fail     — брак (кусок потерян или услышали совсем другое);
+    suspect  — сомнительно (слово прочитано не так, но фраза на месте).
+
+    Латиница в expected помечена заглушкой WILD: она совпадает с любым
+    услышанным куском, а «лишнее» рядом с ней (модель прочитала TIN как
+    японское слово) ошибкой не считается.
     """
-    e = [c for c in expected if c != WILD]
-    h = [c for c in heard if c != WILD]
-    n = len(e)
+    heard = normalize_kana(heard)
+    exp = list(expected)                 # с заглушками, индексы совпадают с wild
+    h = list(heard)
+    n_full = len(exp)
+    plain = [c for c in exp if c != WILD]
+    n = len(plain)
     if not n:
-        return {"coverage": 1.0, "cer": 0.0, "n_jp": 0, "verdict": "пусто"}
-    # выравнивание с подстановкой: латиница в expected совпадает с чем угодно
+        return {"coverage": 1.0, "cer": 0.0, "n_jp": 0, "verdict": "пусто",
+                "fail": False, "suspect": False}
     INF = 10 ** 6
     m = len(h)
-    dp = [[INF] * (m + 1) for _ in range(n + 1)]
+    dp = [[INF] * (m + 1) for _ in range(n_full + 1)]
     dp[0][0] = 0
-    for i in range(n + 1):
+    for i in range(n_full + 1):
         for j in range(m + 1):
             c = dp[i][j]
             if c == INF:
                 continue
-            if i < n and j < m:
-                cost = 0 if wild[i] else (0 if e[i] == h[j] else 1)
+            if i < n_full and j < m:
+                cost = 0 if wild[i] else (0 if exp[i] == h[j] else 1)
                 if c + cost < dp[i + 1][j + 1]:
                     dp[i + 1][j + 1] = c + cost
-            if i < n:
+            if i < n_full:
                 cost = 0 if wild[i] else 1
                 if c + cost < dp[i + 1][j]:
                     dp[i + 1][j] = c + cost
-            if j < m and c + 1 < dp[i][j + 1]:
-                dp[i][j + 1] = c + 1
-    cost = dp[n][m]
-    cov = _lcs_len(e, h) / float(n)
+            if j < m:
+                near_wild = ((i < n_full and wild[i]) or
+                             (i > 0 and wild[i - 1]))
+                cost = 0 if near_wild else 1
+                if c + cost < dp[i][j + 1]:
+                    dp[i][j + 1] = c + cost
+    cost = dp[n_full][m]
+    cov = _lcs_len(plain, h) / float(n)
     cer = cost / float(n)
     if n < MIN_MORAS:
-        verdict, fail = "коротко", False
+        verdict, fail, suspect = "коротко", False, False
     elif cov < COVER_FAIL:
-        verdict, fail = "пропущено", True
+        verdict, fail, suspect = "пропущено", True, False
     elif cer > CER_FAIL:
-        verdict, fail = "не то предложение", True
+        verdict, fail, suspect = "не то предложение", True, False
     elif cov < COVER_SUSPECT or cer > CER_SUSPECT:
-        verdict, fail = "подозрительно", False
+        verdict, fail, suspect = "подозрительно", False, True
     else:
-        verdict, fail = "ок", False
+        verdict, fail, suspect = "ок", False, False
     return {"coverage": cov, "cer": cer, "n_jp": n, "cost": cost,
-            "verdict": verdict, "fail": fail}
+            "verdict": verdict, "fail": fail, "suspect": suspect}
 
 
 class Verifier(object):

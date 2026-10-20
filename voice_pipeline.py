@@ -1789,16 +1789,19 @@ _PRON = [None]          # ленивый проверяющий произнош
 _PRON_STATE = {"checked": 0, "bad": 0, "suspect": 0, "note": ""}
 
 
-def _pron_verifier():
+def _pron_verifier(force=False, asr_model=None):
     """Проверяющий произношение — только если он включён в конфиге.
 
     Модель (faster-whisper) грузится один раз на прогон: 5-10 с на прогретом
     кэше, сама проверка клипа — около 0.5 с на GPU.
+
+    force=True — включить проверку принудительно (так работает команда
+    verify: она и есть проверка).
     """
     if _PRON[0] is None:
         _PRON[0] = False          # «вычисляем»
         cfg = _read_app_config()
-        want = verify if verify is not None else cfg.get("verify_pronunciation")
+        want = True if force else cfg.get("verify_pronunciation")
         if not want:
             return None
         try:
@@ -2051,7 +2054,7 @@ def build_jobs(notes, mode, force, fields=None):
 
 
 def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
-                fields=None):
+                fields=None, verify=None, asr_model=None):
     v = get_voice(voice_name)
     notes = notes_info(ids)
     jobs = build_jobs(notes, mode, force, fields=fields)
@@ -2085,6 +2088,12 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
                 # содержание не совпало даже у лучшего варианта: помечаем
                 # карточку и кладём звук в папку брака для прослушивания
                 mark_suspect(nid, field, text, blob, ext, sinfo)
+            else:
+                # переделали и проверили — метка больше не нужна
+                try:
+                    ac("removeTags", notes=[nid], tags="av_suspect::" + field)
+                except Exception:
+                    pass
         except SystemExit as e:
             failed += 1
             print("FAIL [%d] %s: %s" % (nid, field, e))
@@ -2357,10 +2366,22 @@ def _chunks(seq, n):
 
 def cmd_voice(args):
     fields = _fields_from_args(args)
+    tag = getattr(args, "tag", None)
     if args.deck:
         ids = ac("findNotes", query='deck:"%s"' % args.deck)
+        if tag:
+            # внутри колоды оставляем только карточки с тегом
+            tagged = set(ac("findNotes", query='tag:"%s"' % tag))
+            ids = [i for i in ids if i in tagged]
+            if not ids:
+                raise SystemExit("В колоде '%s' нет карточек с тегом '%s'."
+                                 % (args.deck, tag))
         if not ids:
             raise SystemExit("Колода '%s' пуста." % args.deck)
+        if args.limit:
+            ids = _pending_notes(ids, args.limit, fields, mode=args.mode)
+    elif tag:
+        ids = ac("findNotes", query='tag:"%s"' % tag)
         if args.limit:
             ids = _pending_notes(ids, args.limit, fields, mode=args.mode)
     elif args.ids:
@@ -2371,6 +2392,84 @@ def cmd_voice(args):
                 seed=args.seed, speed=args.speed, fields=fields,
                 verify=getattr(args, "verify", None),
                 asr_model=getattr(args, "asr_model", None))
+
+
+
+def cmd_verify(args):
+    """Проверить произношение уже озвученных карточек.
+
+    Берём тексты ровно те, что синтезировались (тот же kanaize и та же
+    фуригана), достаём звук из Anki и сверяем: покрытие ожидаемой речи и
+    число расхождений. Печатаем таблицу и пишем отчёт рядом с браком.
+    """
+    fields = _fields_from_args(args)
+    if args.deck:
+        ids = ac("findNotes", query='deck:"%s"' % args.deck)
+    elif args.tag:
+        ids = ac("findNotes", query='tag:"%s"' % args.tag)
+    else:
+        raise SystemExit("Укажи --deck или --tag.")
+    if not ids:
+        print("Ничего не найдено.")
+        return
+    if args.limit:
+        ids = ids[:args.limit]
+    checker = _pron_verifier(force=True)
+    if checker is None:
+        raise SystemExit("Проверка произношения недоступна: нет faster-whisper "
+                         "в питоне движка или модели в кэше.")
+    ok, why = checker.available()
+    if not ok:
+        raise SystemExit("Проверка произношения недоступна: %s" % why)
+    notes = notes_info(ids)
+    by_id = {n["noteId"]: n for n in notes}
+    jobs = build_jobs(notes, args.mode, True, fields=fields)
+    print("Проверяю произношение: %d кусков" % len(jobs))
+    report = []
+    bad = 0
+    for nid, field, text, src_text in jobs:
+        f = (by_id.get(nid) or {}).get("fields", {})
+        raw = f.get(field, {}).get("value", "")
+        m = re.search(r"\[sound:([^\]]+)\]", raw)
+        if not m:
+            continue
+        try:
+            data = base64.b64decode(ac("retrieveMediaFile", filename=m.group(1)) or "")
+        except Exception:
+            continue
+        if not data:
+            continue
+        res = checker.check(data, "ogg", src_text)
+        row = {"note": nid, "field": field, "coverage": res.get("coverage"),
+               "cer": res.get("cer"), "verdict": res.get("verdict"),
+               "expected": text, "heard": res.get("heard", "")}
+        report.append(row)
+        if res.get("fail") or res.get("suspect"):
+            bad += 1
+            try:
+                ac("addTags", notes=[nid], tags="av_suspect::" + field)
+            except Exception:
+                pass
+            print("  %-8s note=%-14d покрытие=%.2f ошибки=%.2f  %s"
+                  % (field[:8], nid, res.get("coverage") or 0.0,
+                     res.get("cer") or 0.0, res.get("verdict")))
+            if res.get("heard"):
+                print("     ждали: %s" % text[:60])
+                print("     услышали: %s" % res["heard"][:60])
+    print("\nПроверено %d кусков, сомнительных: %d" % (len(report), bad))
+    if report:
+        try:
+            os.makedirs(QC_REJECT_DIR, exist_ok=True)
+            out = os.path.join(QC_REJECT_DIR, "verify_report.json")
+            with open(out, "w", encoding="utf-8") as fh:
+                json.dump(report, fh, ensure_ascii=False, indent=1)
+            print("Отчёт: %s" % out)
+        except Exception as e:
+            print("Отчёт не записан: %r" % (e,))
+    if bad:
+        print("\nПодозрительные можно переделать: pipeline.bat voice --tag "
+              "av_suspect --voice <голос> --force")
+
 
 
 def cmd_make_deck(args):
@@ -2817,11 +2916,27 @@ def main():
     p.add_argument("--force", action="store_true")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--speed", type=float, default=1.0)
+    p.add_argument("--tag", default=None,
+                   help="озвучить только карточки с этим тегом (например "
+                        "av_suspect — те, где мы не уверены в произношении)")
     p.add_argument("--verify", action="store_true",
                    help="проверять произношение (faster-whisper в движке): "
                         "распознаём свой звук и сверяем с текстом")
     p.add_argument("--asr-model", default=None,
                    help="модель faster-whisper (по умолчанию — лучшая из кэша)")
+
+    p = sub.add_parser("verify", help="проверить произношение уже озвученных карточек")
+    p.add_argument("--deck", default=None)
+    p.add_argument("--tag", default=None, help="проверить карточки с тегом")
+    p.add_argument("--mode", choices=["sentence", "expression", "both"], default="both")
+    p.add_argument("--limit", type=int, default=None)
+    p.add_argument("--sentence-src", default=None)
+    p.add_argument("--sentence-audio", default=None)
+    p.add_argument("--word-src", default=None)
+    p.add_argument("--word-audio", default=None)
+    p.add_argument("--furigana-src", default=None)
+    p.add_argument("--reading", default="off")
+    p.add_argument("--asr-model", default=None)
 
     p = sub.add_parser("make-deck", help="клонировать + озвучить + проверить")
     p.add_argument("--voice", required=True)
@@ -2875,7 +2990,7 @@ def main():
               "serve": cmd_serve, "test": cmd_test,
               "clone": cmd_clone, "voice": cmd_voice, "make-deck": cmd_make_deck,
               "check": cmd_check, "scan": cmd_scan, "qc-deck": cmd_qc_deck,
-              "selftest": cmd_selftest}[args.cmd](args)
+              "verify": cmd_verify, "selftest": cmd_selftest}[args.cmd](args)
     if args.cmd == "check" and result is False:
         sys.exit(1)
 

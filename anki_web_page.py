@@ -420,6 +420,8 @@ select{cursor:pointer}
           <button class="btn danger" id="btnStop" disabled>■&nbsp; Остановить</button>
           <button class="btn" id="btnCheck">Проверить колоду</button>
           <button class="btn" id="btnSelftest">Самопроверка</button>
+          <button class="btn" id="btnVerify" title="Распознать уже озвученные карточки и найти те, где модель потеряла кусок фразы">Проверить произношение</button>
+          <button class="btn" id="btnRedoSuspect" title="Переделать только те карточки, которые проверка признала подозрительными (тег av_suspect)">Переделать подозрительные</button>
         </div>
 
         <div class="spacer" style="height:16px"></div>
@@ -1147,6 +1149,25 @@ $("btnCheck").onclick = ()=>{
     word_audio:fieldVal("word_aud","word_audio")});
 };
 $("btnSelftest").onclick = ()=>runOp({kind:"selftest"});
+$("btnRedoSuspect").onclick = ()=>{
+  if(!$("deck").value) return toast("Сначала выбери колоду","bad");
+  if(!$("voice").value) return toast("Сначала выбери голос","bad");
+  runOp({kind:"voice", voice:$("voice").value, deck:$("deck").value, mode:mode(),
+         sentence_src:fieldVal("sent_src","sentence_src"),
+         sentence_audio:fieldVal("sent_aud","sentence_audio"),
+         word_src:fieldVal("word_src","word_src"),
+         word_audio:fieldVal("word_aud","word_audio"),
+         furigana_src:fieldVal("furi","furigana_src"),
+         reading:fieldVal("reading","reading"), limit:"0", force:true,
+         only_suspect:true});
+};
+$("btnVerify").onclick = ()=>{
+  if(!$("deck").value) return toast("Сначала выбери колоду","bad");
+  if(!(ST && ST.pron && ST.pron.ok)) return toast("Проверка произношения недоступна","bad");
+  runOp({kind:"verify", deck:$("deck").value, mode:mode(),
+         sentence_audio:fieldVal("sent_aud","sentence_audio"),
+         word_audio:fieldVal("word_aud","word_audio")});
+};
 $("btnStop").onclick = async ()=>{
   STOPPED_BY_USER = true;
   try{
@@ -1202,8 +1223,10 @@ function endRunUI(s){
   $("progPct").textContent = ok ? "✓ завершено" : "✗ есть ошибки";
   $("progPct").style.color = ok ? "var(--ok)" : "var(--err)";
   const t = (s && s.title) || "";
-  let done = "Готово.";
+  let done = "";
   if(/Озвучка/.test(t)) done = "Результат записан в колоду.";
+  else if(/Проверка произношения/.test(t))
+    done = "Проверка завершена — сомнительные в журнале ниже.";
   else if(/Проверка колоды/.test(t)) done = "Проверка колоды завершена.";
   else if(/Самопроверка/.test(t)) done = "Проверка окружения завершена.";
   else if(/Тест синтеза/.test(t)) done = "Тестовый звук готов.";
@@ -1222,7 +1245,7 @@ function endRunUI(s){
       "<b>Проверка нашла проблемы.</b> Список карточек — в журнале ниже.");
   }else if(!ok) banner("voiceBanner","bad",
     "<b>Завершилось с ошибкой (код "+(s?s.code:"?")+").</b> Посмотри журнал ниже.");
-  else banner("voiceBanner","good","<b>Готово.</b> "+done);
+  else banner("voiceBanner","good", done ? ("<b>Готово.</b> " + done) : "<b>Готово.</b>");
 }
 function showLastRun(s){
   $("prog").className = "prog";

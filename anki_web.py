@@ -1038,6 +1038,15 @@ class Handler(BaseHTTPRequestHandler):
                     "--speed", "%.2f" % float(b.get("speed") or 1.0),
                     "--seed", str(int(b.get("seed") or 42))]
             title = "Тест синтеза «%s»" % voice
+        elif kind == "verify":
+            deck = (b.get("deck") or "").strip()
+            if not deck:
+                return self._err("Сначала выбери колоду")
+            args = ["verify", "--deck", deck,
+                    "--mode", (b.get("mode") or "both"),
+                    "--sentence-audio", (b.get("sentence_audio") or "").strip(),
+                    "--word-audio", (b.get("word_audio") or "").strip()]
+            title = "Проверка произношения «%s»" % deck
         elif kind == "selftest":
             args, title = ["selftest"], "Самопроверка пайплайна"
         elif kind == "scan":
@@ -1072,6 +1081,8 @@ class Handler(BaseHTTPRequestHandler):
 
         args = ["voice", "--voice", voice, "--deck", deck,
                 "--mode", (b.get("mode") or "both")]
+        if b.get("only_suspect"):
+            args += ["--tag", "av_suspect"]
         for flag, key, guess_key in (
                 ("--sentence-src", "sentence_src", "sentence_src"),
                 ("--sentence-audio", "sentence_audio", "sentence_audio"),
