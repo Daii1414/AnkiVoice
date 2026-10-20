@@ -242,6 +242,18 @@ makes the app recognize its own audio and compare it with the text.
   `tag:av_suspect`) and the audio is saved to `lab\rejected` so you can
   listen and decide.
 
+Two buttons on the “Озвучка” tab:
+
+* **“Проверить произношение”** (Check pronunciation) — recognizes the cards you
+  have already voiced and shows where the model lost a chunk. Doubtful cards
+  get the `av_suspect` tag right away;
+* **“Переделать подозрительные”** (Re-do doubtful ones) — re-voices only the
+  tagged cards, picking the best take by content again.
+
+On a real collection: 56 voiced pieces, 4 of them broken; after the automatic
+re-do only 1 was left (an exotic term worth listening to). No false positives
+on the checked deck.
+
 Requirements: `faster-whisper` in the GPT-SoVITS Python and one downloaded
 model (in the HuggingFace cache). Without them the toggle simply does nothing
 and dubbing works as before. One clip costs about 0.5 s on a GPU.
