@@ -55,6 +55,7 @@ Source: "{#MyFiles}\LICENSE";              DestDir: "{app}"; Flags: ignoreversio
 Source: "{#MyFiles}\voice_pipeline.py";    DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyFiles}\anki_gui.py";          DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyFiles}\sudachi_g2p.py";       DestDir: "{app}"; Flags: ignoreversion
+Source: "{#MyFiles}\g2p_core.py";          DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyFiles}\kana_stress.py";       DestDir: "{app}"; Flags: ignoreversion
 ; голоса и словарь чтения
 Source: "{#MyFiles}\voices.json";          DestDir: "{app}"; Flags: ignoreversion
@@ -71,3 +72,9 @@ Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\AnkiVoice.exe"; \
 [Run]
 Filename: "{app}\AnkiVoice.exe"; Description: "Запустить {#MyAppName}"; \
   Flags: nowait postinstall skipifsilent
+
+[UninstallDelete]
+; pyruntime и логи создаёт сама программа — установщик о них не знает
+Type: filesandordirs; Name: "{app}\pyruntime"
+Type: filesandordirs; Name: "{app}\logs"
+Type: files; Name: "{app}\gptsovits_path.txt"

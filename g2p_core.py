@@ -15,12 +15,12 @@ Haqumei разбирает текст целиком и для каждого с
   первый ответ — приветствие готовности:
                           {"ok": true, "engine": "haqumei", "version": "..."}
 
-Чтение собирается из поля read (нотация とうきょう/せい — та же, что у
-Sudachi, и её понимает любой японский фронтенд TTS). Если для слова с
-иероглифами чтение не нашлось — помощник сам перечитывает слово отдельно
-(Haqumei умеет давать чтение даже неизвестным иероглифам); если и это не
-вышло — отдаёт пустое чтение, и пайплайн уводит всё предложение в
-запасную цепочку Sudachi.
+Чтение берётся из произносительной формы pron (нотация とうきょう/せい —
+та же, что у Sudachi, и её понимает любой японский фронтенд TTS); если
+pron пуст — из словарной read. Если для слова с иероглифами чтение не
+нашлось — помощник сам перечитывает слово отдельно (Haqumei умеет давать
+чтение даже неизвестным иероглифам); если и это не вышло — отдаёт пустое
+чтение, и пайплайн уводит всё предложение в запасную цепочку Sudachi.
 """
 import json
 import os
@@ -60,8 +60,63 @@ def _kana_only(s):
     return "".join(out)
 
 
+# --- защита от ложного озвончения в контексте --------------------------------
+# Haqumei иногда озвончает глагольную основу в предложении, хотя отдельно
+# читает её глухо: 張った -> バッ (в контексте) при отдельном ハッ. Если
+# контекстное и отдельное чтения различаются ТОЛЬКО дакутеном/хандакутеном
+# (バッ/ハッ, ガ/カ), доверяем отдельному. Различия посерьёзнее (続い:
+# ツヅイ против ошибочного отдельного ソクイ) не трогаем — там контекст
+# важнее, и правило не срабатывает.
+_VOICE_BASE = {}
+
+
+def _init_voice():
+    rows = {
+        "か": ("が",), "き": ("ぎ",), "く": ("ぐ",), "け": ("げ",), "こ": ("ご",),
+        "さ": ("ざ",), "し": ("じ",), "す": ("ず",), "せ": ("ぜ",), "そ": ("ぞ",),
+        "た": ("だ",), "ち": ("ぢ",), "つ": ("づ",), "て": ("で",), "と": ("ど",),
+        "は": ("ば", "ぱ"), "ひ": ("び", "ぴ"), "ふ": ("ぶ", "ぷ"),
+        "へ": ("べ", "ぺ"), "ほ": ("ぼ", "ぽ"), "う": ("ゔ",),
+    }
+    for base, voiced in rows.items():
+        _VOICE_BASE[base] = base
+        for v in voiced:
+            _VOICE_BASE[v] = base
+
+
+def _hira(c):
+    o = ord(c)
+    if 0x30A1 <= o <= 0x30F6:          # катакана -> хирагана
+        return chr(o - 0x60)
+    return c
+
+
+def _dakuten_only(a, b):
+    """Отличаются ли чтения только озвончением/полузвончением."""
+    if not a or len(a) != len(b):
+        return False
+    diff = 0
+    for x, y in zip(a, b):
+        if x == y:
+            continue
+        bx = _VOICE_BASE.get(_hira(x))
+        by = _VOICE_BASE.get(_hira(y))
+        if bx is None or by is None or bx != by:
+            return False
+        diff += 1
+    return diff > 0
+
+
+# Окончания, с которыми основа читается как одно слово (張っ+た, 縮ん+だ).
+_RENYOU_NEXT = frozenset((
+    "た", "て", "だ", "で", "ます", "ませ", "ん", "ない", "ぬ",
+    "う", "よう", "ば", "たら", "たり", "ながら", "ちゃ", "じゃ",
+))
+
+
 def main():
     _init_kanji()
+    _init_voice()
     try:
         from importlib.metadata import version as _pkgver
         from haqumei import Haqumei
@@ -83,7 +138,8 @@ def main():
         try:
             req = json.loads(line)
             words = []
-            for w in h.g2p_mapping_detailed(req["text"]):
+            mapped = list(h.g2p_mapping_detailed(req["text"]))
+            for i, w in enumerate(mapped):
                 s, e = w.char_span
                 read = w.read if w.read and w.read != "*" else ""
                 # Иероглифы: берём ПРОИЗНОСИТЕЛЬНУЮ форму pron — она
@@ -95,6 +151,32 @@ def main():
                     clean = _kana_only(w.pron or "")
                     if _valid_read(clean):
                         read = clean
+                        # У глаголов/прилагательных сверяем контекст с
+                        # отдельным чтением: если разница только в
+                        # озвончении, это ложный дакутен (см. выше).
+                        # Читаем основу ВМЕСТЕ со следующим окончанием:
+                        # g2k("張っ") даёт «バッ», а «張った» — «ハッ».
+                        pos = getattr(w, "pos", "") or ""
+                        if pos.startswith(("動詞", "形容詞")):
+                            alone = ""
+                            nxt = mapped[i + 1] if i + 1 < len(mapped) else None
+                            if (nxt is not None and nxt.word in _RENYOU_NEXT
+                                    and nxt.char_span[0] == e):
+                                try:
+                                    parts = h.g2p_mapping_detailed(
+                                        w.word + nxt.word)
+                                    if parts and parts[0].word == w.word:
+                                        alone = _kana_only(
+                                            parts[0].pron or parts[0].read or "")
+                                except Exception:
+                                    alone = ""
+                            if not alone:
+                                try:
+                                    alone = _kana_only(h.g2k(w.word) or "")
+                                except Exception:
+                                    alone = ""
+                            if _dakuten_only(clean, alone):
+                                read = alone
                     elif not _valid_read(read):
                         # чтение не нашлось (слова нет даже в словаре
                         # Haqumei) — пробуем прочитать слово отдельно,
