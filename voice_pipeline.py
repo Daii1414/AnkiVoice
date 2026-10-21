@@ -1519,7 +1519,10 @@ def _doubled_okurigana(surface, text):
     flat = _kana_norm(text)
     for part in re.split(KANJI_RE.pattern, surface or ""):
         q = _kana_norm(part)
-        if q and flat.count(q) >= 2:
+        # окуригана короче двух знаков (частица «の», слог «ки») слишком часто
+        # встречается в чтении случайно — на всей основной колоде такая проверка
+        # срабатывала бы на 1.8% карточек и мешала бы правильной подстановке
+        if len(q) >= 2 and flat.count(q) >= 2:
             return q
     return ""
 
