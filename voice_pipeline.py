@@ -2677,7 +2677,7 @@ def cmd_indextts_server(args):
 def _indextts_health(url):
     try:
         with _NO_PROXY.open(url + "/health", timeout=3) as r:
-            return b'"ok":true' in r.read(256)
+            return bool(json.loads(r.read(512).decode("utf-8")).get("ok"))
     except Exception:
         return False
 

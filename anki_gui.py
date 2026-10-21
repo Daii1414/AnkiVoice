@@ -312,11 +312,12 @@ def tts_status():
     """True, если сервер синтеза слушает порт (GPT-SoVITS или IndexTTS)."""
     if engine_kind() == ENGINE_INDEX:
         try:
+            import json
             import urllib.request
             url = indextts_url() + "/health"
             opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
             with opener.open(url, timeout=3) as r:
-                return r.read(64).find(b'"ok":true') >= 0
+                return bool(json.loads(r.read(512).decode("utf-8")).get("ok"))
         except Exception:
             return False
     try:
