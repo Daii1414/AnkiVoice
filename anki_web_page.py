@@ -1044,7 +1044,8 @@ async function loadState(){
   }else{
     banner("appBanner", null);
     $("navBadge").style.display = "none";
-    $("pathHint").innerHTML = '<span style="color:var(--ok)">Папка в порядке ✓</span>';
+    // под полем пути — только результат последней проверки, без дубля статуса
+    if(!$("pathHint").textContent) $("pathHint").innerHTML = "";
   }
 
   // голоса
