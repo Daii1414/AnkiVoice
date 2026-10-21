@@ -131,6 +131,8 @@ installer itself is 125 MB) plus room for the engine and its weights.
    [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) page — one
    file with everything inside. Size **125 MB**, SHA256:
    `385481551c6404ec8927a37d6c234630c87ee71660aa5c689eab9654da0dbc28`
+   (The **Code → Download ZIP** button gives you the sources, not the installer —
+   you do not need to unpack and run those by hand.)
 2. Run it: **“Далее” → “Установить” → “Завершить”** (Next → Install → Finish;
    the “Launch AnkiVoice” checkbox is on, so the app opens by itself).
    > [!IMPORTANT]
