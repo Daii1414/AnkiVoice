@@ -24,7 +24,7 @@ The internet is only needed to download it.</p>
 
 <p align="center">
   <a href="https://github.com/Daii1414/AnkiVoice/releases/latest">
-    <img alt="Download AnkiVoice 1.6 for Windows" src="https://img.shields.io/badge/%E2%96%A8%20Download%20AnkiVoice%201.6%20%E2%80%94%20125%20MB-4F46E5">
+    <img alt="Download AnkiVoice 1.7 for Windows" src="https://img.shields.io/badge/%E2%96%A8%20Download%20AnkiVoice%201.7%20%E2%80%94%20125%20MB-4F46E5">
   </a>
 </p>
 
