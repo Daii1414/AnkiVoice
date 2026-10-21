@@ -441,6 +441,17 @@ I18N_EN = {
     "пусто — вся колода": "empty — the whole deck",
     "Пропустить": "Skip",
     "Медиа Anki (куда падает звук)": "Anki media (where the audio lands)",
+    "Журнал и отчёт о сбоях": "Log and crash report",
+    "Подтверждение": "Confirm",
+    "Да": "Yes",
+    "Озвучить всё": "Voice everything",
+    "Переозвучить": "Re-record",
+    "Собрать": "Build",
+    "Сбросить": "Reset",
+    "Перезаписывает звук в выбранных карточках заново. Старые файлы останутся в папке медиа, отмены нет":
+        "Re-records the audio in the selected cards. The old files stay in the media folder, there is no undo",
+    "Внимание: проверка замедляет озвучку примерно в 10 раз.":
+        "Note: the check makes the dubbing about 10 times slower.",
     "Звук пишется прямо в поля карточек Anki:":
         "The audio is written straight into the Anki card fields:",
     "готовый звук перезаписывается":

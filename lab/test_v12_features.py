@@ -645,10 +645,9 @@ def test_qa_first_users_fixes():
     import io
     import anki_web_page as wp
     html = wp.HTML
-    # 1. лимит: по умолчанию 20, принимается только целое >= 1
-    check('id="limit" value="20" min="1"' in html,
-          "лимит по умолчанию 20, минимум 1")
-    check('id="limit" value="0"' not in html, "лимит не может быть 0 по умолчанию")
+    # 1. лимит: по умолчанию 20, принимается только целое >= 0 (0 = вся колода)
+    check('id="limit" value="20"' in html,
+          "лимит по умолчанию 20")
     # 2. большая озвучка спрашивает подтверждения
     check("Озвучить ВСЮ колоду" in html, "есть подтверждение озвучки всей колоды")
     check("deckCount(" in html, "есть счётчик карточек для подтверждения")
@@ -683,6 +682,17 @@ def test_qa_first_users_fixes():
           "force вместе с лимитом переозвучивает первые N карточек")
     check("def _voice_file" in pipe,
           "файл голоса ищется в папках обоих движков")
+
+    # 2. второй круг разбора: конфиг не должен теряться при двух записих
+    gui = io.open(os.path.join(ROOT, "anki_gui.py"), encoding="utf-8").read()
+    check("os.replace(tmp, CONFIG_FILE)" in gui,
+          "конфиг пишется через временный файл (две записи не убивают его)")
+    check("CONFIG_LOCK" in gui, "запись конфига под замком")
+    check('replace("\\x00", "")' in src,
+          "из настроек вычищается NUL-байт (он ронял пайплайн)")
+    check("askConfirm(" in html, "свой диалог подтверждения вместо confirm()")
+    check("«Пересобрать всё заново» перезапишет звук" in html,
+          "пересборка спрашивает подтверждение")
 
 
 def main():

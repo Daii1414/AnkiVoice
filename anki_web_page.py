@@ -244,7 +244,7 @@ select{cursor:pointer}
 
 /* ---------------------------------------------------------- статус / прогресс */
 .banner{border-radius:var(--r);padding:12px 15px;margin-bottom:16px;
-  font-size:13.5px;display:none;border:1px solid}
+  font-size:13.5px;display:none;border:1px solid;overflow-wrap:anywhere;word-break:break-word}
 .banner.show{display:block}
 .banner.bad{background:var(--err-t);border-color:color-mix(in srgb,var(--err) 38%,transparent);color:var(--err)}
 .banner.warn{background:var(--warn-t);border-color:color-mix(in srgb,var(--warn) 38%,transparent);color:var(--warn)}
@@ -479,10 +479,11 @@ select{cursor:pointer}
         <div class="row">
           <div style="width:130px">
             <label class="f">Лимит карточек</label>
-            <input type="number" id="limit" value="20" min="1" step="1">
+            <input type="number" id="limit" value="20" min="0" step="1">
           </div>
           <div class="hint" style="align-self:center;padding-bottom:10px">пусто — вся колода</div>
-          <label class="switch" style="align-self:center;padding-bottom:12px">
+          <label class="switch" style="align-self:center;padding-bottom:12px"
+                 title="Перезаписывает звук в выбранных карточках заново. Старые файлы останутся в папке медиа, отмены нет">
             <input type="checkbox" id="force"> Пересобрать всё заново
           </label>
           <label class="switch" style="align-self:center;padding-bottom:12px"
@@ -753,6 +754,7 @@ select{cursor:pointer}
             <tr><td class="k">Программа</td><td class="v" id="pCode">—</td></tr>
             <tr><td class="k">Конфиг</td><td class="v" id="pCfg">—</td></tr>
             <tr><td class="k">Медиа Anki (куда падает звук)</td><td class="v" id="pMedia">—</td></tr>
+            <tr><td class="k">Журнал и отчёт о сбоях</td><td class="v" id="pLog">—</td></tr>
           </tbody>
         </table>
       </div>
@@ -795,6 +797,19 @@ select{cursor:pointer}
     <footer>
       <button class="btn sm" id="mUp">↑ Вверх</button>
       <button class="btn sm primary" id="mPick">Выбрать</button>
+    </footer>
+  </div>
+</div>
+
+<!-- свой диалог подтверждения: нативный confirm() блокирует страницу -->
+<div class="overlay" id="confirmOverlay">
+  <div class="modal" style="width:min(520px,94vw)">
+    <header><span>Подтверждение</span>
+      <button class="x" id="confirmX">×</button></header>
+    <div style="padding:16px 18px;font-size:14px;line-height:1.55" id="confirmText"></div>
+    <footer>
+      <button class="btn" id="confirmNo">Отмена</button>
+      <button class="btn primary" id="confirmOk">Да</button>
     </footer>
   </div>
 </div>
@@ -1013,6 +1028,7 @@ async function loadState(){
   $("pCode").textContent = ST.code_dir || "—";
   $("pCfg").textContent  = ST.config_file || "—";
   $("pMedia").textContent = ST.anki_media || "не нашли";
+  $("pLog").textContent = ST.log_file || "—";
 
   // папка движка
   applyEngineUI();
@@ -1050,9 +1066,11 @@ async function loadState(){
   const pr = (ST && ST.pron) || {};
   if($("pronHint")){
     $("pronHint").innerHTML = pr.ok
-      ? "Доступна: <b>" + esc(pr.msg || "") + "</b>. Каждый кусок распознаём и сверяем с текстом — мусор переделаем сами."
+      ? "Доступна: <b>" + esc(pr.msg || "") + "</b>. Каждый кусок распознаём и сверяем с текстом — мусор переделаем сами. Внимание: проверка замедляет озвучку примерно в 10 раз."
       : "Недоступна: " + esc(pr.msg || "нет данных") +
-        ". Нужна faster-whisper в питоне движка и скачанная модель.";
+        ". Нужна faster-whisper в питоне движка и скачанная модель (~1,5 ГБ) " +
+        "в кэше HuggingFace — качать заранее, из приложения нечем. Без неё " +
+        "озвучка работает, недоступна только эта проверка.";
   }
 
   // режим/лимит из конфига
@@ -1388,7 +1406,10 @@ function collectVoiceArgs(){
     word_audio:fieldVal("word_aud","word_audio"),
     furigana_src:fieldVal("furi","furigana_src"),
     reading:fieldVal("reading","reading"),
-    limit:$("limit").value, force:$("force").checked
+    limit:(function(){
+      const n = parseInt($("limit").value, 10);
+      return (Number.isFinite(n) && n > 0) ? String(n) : "";
+    })(), force:$("force").checked
   };
 }
 $("verifyPron").onchange = ()=>{
@@ -1403,15 +1424,18 @@ $("btnStart").onclick = async ()=>{
   if(raw !== ""){
     lim = parseInt(raw, 10);
     if(!Number.isFinite(lim) || lim < 0){
-      $("limit").value = "";
+      // поле НЕ очищаем: пустое поле означало бы «вся колода»
       return toast("Лимит карточек — целое число не меньше нуля. Пусто или 0 — вся колода","bad");
     }
   }
   // пустой лимит = вся колода: предупреждаем, если она большая
   if(!lim){
     const n = deckCount($("deck").value);
-    if(n > 200 && !confirm("Озвучить ВСЮ колоду «"+$("deck").value+"» — "+n+" карточек?\nЭто надолго: с IndexTTS примерно по минуте на карточку.")) return;
+    if(n > 200 && !await askConfirm("Озвучить ВСЮ колоду «"+$("deck").value+"» — "+n+" карточек?\nЭто надолго: с IndexTTS примерно по минуте на карточку.", "Озвучить всё")) return;
   }
+  if($("force").checked && !await askConfirm(
+      "«Пересобрать всё заново» перезапишет звук в выбранных карточках.\n" +
+      "Старые файлы останутся в папке медиа, отмены нет.", "Переозвучить")) return;
   saveCfg({mode:mode(), limit:raw, voice:$("voice").value, deck:$("deck").value});
   await runOp(collectVoiceArgs());
 };
@@ -1423,8 +1447,8 @@ $("btnCheck").onclick = ()=>{
     word_audio:fieldVal("word_aud","word_audio")});
 };
 $("btnSelftest").onclick = ()=>runOp({kind:"selftest"});
-$("btnQCDeck").onclick = ()=>{
-  if(!confirm("Собрать колоду «Брак»?\nВ Anki появится новая колода с копиями сомнительных карточек и полем «Вердикт». Оригиналы не меняются.")) return;
+$("btnQCDeck").onclick = async ()=>{
+  if(!await askConfirm("Собрать колоду «Брак»?\nВ Anki появится новая колода с копиями сомнительных карточек и полем «Вердикт». Оригиналы не меняются.", "Собрать")) return;
   runOp({kind:"qc-deck"});
 };
 $("btnVerdicts").onclick = ()=>{
@@ -1528,7 +1552,8 @@ function endRunUI(s){
 function showLastRun(s){
   $("prog").className = "prog";
   $("prog").firstElementChild.style.width = s.total ? "100%" : "0%";
-  $("progText").textContent = "Прошлая операция: " + (s.title||"") + " — код " + s.code;
+  $("progText").textContent = "Прошлая операция: " + (s.title||"") +
+    (s.code ? " — код " + s.code : "");
 }
 
 /* ================================================= лог (SSE) */
@@ -1622,6 +1647,32 @@ function drawProgress(n){
     el.className = "prog indet";
     $("progText").textContent = "Выполняется… (" + n + " строк журнала)";
   }
+}
+
+/* ================================================= свой диалог подтверждения */
+/* Нативный confirm() блокирует отрисовку всей страницы и на двойном клике
+   появляется дважды. Свой — не блокирует и открыт один раз. */
+let CONFIRM_BUSY = false;
+function askConfirm(text, okLabel){
+  return new Promise(resolve=>{
+    if(CONFIRM_BUSY){ resolve(false); return; }
+    CONFIRM_BUSY = true;
+    const ov = $("confirmOverlay");
+    $("confirmText").textContent = text;
+    $("confirmOk").textContent = okLabel || "Да";
+    ov.classList.add("on");
+    const done = (v)=>{
+      ov.classList.remove("on");
+      $("confirmOk").onclick = null;
+      $("confirmNo").onclick = null;
+      $("confirmX").onclick = null;
+      CONFIRM_BUSY = false;
+      resolve(v);
+    };
+    $("confirmOk").onclick = ()=>done(true);
+    $("confirmNo").onclick = ()=>done(false);
+    $("confirmX").onclick = ()=>done(false);
+  });
 }
 
 /* ================================================= конфиг */
@@ -1726,6 +1777,7 @@ $("btnSavePath").onclick = savePath;
 $("btnCheckPath").onclick = async ()=>{
   const p = $("gptpath").value.trim();
   if(!p) return $("pathHint").innerHTML = '<span style="color:var(--err)">Укажи папку движка</span>';
+  banner("appBanner", null);
   const patch = {check_path:true}; patch[pathKey()] = p;
   const j = await api("/api/config", patch);
   $("pathHint").innerHTML = (j.problems && j.problems.length)
@@ -2373,7 +2425,7 @@ document.addEventListener("keydown", e=>{
 });
 $("btnWizard").onclick = ()=>openWizard(0);
 $("btnWizardAgain").onclick = async ()=>{
-  if(!confirm("Сбросить отметку мастера? Настройки, голоса и файлы останутся.")) return;
+  if(!await askConfirm("Сбросить отметку мастера? Настройки, голоса и файлы останутся.", "Сбросить")) return;
   try{
     await api("/api/setup/reset", {});
     await loadSetup();

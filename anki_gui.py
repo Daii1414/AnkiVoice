@@ -129,6 +129,9 @@ def out(msg):
         pass
 
 
+CONFIG_LOCK = threading.Lock()
+
+
 def load_config():
     try:
         with open(CONFIG_FILE, encoding="utf-8") as f:
@@ -137,7 +140,10 @@ def load_config():
         return {}
     except Exception:
         # битый конфиг (BOM, правка руками, обрыв записи) — настройки не
-        # теряем: откладываем файл в сторону и начинаем с чистого
+        # теряем: откладываем файл в сторону и начинаем с чистого.
+        # Откладываем только если он действительно не читается: гонка двух
+        # записей раньше приводила к тому, что файл исчезал, а с ним — все
+        # настройки. Поэтому запись идёт через временный файл и замену.
         try:
             os.replace(CONFIG_FILE, CONFIG_FILE + ".broken")
         except OSError:
@@ -146,8 +152,20 @@ def load_config():
 
 
 def save_config(cfg):
-    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
+    """Записать конфиг так, чтобы две одновременные записи не убили файл.
+
+    Раньше файл писался прямо на месте: два запроса веб-сервера могли
+    перемешать содержимое, и следующая загрузка объявляла файл битым и
+    откладывала его в .broken — настройки исчезали молча. Теперь пишем во
+    временный файл и подменяем его целиком (замена атомарная).
+    """
+    tmp = CONFIG_FILE + ".tmp"
+    with CONFIG_LOCK:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, CONFIG_FILE)
 
 
 # ------------------------------------------------------ проверка папки GPT-SoVITS

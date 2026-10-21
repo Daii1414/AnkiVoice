@@ -249,18 +249,23 @@ Light theme — the same tabs: [Dubbing](doc/shots/voice-light.png),
 
 ## What's new in 1.7
 
-A second round of "new users" on 1.6: the same three roles walked the path again.
+Two rounds of "new users" on 1.6.
 
 - **An empty run is no longer reported as success** ("✓ completed" with no audio
   at all) - it is a separate warning now.
 - **The advice names the button** ("Rebuild everything") instead of `--force`.
 - **The progress counts cards, not operations**, and shows "≈ N min left".
 - **The pronunciation check is off by default**: it makes the dubbing 10 times
-  slower (the first sound takes minutes instead of seconds). Turn it on yourself.
+  slower. Turn it on yourself, with an explanation.
 - **The log speaks human**: "Hitoshi Kubota" instead of `narrator`, "sentence
   audio" instead of `SentenceAudio`.
-- **It is spelled out that "Check for updates" goes online** - the dubbing itself
-  is offline.
+- **Your settings cannot get lost any more**: the config is written through a
+  temporary file under a lock, so two simultaneous saves cannot wipe it.
+- **Our own confirmation dialog** instead of the system one: the page no longer
+  freezes.
+- **The diagnostics name the selected engine** and show the Anki media folder.
+- **It is spelled out that "Check for updates" goes online** - the dubbing is
+  offline.
 
 ## What's new in 1.6
 

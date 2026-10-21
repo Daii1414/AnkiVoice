@@ -812,7 +812,8 @@ class Handler(BaseHTTPRequestHandler):
                 tok = (q.get("t") or [""])[0].strip()
             if tok != TOKEN:
                 self.close_connection = True
-                self._err("Запрос отклонён: нет служебного ключа", 403)
+                self._err("Запрос отклонён: нет служебного ключа "
+                          "(страница устарела — обновите её, F5)", 403)
                 return False
         return True
 
@@ -943,7 +944,11 @@ class Handler(BaseHTTPRequestHandler):
                       "word_audio", "furigana_src", "reading", "limit",
                       "verify_pronunciation", "asr_model", "lang"):
                 if k in b:
-                    cfg[k] = b[k]
+                    v = b[k]
+                    if isinstance(v, str):
+                        # NUL-байт ломает пайплайн (embedded null character)
+                        v = v.replace("\x00", "")
+                    cfg[k] = v
             # настройки полей — ещё и в профиль колоды: у разных колод
             # названия полей разные
             field_keys = ("sentence_src", "sentence_audio", "word_src",
@@ -1115,6 +1120,7 @@ class Handler(BaseHTTPRequestHandler):
             "code_dir": ag.code_dir(),
             "config_file": ag.CONFIG_FILE,
             "anki_media": ag.anki_media_folder(),
+            "log_file": ag.CRASH_LOG,
             "run": run.snapshot() if run else None,
             "last": (LAST_RUN.snapshot() if LAST_RUN and not LAST_RUN.running
                      else None),
@@ -1123,16 +1129,30 @@ class Handler(BaseHTTPRequestHandler):
 
     def _doctor(self):
         cfg = ag.load_config()
-        path = (cfg.get("gptsovits_path") or "").strip() or \
-            (ag.find_gptsovits_automatic() or "")
+        kind = ag.engine_kind(cfg)
+        if kind == ag.ENGINE_INDEX:
+            path = (cfg.get("indextts_path") or "").strip() or \
+                (ag.find_indextts_automatic() or "")
+            problems = ag.validate_indextts(path) if path else ["Папка IndexTTS не указана"]
+            label = "IndexTTS 2.5"
+        else:
+            path = (cfg.get("gptsovits_path") or "").strip() or \
+                (ag.find_gptsovits_automatic() or "")
+            problems = ag.validate_gptsovits(path) if path else ["Папка GPT-SoVITS не указана"]
+            label = "GPT-SoVITS"
         rep = {
             "code_dir": ag.code_dir(),
             "config_file": ag.CONFIG_FILE,
+            "engine": kind,
+            "engine_label": label,
+            "engine_path": path,
             "gptsovits_path": path,
             "local_problems": ag.validate_local(),
-            "problems": ag.validate_gptsovits(path) if path else ["папка не указана"],
+            "problems": problems,
             "anki": ag.anki_status(),
             "tts_server": ag.tts_status(),
+            "anki_media": ag.anki_media_folder(),
+            "log_file": ag.CRASH_LOG,
         }
         if path and not rep["problems"]:
             voices, default = ag.load_voices()
