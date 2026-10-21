@@ -199,6 +199,22 @@ select{cursor:pointer}
 .seg button:hover{color:var(--text)}
 .seg button.on{background:var(--accent);color:var(--onaccent);font-weight:650}
 
+/* ---------------------------------------------------------- выбор движка */
+.engines{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.engines.one{grid-template-columns:1fr}
+.eng{text-align:left;background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r-s);padding:12px 14px;cursor:pointer;color:var(--text);
+  display:flex;flex-direction:column;gap:5px;transition:.14s;font:inherit}
+.eng:hover{border-color:color-mix(in srgb,var(--accent) 55%,var(--border))}
+.eng.on{border-color:var(--accent);background:var(--tint);
+  box-shadow:0 0 0 1px var(--accent) inset}
+.eng-t{font-weight:650;font-size:14.5px;display:flex;align-items:center;gap:8px}
+.eng-t .mark{font-size:12px;color:var(--ok)}
+.eng.on .eng-t .mark{color:var(--accent)}
+.eng-d{font-size:12.5px;color:var(--sub);line-height:1.45}
+.eng-note{font-size:12.5px;color:var(--sub);margin-top:10px;line-height:1.5}
+@media (max-width:820px){.engines{grid-template-columns:1fr}}
+
 .switch{display:inline-flex;align-items:center;gap:9px;cursor:pointer;
   font-size:13.5px;color:var(--sub);user-select:none}
 .switch input{appearance:none;width:36px;height:20px;border-radius:999px;
@@ -386,6 +402,35 @@ select{cursor:pointer}
       <p class="sub">Движок читает иероглифы сам, а чтение слова — ровно по фуригане карточки. Режим чтения и поля — в «Полях колоды».</p>
 
       <div class="banner" id="voiceBanner"></div>
+
+      <!-- Движок синтеза — на главном экране: видно сразу и переключается на ходу -->
+      <div class="card">
+        <div class="log-head">
+          <h2>Движок синтеза</h2>
+          <span class="hint" id="engineState" style="margin:0"></span>
+        </div>
+        <div class="engines" id="engineCards">
+          <button class="eng" data-engine="gpt-sovits" type="button">
+            <span class="eng-t">GPT-SoVITS<span class="mark"></span></span>
+            <span class="eng-d">Голос задаётся весами .ckpt и .pth. Синтез быстрее, голосов можно много.</span>
+          </button>
+          <button class="eng" data-engine="indextts" type="button">
+            <span class="eng-t">IndexTTS 2.5<span class="mark"></span></span>
+            <span class="eng-d">Голос — это один референс. Японские термины читает точнее, но синтез медленнее.</span>
+          </button>
+        </div>
+        <div class="hint" id="engineHint"></div>
+        <div class="hint" id="enginePort"></div>
+        <div class="spacer"></div>
+        <label class="f" id="enginePathLabel">Папка движка</label>
+        <div class="row">
+          <div class="grow"><input type="text" id="gptpath" placeholder="D:\DOWNLOAD\GPT-SoVITS-…"></div>
+          <button class="btn sm" id="btnPickGpt">Обзор…</button>
+          <button class="btn sm" id="btnCheckPath">Проверить</button>
+          <button class="btn primary sm" id="btnSavePath">Сохранить</button>
+        </div>
+        <div class="hint" id="pathHint">—</div>
+      </div>
 
       <div class="card">
         <div class="grid2">
@@ -636,7 +681,7 @@ select{cursor:pointer}
     <!-- ============================================ ПРИЛОЖЕНИЕ -->
     <section class="panel" id="p-app">
       <h1>Приложение</h1>
-      <p class="sub">Папка движка, диагностика и внешний вид.</p>
+      <p class="sub">Мастер настройки, обновление, диагностика и файлы. Движок синтеза выбирается на главном экране.</p>
 
       <div class="banner" id="appBanner"></div>
 
@@ -664,29 +709,6 @@ select{cursor:pointer}
              target="_blank" rel="noopener">Релизы на GitHub</a>
         </div>
         <div id="updateBox" class="hint">Нажми «Проверить обновления» — покажу changelog и предложу установщик.</div>
-      </div>
-
-      <div class="card">
-        <label class="f">Движок синтеза</label>
-        <div class="row">
-          <div class="grow">
-            <select id="engineSel">
-              <option value="gpt-sovits">GPT-SoVITS — голос из весов .ckpt и .pth</option>
-              <option value="indextts">IndexTTS 2.5 — голос из одного референса</option>
-            </select>
-          </div>
-        </div>
-        <div class="hint" id="engineHint"></div>
-        <div class="spacer" style="height:12px"></div>
-        <label class="f" id="enginePathLabel">Папка GPT-SoVITS</label>
-        <div class="row">
-          <div class="grow"><input type="text" id="gptpath" placeholder="D:\DOWNLOAD\GPT-SoVITS-…"></div>
-          <button class="btn sm" id="btnPickGpt">Обзор…</button>
-          <button class="btn sm" id="btnCheckPath">Проверить</button>
-        </div>
-        <div class="hint" id="pathHint">—</div>
-        <div class="spacer"></div>
-        <button class="btn primary" id="btnSavePath">Сохранить папку</button>
       </div>
 
       <div class="card">
@@ -1522,16 +1544,21 @@ async function saveCfg(patch){
 const AV_ENGINES = {
   "gpt-sovits": {label:"Папка GPT-SoVITS", ph:"D:\\DOWNLOAD\\GPT-SoVITS-…",
                  pick:"Папка GPT-SoVITS",
+                 title:"GPT-SoVITS",
+                 desc:"Голос задаётся весами .ckpt и .pth. Синтез быстрее, голосов можно много.",
                  hint:"Движок с весами: у каждого голоса свои файлы .ckpt и .pth."},
   "indextts":   {label:"Папка IndexTTS 2.5", ph:"D:\\DOWNLOAD\\index-tts",
                  pick:"Папка IndexTTS",
+                 title:"IndexTTS 2.5",
+                 desc:"Голос — это один референс. Японские термины читает точнее, но синтез медленнее.",
                  hint:"Zero-shot движок: голос — это один референс, веса общие у модели."}
 };
 function engineNow(){ return (ST && ST.engine) || "gpt-sovits"; }
 function pathKey(){ return engineNow() === "indextts" ? "indextts_path" : "gptsovits_path"; }
 function applyEngineUI(){
-  const e = AV_ENGINES[engineNow()] || AV_ENGINES["gpt-sovits"];
-  const isIndex = engineNow() === "indextts";
+  const kind = engineNow();
+  const e = AV_ENGINES[kind] || AV_ENGINES["gpt-sovits"];
+  const isIndex = kind === "indextts";
   // у IndexTTS голос — это один референс: параметров сэмплирования нет
   ["v_gptPrompt","v_gptAux","v_gptParams"].forEach(id=>{
     const el = $(id); if(el) el.style.display = isIndex ? "none" : "";
@@ -1542,8 +1569,46 @@ function applyEngineUI(){
   $("enginePathLabel").textContent = e.label;
   $("gptpath").placeholder = e.ph;
   $("btnPickGpt").title = e.pick;
-  $("engineHint").textContent = e.hint;
-  if($("engineSel")) $("engineSel").value = engineNow();
+  // под карточками — что важно прямо сейчас: сколько голосов готово и где сервер
+  const voices = (ST && ST.voices) ? Object.keys(ST.voices) : [];
+  const readyN = voices.filter(v => ST.voices[v] && ST.voices[v].ok).length;
+  $("engineHint").textContent = "Готовых голосов: " + readyN + "/" + voices.length;
+  $("enginePort").textContent = isIndex
+    ? "Сервис синтеза на 127.0.0.1:9881"
+    : "Сервер синтеза на 127.0.0.1:9880";
+  // крупный выбор движка — на главном экране
+  document.querySelectorAll(".eng[data-engine]").forEach(b=>{
+    const on = b.dataset.engine === kind;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+  // статус папки движка — рядом с заголовком
+  const st = ST || {};
+  const el = $("engineState");
+  if(el){
+    const probs = st.problems || [];
+    let html;
+    if(!st.path) html = '<span style="color:var(--err)">папка не указана</span>';
+    else if(probs.length) html = '<span style="color:var(--err)">папка не подходит</span>';
+    else html = '<span style="color:var(--ok)">папка в порядке ✓</span>';
+    el.innerHTML = html + (probs.length ? ' <span>'+esc(probs.join(" · "))+"</span>" : "");
+  }
+}
+/* Переключение движка: выбор в мастере и крупные карточки на главном экране */
+async function setEngine(kind){
+  if(!kind || kind === engineNow()){
+    applyEngineUI();
+    return;
+  }
+  try{
+    await api("/api/config", {engine: kind, engine_confirmed: true});
+    ST = await api("/api/state");
+    applyEngineUI();
+    $("gptpath").value = ST.path || "";
+    $("pathHint").textContent = "—";
+    try{ await loadSetup(); }catch(e){}
+    toast(kind === "indextts" ? "Движок: IndexTTS 2.5" : "Движок: GPT-SoVITS", "good");
+  }catch(e){ toast(e.message, "bad"); }
 }
 async function savePath(){
   const p = $("gptpath").value.trim();
@@ -1665,18 +1730,9 @@ document.querySelectorAll("[data-pick]").forEach(b=>{
 });
 $("btnPickGpt").onclick = ()=>openPicker($("gptpath"), "dir", "",
   (AV_ENGINES[engineNow()] || AV_ENGINES["gpt-sovits"]).pick);
-$("engineSel").onchange = async ()=>{
-  const kind = $("engineSel").value;
-  try{
-    await api("/api/config", {engine: kind});
-    ST = await api("/api/state");
-    applyEngineUI();
-    $("gptpath").value = ST.path || "";
-    $("pathHint").textContent = "—";
-    try{ await loadSetup(); }catch(e){}
-    toast(kind === "indextts" ? "Движок: IndexTTS 2.5" : "Движок: GPT-SoVITS", "good");
-  }catch(e){ toast(e.message, "bad"); }
-};
+document.querySelectorAll(".eng[data-engine]").forEach(b=>{
+  b.onclick = ()=>setEngine(b.dataset.engine);
+});
 
 /* ================================================= добавление голоса */
 function addVoiceDialog(){
@@ -1794,6 +1850,15 @@ function openWizard(step){
 function closeWizard(){
   WZ.open = false;
   $("wizardOverlay").classList.remove("on");
+  markEngineConfirmed();
+}
+/* Движок спросили один раз: дальше его можно менять на главном экране,
+   и мастер больше не пристаёт при каждом запуске. */
+function markEngineConfirmed(){
+  if(ST && ST.cfg && ST.cfg.engine_confirmed) return;
+  api("/api/config", {engine_confirmed: true}).then(()=>{
+    try{ if(ST && ST.cfg) ST.cfg.engine_confirmed = true; }catch(e){}
+  }).catch(()=>{});
 }
 function renderWizard(){
   const s = WZ.setup;
@@ -1815,27 +1880,37 @@ function renderWizard(){
   wireWizard();
 }
 function engineHtml(s){
-  const e = s.engine;
-  const path = WZ.path || e.path || e.auto || "";
-  const problems = (e.problems || []).map(p => "<li>"+esc(p)+"</li>").join("");
-  return '<h3>1. Движок GPT-SoVITS</h3>'+
-    '<p>AnkiVoice — оболочка. Синтез делает отдельный движок GPT-SoVITS; '+
-    'он весит несколько гигабайт и ставится один раз.</p>'+
-    '<div class="wstate '+(e.ok?"ok":"bad")+'"><span class="dot"></span>'+
-    (e.ok ? "Папка проверена: <b>"+esc(e.path)+"</b>"
-          : "Папка не найдена или в ней не хватает файлов")+'</div>'+
+  const kind = engineNow();
+  const e = AV_ENGINES[kind] || AV_ENGINES["gpt-sovits"];
+  const eng = s.engine || {};
+  const path = WZ.path || eng.path || eng.auto || "";
+  const problems = (eng.problems || []).map(p => "<li>"+esc(p)+"</li>").join("");
+  const cards = ["gpt-sovits","indextts"].map(k=>{
+    const d = AV_ENGINES[k];
+    const on = k === kind;
+    return '<button class="eng'+(on?" on":"")+'" type="button" data-w="wzEngine" '+
+      'data-kind="'+k+'" aria-pressed="'+(on?"true":"false")+'">'+
+      '<span class="eng-t">'+esc(d.title)+(on?'<span class="mark">✓ выбран</span>':"")+'</span>'+
+      '<span class="eng-d">'+esc(d.desc)+'</span></button>';
+  }).join("");
+  return '<h3>1. Движок синтеза</h3>'+
+    '<p>Кто будет читать текст. Движок можно поменять в любой момент — такие же '+
+    'кнопки есть на главном экране, вверху.</p>'+
+    '<div class="engines">'+cards+'</div>'+
+    '<div class="spacer"></div>'+
+    '<div class="wstate '+(eng.ok?"ok":"bad")+'"><span class="dot"></span>'+
+    (eng.ok ? "Папка проверена: <b>"+esc(eng.path)+"</b>"
+            : "Папка не найдена или в ней не хватает файлов")+'</div>'+
     (problems ? '<div class="wcard"><b>Что не так:</b><ul>'+problems+'</ul></div>' : "")+
-    '<label class="f">Папка GPT-SoVITS</label>'+
+    '<label class="f">'+esc(e.label)+'</label>'+
     '<div class="row"><div class="grow"><input id="wzPath" type="text" value="'+esc(path)+'"></div>'+
     '<button class="btn sm" data-w="wzBrowse">Обзор…</button>'+
     '<button class="btn sm primary" data-w="wzSavePath">Проверить и сохранить</button></div>'+
     '<div class="wactions">'+
-    (e.auto ? '<button class="btn sm" data-w="wzAuto" title="'+esc(e.auto)+'">Подставить найденную</button>' : "")+
-    '<a class="btn sm ghost" href="'+esc(e.download_url)+'" target="_blank" rel="noopener">Скачать GPT-SoVITS</a>'+
+    (eng.auto ? '<button class="btn sm" data-w="wzAuto" title="'+esc(eng.auto)+'">Подставить найденную</button>' : "")+
+    '<a class="btn sm ghost" href="'+esc(eng.download_url)+'" target="_blank" rel="noopener">Скачать движок</a>'+
     '</div>'+
-    '<div class="wcard"><b>Куда класть.</b> Скачай Windows-пакет GPT-SoVITS v2Pro, '+
-    'распакуй в папку без кириллицы (например, <code>D:\\GPT-SoVITS</code>) и укажи её здесь. '+
-    'Внутри должны быть <code>runtime\\python.exe</code> и <code>api_v2.py</code>.</div>';
+    '<div class="wcard"><b>Куда класть.</b> '+esc(eng.hint || "")+'</div>';
 }
 function ankiHtml(s){
   const a = s.anki;
@@ -1858,9 +1933,13 @@ function ankiHtml(s){
 }
 function serverHtml(s){
   const v = s.server;
-  return '<h3>3. Сервер GPT-SoVITS</h3>'+
-    '<p>Сервер слушает только <code>127.0.0.1:9880</code>. Первый запуск грузит '+
-    'веса и CUDA — это может занять 1–2 минуты.</p>'+
+  const isIndex = engineNow() === "indextts";
+  return '<h3>3. Сервер синтеза</h3>'+
+    '<p>'+(isIndex
+      ? 'Сервис IndexTTS слушает только <code>127.0.0.1:9881</code>. Первый запуск '+
+        'грузит веса и CUDA — это может занять 1–2 минуты.'
+      : 'Сервер слушает только <code>127.0.0.1:9880</code>. Первый запуск грузит '+
+        'веса и CUDA — это может занять 1–2 минуты.')+'</p>'+
     '<div class="wstate '+(v.ok?"ok":"bad")+'"><span class="dot"></span>'+
     (v.ok ? "Сервер уже запущен и отвечает." : "Сервер пока не запущен.")+'</div>'+
     (WZ.busy ? '<div class="wcard"><b>Запускаю…</b> не закрывай мастер, первый старт небыстрый.</div>' : "")+
@@ -1908,7 +1987,7 @@ function wireWizard(){
   document.querySelectorAll("#wzBody [data-w]").forEach(b=>{
     b.onclick = ev=>{
       if(b.dataset.w === "wzSound" || b.dataset.w === "wzLog") ev.preventDefault();
-      onWizardAction(b.dataset.w);
+      onWizardAction(b.dataset.w, b);
     };
   });
   const p = $("wzPath");
@@ -1918,9 +1997,26 @@ function wireWizard(){
   const v = $("wzVoice");
   if(v) v.onchange = ()=>{ WZ.voice = v.value; };
 }
-async function onWizardAction(a){
+async function onWizardAction(a, el){
   if(a === "wzBrowse"){
-    openPicker("wzPath", "dir", "", "Папка GPT-SoVITS");
+    const e = AV_ENGINES[engineNow()] || AV_ENGINES["gpt-sovits"];
+    openPicker("wzPath", "dir", "", e.pick);
+    return;
+  }
+  if(a === "wzEngine"){
+    const kind = el && el.dataset.kind;
+    if(!kind || kind === engineNow()) return;
+    WZ.busy = true; WZ.serverError = ""; WZ.testError = "";
+    renderWizard();
+    try{
+      await api("/api/config", {engine: kind, engine_confirmed: true});
+      await loadState();
+      WZ.path = "";
+      await loadSetup();
+      WZ.path = (WZ.setup.engine && WZ.setup.engine.path) || "";
+      toast(kind === "indextts" ? "Движок: IndexTTS 2.5" : "Движок: GPT-SoVITS", "good");
+    }catch(e){ toast(e.message, "bad"); }
+    finally{ WZ.busy = false; if(WZ.open) renderWizard(); }
     return;
   }
   if(a === "wzSound"){ closeWizard(); goTab("sound"); return; }
@@ -1951,11 +2047,12 @@ async function refreshWizard(){
 }
 async function saveWizardPath(path){
   const p = String(path || "").trim();
-  if(!p) return toast("Укажи папку GPT-SoVITS","bad");
+  if(!p) return toast("Укажи папку движка","bad");
+  const key = pathKey();
   WZ.path = p; WZ.busy = true; WZ.serverError = ""; WZ.testError = "";
   renderWizard();
   try{
-    const j = await api("/api/config", {gptsovits_path:p});
+    const j = await api("/api/config", {[key]: p});
     if(j.problems && j.problems.length){
       toast("Папка не подходит","bad");
       await loadSetup();
@@ -2187,6 +2284,9 @@ $("btnUpdate").onclick = checkUpdates;
     // тестовая фраза необязательна — из-за неё мастер не приставал.
     if(WZ.setup && !WZ.setup.core){
       setTimeout(()=>{ if(!WZ.open) openWizard(); }, 450);
+    }else if(!(ST && ST.cfg && ST.cfg.engine_confirmed)){
+      // движок ещё ни разу не выбирали — спросим один раз, при первом запуске
+      setTimeout(()=>{ if(!WZ.open) openWizard(0); }, 450);
     }
   }catch(e){
     console.warn("setup:", e);

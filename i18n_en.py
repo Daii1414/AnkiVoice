@@ -413,6 +413,30 @@ I18N_EN = {
         "Zero-shot engine: a voice is a single reference, the weights are shared.",
     "Движок: IndexTTS 2.5": "Engine: IndexTTS 2.5",
     "Движок: GPT-SoVITS": "Engine: GPT-SoVITS",
+    # --- выбор движка на главном экране (1.5) ---
+    "Голос задаётся весами .ckpt и .pth. Синтез быстрее, голосов можно много.":
+        "A voice is defined by .ckpt and .pth weights. Synthesis is faster, you can have many voices.",
+    "Голос — это один референс. Японские термины читает точнее, но синтез медленнее.":
+        "A voice is a single reference. Japanese terms are read more accurately, but synthesis is slower.",
+    "Папка движка": "Engine folder",
+    "Сохранить": "Save",
+    "Папка в порядке ✓": "Folder is fine ✓",
+    "папка в порядке ✓": "folder is fine ✓",
+    "папка не указана": "folder is not set",
+    "папка не подходит": "folder doesn't fit",
+    "Готовых голосов: ": "Voices ready: ",
+    "Сервис синтеза на 127.0.0.1:9881": "Synthesis service on 127.0.0.1:9881",
+    "Сервер синтеза на 127.0.0.1:9880": "Synthesis server on 127.0.0.1:9880",
+    "Кто будет читать текст. Движок можно поменять в любой момент — такие же кнопки есть на главном экране, вверху.":
+        "Who will read the text. You can switch the engine at any time — the same buttons are on the main screen, at the top.",
+    "✓ выбран": "✓ selected",
+    "Куда класть.": "Where to put it.",
+    "Скачать движок": "Download the engine",
+    "Укажи папку движка": "Point to the engine folder",
+    "Сервер синтеза": "Synthesis server",
+    "Сервис IndexTTS слушает только": "The IndexTTS service listens only on",
+    "Мастер настройки, обновление, диагностика и файлы. Движок синтеза выбирается на главном экране.":
+        "Setup wizard, updates, diagnostics and files. The synthesis engine is chosen on the main screen.",
 
     # --- мастер и шапки (аудит интерфейса) ---
     ". Фуригана:":

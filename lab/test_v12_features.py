@@ -619,6 +619,23 @@ def test_setup_status():
          aw.read_voices_file, aw._test_audio) = old
 
 
+def test_engine_ui_on_main_screen():
+    """Выбор движка — крупными карточками на главном экране (1.5)."""
+    import anki_web_page as wp
+    html = wp.HTML
+    check('id="engineCards"' in html, "на главном экране есть блок выбора движка")
+    check('data-engine="gpt-sovits"' in html, "карточка GPT-SoVITS")
+    check('data-engine="indextts"' in html, "карточка IndexTTS")
+    check('id="engineSel"' not in html, "старый выпадающий список убран")
+    # выбор движка должен быть ВЫШЕ выбора колоды — первым, что видишь
+    i_eng = html.index('id="engineCards"')
+    i_deck = html.index('id="deck"')
+    check(i_eng < i_deck, "выбор движка выше выбора колоды")
+    check("function setEngine(" in html, "есть общая функция переключения движка")
+    check('data-w="wzEngine"' in html, "в мастере движок тоже выбирается")
+    check("engine_confirmed" in html, "движок спрашивается один раз (engine_confirmed)")
+
+
 def main():
     tests = [test_version_tuple, test_release_parse, test_download_sha,
              test_busy_download_no_deadlock, test_installer_ships_runtime_modules,
@@ -630,6 +647,7 @@ def main():
              test_latin_term_kept_as_is, test_real_furigana_never_doubled,
              test_engine_choice, test_indextts_folder_check,
              test_indextts_synth_needs_ref,
+             test_engine_ui_on_main_screen,
              test_setup_status]
     failed = 0
     for t in tests:
@@ -640,7 +658,7 @@ def main():
             failed += 1
             print("FAIL", t.__name__)
             traceback.print_exc()
-    print("\nv1.4 features: %d/%d" % (len(tests) - failed, len(tests)))
+    print("\nv1.5 features: %d/%d" % (len(tests) - failed, len(tests)))
     return 1 if failed else 0
 
 

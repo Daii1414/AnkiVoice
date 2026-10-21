@@ -868,7 +868,7 @@ class Handler(BaseHTTPRequestHandler):
                 cfg["setup_done"] = False
                 cfg.pop("last_test_voice", None)
             for k in ("gptsovits_path", "indextts_path", "indextts_url", "engine",
-                      "theme", "deck", "voice", "mode",
+                      "engine_confirmed", "theme", "deck", "voice", "mode",
                       "sentence_src", "sentence_audio", "word_src",
                       "word_audio", "furigana_src", "reading", "limit",
                       "verify_pronunciation", "asr_model", "lang"):
@@ -886,10 +886,15 @@ class Handler(BaseHTTPRequestHandler):
                     if k in b:
                         prof[k] = b[k]
             ag.save_config(cfg)
-            # сразу проверяем папку — говорим, что именно не так
-            p = (cfg.get("gptsovits_path") or "").strip()
-            problems = ag.validate_gptsovits(p) if p else ["папка не указана"]
-            auto = ag.find_gptsovits_automatic() if problems else ""
+            # сразу проверяем папку ВЫБРАННОГО движка — говорим, что не так
+            if ag.engine_kind(cfg) == ag.ENGINE_INDEX:
+                p = (cfg.get("indextts_path") or "").strip()
+                problems = ag.validate_indextts(p) if p else ["папка не указана"]
+                auto = ag.find_indextts_automatic() if problems else ""
+            else:
+                p = (cfg.get("gptsovits_path") or "").strip()
+                problems = ag.validate_gptsovits(p) if p else ["папка не указана"]
+                auto = ag.find_gptsovits_automatic() if problems else ""
             self._json({"ok": True, "problems": problems, "auto": auto})
             return
 

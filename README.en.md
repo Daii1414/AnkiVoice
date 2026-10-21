@@ -41,6 +41,7 @@ ogg files land straight in Anki fields. The internet is only needed to download 
 - [Requirements](#requirements)
 - [Quick start](#quick-start)
 - [Interface (four tabs)](#interface-four-tabs)
+- [What's new in 1.5](#whats-new-in-15)
 - [What's new in 1.4](#whats-new-in-14)
 - [What's new in 1.3](#whats-new-in-13)
 - [What's new in 1.2](#whats-new-in-12)
@@ -105,14 +106,14 @@ unpack themselves.
 
 ## Quick start
 
-1. Download **`AnkiVoice-Setup-1.4.exe`** from the
+1. Download **`AnkiVoice-Setup-1.5.exe`** from the
    [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) page — one
    file with everything inside.
 2. Run it: **“Далее” → “Установить” → “Завершить”** (Next → Install → Finish;
    the “Launch AnkiVoice” checkbox is on, so the app opens by itself).
-3. The setup wizard walks you through the steps: engine folder → AnkiConnect →
-   server → test phrase. It opens by itself on every launch until the setup is
-   finished.
+3. The setup wizard walks you through the steps: pick the engine → engine folder
+   → AnkiConnect → server → test phrase. It opens by itself on every launch
+   until the setup is finished.
 
    ![Setup wizard](doc/shots/wizard-dark.png)
 
@@ -149,6 +150,10 @@ via the `--classic` flag.
 
 ![Dubbing tab](doc/shots/voice-dark.png)
 
+* **Synthesis engine — two big cards at the top.** GPT-SoVITS or IndexTTS 2.5,
+  each with a one-line description. You can switch while working, no restart:
+  the engine folder, the server address and the voice list all follow. Under
+  the cards — how many voices are ready and where the server lives.
 * **Deck** and **Voice** — lists pulled from Anki and `voices.json`.
 * **What to voice** — “word + sentence” (the usual choice), sentence only or
   word only; a card limit (0 = all); “rebuild everything” ignores cards that
@@ -196,11 +201,10 @@ via the `--classic` flag.
 ![App tab](doc/shots/app-dark.png)
 
 * **Setup wizard** — four steps: engine, AnkiConnect, server, test phrase. It
-  shows the status of each step and what to do when one is red.
+  shows the status of each step and what to do when one is red. The first step
+  picks the engine (two cards) and its folder.
 * **Updates** — the “Check for updates” button shows the latest changelog,
   downloads the installer and verifies its SHA256.
-* **GPT-SoVITS folder** — the path to the engine; the “Check” and “Browse…”
-  buttons tell you exactly what is wrong instead of just “check the folder”.
 * **Diagnostics** — everything at once: tool, config, path, Anki, server, voice
   list. Look here first if something does not work.
 * **Where the files live** — program folder and config.
@@ -213,6 +217,22 @@ Light theme — the same tabs: [Dubbing](doc/shots/voice-light.png),
 [Deck fields](doc/shots/anki-light.png), [Voice](doc/shots/sound-light.png),
 [App](doc/shots/app-light.png). A full-page snapshot:
 [voice-dark-full.png](doc/shots/voice-dark-full.png).
+
+## What's new in 1.5
+
+* **The engine choice is on the main screen, as big cards.** The “Dubbing” tab
+  now starts with two large buttons: GPT-SoVITS or IndexTTS 2.5, each with a
+  description. Switching works while you work, without a restart. Before there
+  was a single dropdown on the “App” tab, buried in the settings.
+* **The engine settings moved to the main screen too:** the engine folder,
+  “Browse…”, “Check” and “Save” sit right next to the engine cards. The “App”
+  tab now only holds maintenance: wizard, updates, diagnostics, paths and exit.
+* **The first-run wizard asks for the engine for real:** the first step is a
+  choice between two cards, then the folder of the chosen engine and where to
+  put it. It asks once — after that the wizard stops nagging and the engine is
+  changed with the buttons on the main screen.
+* **The folder check looks at the chosen engine** (before it always checked the
+  GPT-SoVITS folder, even when IndexTTS was running).
 
 ## What's new in 1.4
 
