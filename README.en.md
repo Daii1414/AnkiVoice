@@ -16,10 +16,17 @@
   <img alt="No cloud" src="https://img.shields.io/badge/data-off%20line%2C%20no%20cloud-12A150">
 </p>
 
-<p align="center"><b>Local Japanese audio for Anki decks, voiced by GPT-SoVITS.</b><br>
+<p align="center"><b>Local Japanese audio for Anki decks, voiced by GPT-SoVITS or IndexTTS 2.5.</b><br>
 The engine reads the kanji itself - connected, in the context of the sentence -
 while the reading of the main term comes from the card's furigana. Finished
-ogg files land straight in Anki fields. The internet is only needed to download it.</p>
+ogg files land straight in Anki fields. <b>Free, no accounts, no telemetry.</b>
+The internet is only needed to download it.</p>
+
+<p align="center">
+  <a href="https://github.com/Daii1414/AnkiVoice/releases/latest">
+    <img alt="Download AnkiVoice 1.6 for Windows" src="https://img.shields.io/badge/%E2%96%A8%20Download%20AnkiVoice%201.6%20%E2%80%94%20125%20MB-4F46E5">
+  </a>
+</p>
 
 <p align="center">
   <a href="#features">Features</a> •
@@ -47,6 +54,7 @@ ogg files land straight in Anki fields. The internet is only needed to download 
 - [What's new in 1.3](#whats-new-in-13)
 - [What's new in 1.2](#whats-new-in-12)
 - [Pronunciation check](#pronunciation-check)
+- [A second engine: IndexTTS 2.5](#a-second-engine-indextts-25)
 - [How kanji are read](#how-kanji-are-read)
 - [How text becomes hiragana](#how-text-becomes-hiragana)
 - [Card fields](#card-fields)
@@ -70,7 +78,7 @@ ogg files land straight in Anki fields. The internet is only needed to download 
 | 🧩 **Per-deck settings** | Fields and reading mode belong to a deck: switch decks and its settings come with them. |
 | 🧪 **Quality control** | QC v2 measures several independent signals (silence, speech gaps, duplicate speech, clipping, level, speed) and re-synthesizes rejects on its own. |
 | 🎙 **Pronunciation check** | The app listens to its own audio and compares it with the text, showing where the sentence diverged. Advice, not a verdict - you decide. |
-| 🧙 **First-run wizard** | Four steps: GPT-SoVITS folder, AnkiConnect, server, test phrase. It tells you what to download, where to put it and what to click. |
+| 🧙 **First-run wizard** | Five steps: pick the engine, the engine folder, AnkiConnect, server, test phrase. It tells you what to download, where to put it and what to click. |
 | 🔄 **In-app updates** | "Check for updates": changelog, installer download and a mandatory SHA256 check. |
 | 🌐 **Two languages** | The whole interface in English and Russian - switch with the EN button in the header. |
 | 🔒 **Fully local** | The page works offline, without a CDN. The only outbound request is the update check. |
@@ -84,7 +92,7 @@ Anki card
    │      ├─► "kanji only": the engine reads the kanji itself
    │      └─► "kanji + reading from furigana": the term keeps the card's reading
    │
-   ├─► GPT-SoVITS (127.0.0.1:9880) ──► ogg
+   ├─► engine: GPT-SoVITS (127.0.0.1:9880) or IndexTTS 2.5 (127.0.0.1:9881) ──► ogg
    │
    ├─► QC v2: quality signals ──► re-synthesis of rejects
    │
@@ -96,22 +104,39 @@ runs as an ordinary local server, the app sends it text and takes the sound back
 So the engine's own web interface and any of its voices keep working next to it.
 ## Requirements
 
-1. **Windows 10/11** and a CUDA GPU (6 GB of VRAM is comfortable).
-2. **GPT-SoVITS** installed and started at least once (the folder with
-   `runtime\python.exe` and `api_v2.py`).
-3. **Anki** with **AnkiConnect** enabled (the add-on listens on `127.0.0.1:8765`).
+1. **Windows 10/11** and a CUDA GPU (6 GB of VRAM is comfortable) with a recent
+   NVIDIA driver (CUDA 12.8+ is needed for IndexTTS 2.5).
+2. **One of the two engines** - pick it in the wizard on the first run:
+   * **[GPT-SoVITS v2Pro](https://github.com/RVC-Boss/GPT-SoVITS/releases)** -
+     the unpacked Windows package, roughly **6-10 GB** (voice weights are not
+     included);
+   * **[IndexTTS 2.5](https://github.com/index-tts/index-tts)** - `git clone` +
+     `uv sync --extra webui` + the model weights (~5 GB) in `checkpoints`.
+3. **A voice of your own.** For GPT-SoVITS: a `.ckpt` + `.pth` pair and a 3-10 s
+   reference clip; for IndexTTS 2.5: **one reference clip** of 3-10 s (the
+   weights belong to the model). The engine ships its own voices.
+4. **Anki** with **AnkiConnect** enabled (the add-on listens on `127.0.0.1:8765`).
 
 Nothing else has to be installed: the reading dictionary and the bundled Python
 are already inside the installer (`pyruntime.zip`, `sudachidict.zip`) and
 unpack themselves.
 
+The **internet** is only needed to download the installer and the engine - the
+dubbing itself is fully offline. Allow about **1 GB** of disk for the app (the
+installer itself is 125 MB) plus room for the engine and its weights.
+
 ## Quick start
 
 1. Download **`AnkiVoice-Setup-1.6.exe`** from the
    [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) page — one
-   file with everything inside.
+   file with everything inside. Size **125 MB**, SHA256:
+   `385481551c6404ec8927a37d6c234630c87ee71660aa5c689eab9654da0dbc28`
 2. Run it: **“Далее” → “Установить” → “Завершить”** (Next → Install → Finish;
    the “Launch AnkiVoice” checkbox is on, so the app opens by itself).
+   > [!IMPORTANT]
+   > The installer is not digitally signed, so Windows shows a blue SmartScreen
+   > window. Click **“More info” → “Run anyway”** - the usual warning for files
+   > downloaded outside the store.
 3. The setup wizard walks you through the steps: pick the engine → engine folder
    → AnkiConnect → server → test phrase. It opens by itself on every launch
    until the setup is finished.
@@ -326,10 +351,10 @@ skeptic and a stress tester. Report and screenshots: [`qa/REPORT.md`](qa/REPORT.
   again before the installer starts.
 * **Live diagnostics** - the "App" tab shows the state of the engine, Anki,
   the server, the voices and the test phrase.
-* **The installer ships the reading stack** - 8 modules from `lab/` are now in
-  the installed app: the reading system (provenance, domain dictionary,
-  resolver), QC v2 and the pronunciation check. They used to be missing, and
-  the app silently worked on the simple "has audio" criterion.
+* **The installer ships the reading stack** - 8 modules from `lab/` were added to
+  the installed app in this release: the reading system (provenance, domain
+  dictionary, resolver), QC v2 and the pronunciation check. They used to be
+  missing, and the app silently worked on the simple "has audio" criterion.
 * **Two reading modes** - the engine reads the kanji itself, the term keeps
   the reading from the furigana. The mode is set **per deck** (in the deck
   profile): difficult decks keep the exact mode, the rest plain kanji.
@@ -342,12 +367,12 @@ skeptic and a stress tester. Report and screenshots: [`qa/REPORT.md`](qa/REPORT.
   start dubbing or close the app.
 
 The full list of changes is in [CHANGELOG.md](CHANGELOG.md) and in
-[release v1.2](https://github.com/Daii1414/AnkiVoice/releases/tag/v1.2).
+[release v1.6](https://github.com/Daii1414/AnkiVoice/releases/tag/v1.6).
 ## A second engine: IndexTTS 2.5
 
 Besides GPT-SoVITS you can run **IndexTTS 2.5**, a zero-shot engine that
-needs only one reference clip. The switch lives in **“App” → “Synthesis
-engine”**. The choice is remembered and applies to the whole app.
+needs only one reference clip. The switch lives **on the main screen**, at the
+top, as two large cards. The choice is remembered and applies to the whole app.
 
 | | GPT-SoVITS | IndexTTS 2.5 |
 |---|---|---|
@@ -593,7 +618,7 @@ set ENGINE=C:\Path\To\GPT-SoVITS
 ISCC.exe AnkiVoice.iss
 ```
 
-→ produces `dist\AnkiVoice-Setup-1.3.exe`.
+→ produces `dist\AnkiVoice-Setup-1.6.exe`.
 
 **tests** (Python 3.12+, no GPU and no network needed):
 
