@@ -338,7 +338,9 @@ Two exceptions, both measured on cards with katakana terms:
 
 * a reading that covers the whole word ("点群データ[てんぐんでーた]") is taken
   as it is - otherwise the okurigana ("データ") would be added a second time and
-  the word would be heard twice;
+  the word would be heard twice. As a safety net, the finished text is checked:
+  if the okurigana would be heard twice, the term is left as it is and the
+  engine reads it itself;
 * terms with latin letters or digits ("3D", "PLATEAU", "BIM/CIM", "2.0") are
   left alone: the engine reads them better on its own, and our own
   transcription ("3D" -> "すりーでぃー") sends the model into a loop - measured

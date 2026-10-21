@@ -1402,6 +1402,8 @@ def _kana_norm(s):
                  ("\u3047", "\u3048"), ("\u3049", "\u304a"), ("\u3083", "\u3084"),
                  ("\u3085", "\u3086"), ("\u3087", "\u3088")):
         s = s.replace(a, b)
+    # «·» — разделитель, а не звук: в чтении его не бывает
+    s = s.replace("\u30fb", "").replace("\u00b7", "")
     return s
 
 
@@ -1505,6 +1507,23 @@ def expression_inject_pair(note, reading_field):
     return surface, reading
 
 
+def _doubled_okurigana(surface, text):
+    """Окуригана прозвучит в готовом тексте дважды — вернём её (если нашли).
+
+    Считаем в самом тексте, а не по формату записи, поэтому правило работает
+    и для незнакомых форматов фуриганы. «データ» + «てんぐんでーта» ->
+    «でーた» и «でーта»: модель сказала бы «データ» дважды.
+
+    Возвращает найденный кусок (пустая строка — всё в порядке).
+    """
+    flat = _kana_norm(text)
+    for part in re.split(KANJI_RE.pattern, surface or ""):
+        q = _kana_norm(part)
+        if q and flat.count(q) >= 2:
+            return q
+    return ""
+
+
 def inject_reading_lenient(sentence, note, reading_field):
     """Подставить чтение из поля в предложение без ограничения.
 
@@ -1533,7 +1552,17 @@ def inject_reading_lenient(sentence, note, reading_field):
         return sentence
     if surface not in sentence:
         return sentence
-    return sentence.replace(surface, kata2hira(reading))
+    repl = kata2hira(reading)
+    # страховка: в ЗАМЕНЕ окуригана не должна прозвучать дважды. Если разбор
+    # ошибся и окуригана попала в чтение второй раз — оставляем термин как
+    # есть, пусть его прочитает сам движок. Считаем только в замене: в самом
+    # предложении частица «を» может встречаться сколько угодно.
+    dup = _doubled_okurigana(surface, repl)
+    if dup:
+        print("  [прочтение] окуригана %r прозвучала бы дважды — термин "
+              "оставлен как есть" % dup)
+        return sentence
+    return sentence.replace(surface, repl)
 
 
 def inject_reading(sentence, note, reading=""):

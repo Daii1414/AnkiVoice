@@ -463,6 +463,69 @@ def test_latin_term_kept_as_is():
           "\u30d3\u30e5\u30fc\u5be9\u67fb: \u0447\u0442\u0435\u043d\u0438\u0435 \u043f\u043e \u0444\u0443\u0440\u0438\u0433\u0430\u043d\u0435")
 
 
+# реальные форматы фуриганы из колод: (поле, где взяли)
+REAL_FURIGANA = [
+    # колода «Новое в цифровом строительстве» — чтение на всё слово
+    ("点群データ[てんぐんでーた]", "новое строительство"),
+    ("ビュー審査[びゅーしんさ]", "новое строительство"),
+    ("デジタル審査[でじたるしんさ]", "новое строительство"),
+    ("施工のオートメーション化[せこうのおーとめーしょんか]", "новое строительство"),
+    ("データ連携のオートメーション化[でーたれんけいのおーとめーしょんか]",
+     "новое строительство"),
+    ("3D都市モデル[すりーでぃーとしもでる]", "новое строительство"),
+    ("PLATEAU[ぷらとー]", "новое строительство"),
+    ("i-Construction 2.0[あいこんすとらくしょんにてんぜろ]", "новое строительство"),
+    # колода «Архитектура» — чтение только на иероглифы
+    ("アイススケート場[じょう]", "архитектура"),
+    ("アーク溶接棒[ようせつぼう]", "архитектура"),
+    ("アイソメ画法[がほう]", "архитектура"),
+    ("腮欠き[あごかき]", "архитектура"),
+    ("蟻掛け[ありがけ]", "архитектура"),
+    ("安全ガラス[あんぜんガラス]", "архитектура"),
+    ("アイリング・ヌートセンの残響式[アイリングヌートセンのざんきょうしき]",
+     "архитектура"),
+    ("IEC規格[アイイーシーきかく]", "архитектура"),
+    ("IIW[アイアイダブリュー]", "архитектура"),
+    ("遠隔[えんかく]監督[かんとく]・検査[けんさ]", "архитектура"),
+    ("き継[つ]ぎ", "архитектура"),
+    ("食品[しょくひん]を使う", "архитектура"),
+    ("生花[いけばな]", "архитектура"),
+    ("食[た]べる", "архитектура"),
+]
+
+
+def test_real_furigana_never_doubled():
+    """Ни один реальный формат не должен удваивать окуригану.
+
+    Проверяем и разбор, и страховку: даже если разбор ошибся, удвоение
+    не дойдёт до синтеза — термин останется как есть.
+    """
+    for text, where in REAL_FURIGANA:
+        surf, read = vp.furiga_pair(text)
+        check(surf is not None, "%s: разметка разобрана (%s)" % (where, text))
+        # 1. в разборе окуригана не должна звучать дважды
+        check(not vp._doubled_okurigana(surf or "", read or ""),
+              "%s: разбор без удвоения (%s -> %r)" % (where, text, read))
+        # 2. и страховка на готовом тексте
+        note = {"noteId": 1, "fields": {
+            "Sentence": {"value": "現場では、%sを用いた。" % surf},
+            "Expression": {"value": surf},
+            "ExpressionFurigana": {"value": text}}}
+        fields = {"sentence_src": "Sentence", "sentence_audio": "SentenceAudio",
+                  "word_src": "Expression", "word_audio": "ExpressionAudio",
+                  "furigana_src": "ExpressionFurigana", "reading": "mix"}
+        jobs = vp.build_jobs([note], "sentence", True, fields=fields)
+        check(bool(jobs), "%s: есть работа (%s)" % (where, text))
+        out = jobs[0][2]
+        # термин в тексте на синтез встречается ровно один раз: либо как есть
+        # (страховка сработала), либо в виде своего чтения
+        read_h = vp.kata2hira(read or "")   # в текст подставляется кана
+        as_is = out.count(surf or "") == 1
+        as_read = out.count(surf or "") == 0 and out.count(read_h) == 1
+        check(as_is or as_read,
+              "%s: термин в тексте на синтез без удвоения (%s)" % (where, text))
+
+
 def test_setup_status():
     eng = tempfile.mkdtemp(prefix="anki_voice_engine_")
     for name in ("g.ckpt", "s.pth", "r.wav"):
@@ -518,7 +581,7 @@ def main():
              test_baseline_relative_limits, test_profile_fields_per_deck,
              test_check_targets_spoken_text, test_reading_mode_auto,
              test_broken_config_not_wiped, test_furigana_not_doubled,
-             test_latin_term_kept_as_is,
+             test_latin_term_kept_as_is, test_real_furigana_never_doubled,
              test_setup_status]
     failed = 0
     for t in tests:
