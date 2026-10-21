@@ -41,6 +41,7 @@ ogg files land straight in Anki fields. The internet is only needed to download 
 - [Requirements](#requirements)
 - [Quick start](#quick-start)
 - [Interface (four tabs)](#interface-four-tabs)
+- [What's new in 1.4](#whats-new-in-14)
 - [What's new in 1.3](#whats-new-in-13)
 - [What's new in 1.2](#whats-new-in-12)
 - [Pronunciation check](#pronunciation-check)
@@ -104,7 +105,7 @@ unpack themselves.
 
 ## Quick start
 
-1. Download **`AnkiVoice-Setup-1.3.exe`** from the
+1. Download **`AnkiVoice-Setup-1.4.exe`** from the
    [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) page — one
    file with everything inside.
 2. Run it: **“Далее” → “Установить” → “Завершить”** (Next → Install → Finish;
@@ -212,6 +213,29 @@ Light theme — the same tabs: [Dubbing](doc/shots/voice-light.png),
 [Deck fields](doc/shots/anki-light.png), [Voice](doc/shots/sound-light.png),
 [App](doc/shots/app-light.png). A full-page snapshot:
 [voice-dark-full.png](doc/shots/voice-dark-full.png).
+
+## What's new in 1.4
+
+* **A second engine: IndexTTS 2.5.** The “App” tab now has a “Synthesis engine”
+  switch: GPT-SoVITS or IndexTTS. The choice is remembered and applies to the whole
+  app.
+* **A voice for IndexTTS is a single reference.** IndexTTS has no per-voice weights
+  (they belong to the model), so the voice card hides the `.ckpt`/`.pth` fields and
+  the sampling settings.
+* **A bridge to IndexTTS** (`lab/indextts_service.py`): IndexTTS has no HTTP API,
+  and reloading the weights per card is not an option. The service keeps the model in
+  memory and answers `POST /tts`.
+* **Faster on weak cards.** On a GPU without bf16, IndexTTS 2.5 runs almost
+  everything in fp32 with 25 diffusion steps - a sentence takes 3-4 minutes. The
+  service applies two engine tweaks itself (12 steps and fp16): on an RTX 2060 a
+  sentence takes **30-60 s** instead of 186-229 s.
+* **The reading was measured on the new engine.** On cards with rare kanji terms we
+  compared how IndexTTS reads them with and without the furigana: substituting the
+  reading from the furigana scores higher (0.92-0.97 against 0.88-0.90), so the
+  “auto” mode takes the reading from the furigana for IndexTTS as well, while terms
+  with latin letters and digits (3D, PLATEAU, 2.0) are left alone: our own
+  transcription ("3D" -> "すりーでぃー") sends the model into a loop - 96 seconds
+  per sentence against 4.
 
 ## What's new in 1.3
 

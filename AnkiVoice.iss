@@ -2,7 +2,7 @@
 ; Сборка установщика AnkiVoice для Windows (Inno Setup 6).
 ;
 ;   Скомпилировать:  ISCC.exe AnkiVoice.iss
-;   На выходе:       dist\AnkiVoice-Setup-1.3.exe  — один файл, всё внутри.
+;   На выходе:       dist\AnkiVoice-Setup-1.4.exe  — один файл, всё внутри.
 ;
 ; Установка — профильная, в папку пользователя ({localappdata}\Programs):
 ; без запроса прав администратора и без UAC. Это принципиально: пайплайн при
@@ -10,7 +10,7 @@
 ; а в Program Files обычный пользователь писать не может.
 
 #define MyAppName "AnkiVoice"
-#define MyAppVersion "1.3"
+#define MyAppVersion "1.4"
 #define MyAppPublisher "Daii1414"
 #define MyAppURL "https://github.com/Daii1414/AnkiVoice"
 ; Исходники берём из каталога этого скрипта ({src}) — сборка одинаково
@@ -28,7 +28,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=dist
-OutputBaseFilename=AnkiVoice-Setup-1.3
+OutputBaseFilename=AnkiVoice-Setup-1.4
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
