@@ -568,7 +568,7 @@ windows-latest.
 | `pyruntime.zip` | Bundled Python + Haqumei 0.12.2 + SudachiPy 0.7 (~44 MB, unpacks itself) |
 | `sudachidict.zip` | Sudachi core dictionary 20261015 (~73 MB, unpacked by the helper) |
 | `voices.json` | Voice registry: weights, references, prompt, sampling |
-| `lab/` | Reading system, QC v2 modules and the IndexTTS service (8 files ship with the installer) + tests and dev tools |
+| `lab/` | Reading system, QC v2 modules and the IndexTTS service (10 files ship with the installer) + tests and dev tools |
 | `doc/` | UI screenshots, logo, engine media, measurement reports |
 | `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md` | History, development rules, security policy |
 | `.github/` | CI, issue and pull request templates |

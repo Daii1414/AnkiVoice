@@ -4,7 +4,7 @@
 У IndexTTS нет HTTP-API, а грузить веса на каждую карточку — десятки секунд.
 Поэтому маленький сервис: модель загружается один раз, синтез идёт по HTTP.
 
-Запуск (в окружении IndexTTS, через uv):
+Запуск (в окружении IndexTTS, через uv или .venv):
 
     uv run --project D:\\DOWNLOAD\\index-tts python indextts_service.py \\
         --model-dir D:\\DOWNLOAD\\index-tts\\checkpoints --port 9881
@@ -24,9 +24,21 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+try:
+    from indextts_fast import apply_speedups
+except Exception:
+    def apply_speedups(_root):
+        return []
+try:
+    from indextts_norm import normalize_peak
+except Exception:
+    def normalize_peak(_path, _target=0.98):
+        return None
+
 TTS = None          # модель
 TTS_LOCK = threading.Lock()
-STATE = {"model": "", "device": "", "loaded_at": 0, "error": ""}
+STATE = {"model": "", "device": "", "loaded_at": 0, "error": "", "fast": []}
 
 
 def log(msg):
@@ -65,6 +77,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"ok": TTS is not None, "model": STATE["model"],
                         "device": STATE["device"],
                         "uptime": round(time.time() - STATE["loaded_at"], 1),
+                        "fast": STATE["fast"],
                         "error": STATE["error"]})
         else:
             self._json({"error": "unknown path"}, 404)
@@ -106,6 +119,11 @@ class Handler(BaseHTTPRequestHandler):
                     duration_factor=float(body.get("duration_factor") or 1.0),
                     verbose=False,
                 )
+            # IndexTTS выдаёт горячий сигнал (пик около 0.999) — наш QC
+            # справедливо помечает такой верх обрезанным. Мягко выравниваем пик.
+            fixed = normalize_peak(out_path)
+            if fixed and fixed[0] > fixed[1]:
+                log("пик %.3f -> %.3f" % (fixed[0], fixed[1]))
             with open(out_path, "rb") as f:
                 blob = f.read()
         except Exception as e:
@@ -133,6 +151,8 @@ def main():
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=9881)
     ap.add_argument("--no-bf16", action="store_true")
+    ap.add_argument("--no-fast", action="store_true",
+                    help="не трогать движок (без ускорения)")
     ap.add_argument("--device", default=None)
     args = ap.parse_args()
 
@@ -143,6 +163,19 @@ def main():
     if not os.path.isfile(cfg):
         raise SystemExit("нет конфига: %s" % cfg)
     log("папка: %s" % model_dir)
+    if not args.no_fast:
+        # ускоряющие правки движка: 12 шагов диффузии и fp16.
+        # На слабых картах без bf16 это в 6-8 раз быстрее.
+        try:
+            import indextts
+            index_root = os.path.dirname(
+                os.path.dirname(os.path.abspath(indextts.__file__)))
+        except Exception:
+            index_root = None
+        done = apply_speedups(index_root) if index_root else []
+        STATE["fast"] = done
+        if done:
+            log("ускорение движка: " + "; ".join(done))
     load_model(model_dir, cfg, use_bf16=not args.no_bf16, device=args.device)
     srv = ThreadingHTTPServer((args.host, args.port), Handler)
     log("слушаю http://%s:%d" % (args.host, args.port))

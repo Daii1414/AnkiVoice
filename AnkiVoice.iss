@@ -71,6 +71,8 @@ Source: "lab\quality_v2.py";       DestDir: "{app}\lab"; Flags: ignoreversion
 Source: "lab\pron_check.py";       DestDir: "{app}\lab"; Flags: ignoreversion
 Source: "lab\align_ja.py";         DestDir: "{app}\lab"; Flags: ignoreversion
   Source: "lab\indextts_service.py";  DestDir: "{app}\lab"; Flags: ignoreversion
+  Source: "lab\indextts_fast.py";     DestDir: "{app}\lab"; Flags: ignoreversion
+  Source: "lab\indextts_norm.py";     DestDir: "{app}\lab"; Flags: ignoreversion
 ; голоса и словарь чтения
 Source: "voices.json";          DestDir: "{app}"; Flags: ignoreversion
 ; встроенный Python и словарь Sudachi (распакуются при первом запуске)
