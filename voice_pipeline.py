@@ -2461,6 +2461,12 @@ def _plural(n, one, few, many):
     return many
 
 
+def _mode_title(mode):
+    """Режим озвучки по-человечески."""
+    return {"both": "слово + предложение", "sentence": "только предложение",
+            "expression": "только слово"}.get(mode, mode)
+
+
 def _field_title(field, fields):
     """Человеческое название поля звука вместо 'sentence_audio'."""
     fields = fields or DEFAULT_FIELDS
@@ -2477,20 +2483,27 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
     notes = notes_info(ids)
     jobs = build_jobs(notes, mode, force, fields=fields)
     if not jobs:
-        print("Всё уже озвучено (или пустой текст). --force — переделать.")
+        print("Озвучивать нечего: у выбранных карточек уже есть звук "
+              "(или пустой текст). Переозвучивай ключом --force "
+              "(в интерфейсе — «Пересобрать всё заново»).")
         return 0, 0
     ncards = len({j[0] for j in jobs})
-    print("К озвучке: %d %s в %d %s (голос '%s', режим: %s)"
+    print("К озвучке: %d %s в %d %s (голос «%s», режим: %s)"
           % (len(jobs), _plural(len(jobs), "операция", "операции", "операций"),
              ncards, _plural(ncards, "карточке", "карточках", "карточках"),
-             v["name"], mode))
+             v.get("display") or v["name"], _mode_title(mode)))
     ensure_voice(v)
     done, failed = 0, 0
     cache = {}
+    cards_seen = 0
+    last_nid = None
     for i, (nid, field, text, src_text) in enumerate(jobs, 1):
+        if nid != last_nid:
+            cards_seen += 1
+            last_nid = nid
         # строка этапа: видно, над чем идёт работа и сколько осталось
         print("Карточка %d из %d — %s: %s"
-              % (i, len(jobs), _field_title(field, fields), text[:40]))
+              % (cards_seen, ncards, _field_title(field, fields), text[:40]))
         try:
             key = (text, seed, speed)
             if key not in cache:
@@ -2511,7 +2524,8 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
             ac("updateNoteFields", note={"id": nid, "fields": {field: "[sound:%s]" % fname}})
             done += 1
             print("OK   [%d] %-16s %s (%s, %.0f КБ)"
-                  % (nid, field, text[:40], ext, len(blob) / 1024))
+                  % (nid, _field_title(field, fields), text[:40], ext,
+                     len(blob) / 1024))
             # проверка содержания больше ничего не решает: метку снимаем,
             # решение принимаешь ты (колода «Брак» и вердикты в ней)
             try:

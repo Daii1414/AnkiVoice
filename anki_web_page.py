@@ -435,8 +435,10 @@ select{cursor:pointer}
             <span class="eng-d">Голос — это один референс. Японские термины читает точнее, но синтез медленнее.</span>
           </button>
         </div>
-        <div class="hint" id="engineHint"></div>
-        <div class="hint" id="enginePort"></div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:baseline">
+          <div class="hint" id="engineHint" style="margin:0"></div>
+          <div class="hint" id="enginePort" style="margin:0"></div>
+        </div>
         <div class="spacer"></div>
         <label class="f" id="enginePathLabel">Папка движка</label>
         <div class="row">
@@ -484,7 +486,7 @@ select{cursor:pointer}
             <input type="checkbox" id="force"> Пересобрать всё заново
           </label>
           <label class="switch" style="align-self:center;padding-bottom:12px"
-                 title="Распознаём собственный звук и сверяем с текстом: ловим «модель потеряла кусок фразы»">
+                 title="Распознаёт каждую озвученную карточку и сверяет с текстом. Это в 10 раз дольше: первый звук с IndexTTS — минуты вместо секунд">
             <input type="checkbox" id="verifyPron"> Проверять произношение
           </label>
         </div>
@@ -732,7 +734,7 @@ select{cursor:pointer}
           <a class="btn ghost" id="lnkReleases" href="https://github.com/Daii1414/AnkiVoice/releases"
              target="_blank" rel="noopener">Релизы на GitHub</a>
         </div>
-        <div id="updateBox" class="hint">Нажми «Проверить обновления» — покажу changelog и предложу установщик.</div>
+        <div id="updateBox" class="hint">Нажми «Проверить обновления» — покажу changelog и предложу установщик. Эта кнопка ходит в интернет на GitHub; сама озвучка работает офлайн.</div>
       </div>
 
       <div class="card">
@@ -1557,7 +1559,7 @@ function appendLine(log, line){
   const empty = log.querySelector(".l-dim");
   if(empty) empty.remove();
   // пайплайн сообщил, что озвучивать нечего — это не «готово»
-  if(/уже озвучено|нечего озвучивать/i.test(line)) NOTHING_TO_DO = true;
+  if(/озвучивать нечего|уже озвучено/i.test(line)) NOTHING_TO_DO = true;
   let cls = "";
   if(/^OK\s+\[/.test(line)) cls = "l-ok";
   else if(/^FAIL\s+\[/.test(line)) cls = "l-err";
@@ -1575,7 +1577,7 @@ function appendLine(log, line){
 function scrollLog(){ const l=$("log"); l.scrollTop = l.scrollHeight; }
 
 function updateProgress(line, n){
-  const m = /К озвучке:\s*(\d+)/.exec(line);
+  const m = /К озвучке:\s*\d+\s+\S+\s+в\s+(\d+)/.exec(line);
   if(m) PROG_TOTAL = +m[1];
   const st = /^Карточка\s+(\d+)\s+из\s+(\d+)\s+—\s*(.*)$/.exec(line);
   if(st){ PROG_CUR = +st[1]; PROG_STAGE = st[3]; }
@@ -1609,6 +1611,10 @@ function drawProgress(n){
     if(PROG_OK > 0 && PROG_TOTAL > PROG_OK){
       const per = elapsed / PROG_OK;
       txt += " · осталось ≈ " + fmtSec(per * (PROG_TOTAL - PROG_OK));
+    }else if(PROG_TOTAL && PROG_CUR){
+      const slow = (ST && ST.engine === "indextts")
+        ? " · с IndexTTS первая карточка идёт до нескольких минут" : "";
+      txt += slow;
     }
     if(PROG_STAGE) txt += " · " + PROG_STAGE;
     $("progText").textContent = txt;
@@ -1670,7 +1676,7 @@ function applyEngineUI(){
     b.classList.toggle("on", on);
     b.setAttribute("aria-pressed", on ? "true" : "false");
   });
-  // статус папки движка — рядом с заголовком
+  // статус папки движка — в заголовке карточки
   const st = ST || {};
   const el = $("engineState");
   if(el){
@@ -1679,7 +1685,7 @@ function applyEngineUI(){
     if(!st.path) html = '<span style="color:var(--err)">папка не указана</span>';
     else if(probs.length) html = '<span style="color:var(--err)">папка не подходит</span>';
     else html = '<span style="color:var(--ok)">папка в порядке ✓</span>';
-    el.innerHTML = html + (probs.length ? ' <span>'+esc(probs.join(" · "))+"</span>" : "");
+    el.innerHTML = html;
   }
 }
 /* Переключение движка: выбор в мастере и крупные карточки на главном экране */

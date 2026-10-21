@@ -465,6 +465,8 @@ I18N_EN = {
     "■ остановлено": "■ stopped",
     "Начинаю озвучку: колода": "Starting dubbing: deck",
     "Сходит в сеть на GitHub и покажет changelog": "Goes online to GitHub and shows the changelog",
+    "Нажми «Проверить обновления» — покажу changelog и предложу установщик. Эта кнопка ходит в интернет на GitHub; сама озвучка работает офлайн.":
+        "Press \"Check for updates\" and I will show the changelog and offer the installer. This button goes online to GitHub; the dubbing itself works offline.",
 
     # --- мастер и шапки (аудит интерфейса) ---
     ". Фуригана:":

@@ -48,6 +48,7 @@ The internet is only needed to download it.</p>
 - [Requirements](#requirements)
 - [Quick start](#quick-start)
 - [Interface (four tabs)](#interface-four-tabs)
+- [What's new in 1.7](#whats-new-in-17)
 - [What's new in 1.6](#whats-new-in-16)
 - [What's new in 1.5](#whats-new-in-15)
 - [What's new in 1.4](#whats-new-in-14)
@@ -127,7 +128,7 @@ installer itself is 125 MB) plus room for the engine and its weights.
 
 ## Quick start
 
-1. Download **`AnkiVoice-Setup-1.6.exe`** from the
+1. Download **`AnkiVoice-Setup-1.7.exe`** from the
    [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) page — one
    file with everything inside. Size **125 MB**, SHA256:
    `385481551c6404ec8927a37d6c234630c87ee71660aa5c689eab9654da0dbc28`
@@ -245,6 +246,21 @@ Light theme — the same tabs: [Dubbing](doc/shots/voice-light.png),
 [Deck fields](doc/shots/anki-light.png), [Voice](doc/shots/sound-light.png),
 [App](doc/shots/app-light.png). A full-page snapshot:
 [voice-dark-full.png](doc/shots/voice-dark-full.png).
+
+## What's new in 1.7
+
+A second round of "new users" on 1.6: the same three roles walked the path again.
+
+- **An empty run is no longer reported as success** ("✓ completed" with no audio
+  at all) - it is a separate warning now.
+- **The advice names the button** ("Rebuild everything") instead of `--force`.
+- **The progress counts cards, not operations**, and shows "≈ N min left".
+- **The pronunciation check is off by default**: it makes the dubbing 10 times
+  slower (the first sound takes minutes instead of seconds). Turn it on yourself.
+- **The log speaks human**: "Hitoshi Kubota" instead of `narrator`, "sentence
+  audio" instead of `SentenceAudio`.
+- **It is spelled out that "Check for updates" goes online** - the dubbing itself
+  is offline.
 
 ## What's new in 1.6
 
