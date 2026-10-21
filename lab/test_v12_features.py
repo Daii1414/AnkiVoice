@@ -219,15 +219,15 @@ def test_voice_args_guess_fallback():
     aw.deck_fields = lambda deck: (list(guess.values()), dict(guess))
     try:
         handler = aw.Handler.__new__(aw.Handler)
-        args, _title = handler._args_voice({"voice": "narrator", "deck": "D",
-                                           "mode": "both", "limit": "0"})
+        args, _title, _err = handler._args_voice({"voice": "narrator", "deck": "D",
+                                                  "mode": "both", "limit": "0"})
         check(args[args.index("--sentence-src") + 1] == "Sentence", "автоподбор текста")
         check(args[args.index("--word-audio") + 1] == "ExpressionAudio", "автоподбор звука")
         check(args[args.index("--furigana-src") + 1] == "ExpressionFurigana", "автоподбор фуриганы")
         # то, что прислал клиент, главнее автоподбора
-        args2, _t2 = handler._args_voice({"voice": "narrator", "deck": "D",
-                                          "mode": "both", "limit": "0",
-                                          "sentence_src": "MyText"})
+        args2, _t2, _e2 = handler._args_voice({"voice": "narrator", "deck": "D",
+                                               "mode": "both", "limit": "0",
+                                               "sentence_src": "MyText"})
         check(args2[args2.index("--sentence-src") + 1] == "MyText", "выбор клиента главнее")
     finally:
         aw.deck_fields = old
@@ -636,6 +636,55 @@ def test_engine_ui_on_main_screen():
     check("engine_confirmed" in html, "движок спрашивается один раз (engine_confirmed)")
 
 
+def test_qa_first_users_fixes():
+    """Правки после разбора первыми пользователями (1.6).
+
+    Проверяем то, что нашли три агента-новопользователя: опасный лимит,
+    неработающие кнопки, нечестные подписи, отсутствие обратной связи.
+    """
+    import io
+    import anki_web_page as wp
+    html = wp.HTML
+    # 1. лимит: по умолчанию 20, принимается только целое >= 1
+    check('id="limit" value="20" min="1"' in html,
+          "лимит по умолчанию 20, минимум 1")
+    check('id="limit" value="0"' not in html, "лимит не может быть 0 по умолчанию")
+    # 2. большая озвучка спрашивает подтверждения
+    check("Озвучить ВСЮ колоду" in html, "есть подтверждение озвучки всей колоды")
+    check("deckCount(" in html, "есть счётчик карточек для подтверждения")
+    # 3. кнопки, которые не работали
+    check('kind:"qc-deck"' in html, "кнопка «Брак» шлёт операцию qc-deck")
+    check('kind:"verdicts"' in html, "кнопка «Сводка» шлёт операцию verdicts")
+    # 4. мастер можно пропустить
+    check('id="wzSkip"' in html, "в мастере есть кнопка «Пропустить»")
+    # 5. честные подписи
+    check("перезаписывается" in html, "сказано, что звук перезаписывается")
+    check("никуда не отправляются" in html, "сказано, что данные не уходят")
+    # 6. обратная связь во время работы
+    check("осталось ≈" in html, "в прогрессе есть оценка остатка времени")
+    check("прошло" in html, "в прогрессе есть прошедшее время")
+    # 7. адаптив для узкого окна
+    check("@media (max-width:780px)" in html, "есть адаптив для узкого окна")
+    # 8. ошибки без внутренних имён
+    src = io.open(os.path.join(ROOT, "anki_web.py"), encoding="utf-8").read()
+    check("Неизвестная операция. Обнови приложение." in src,
+          "внутренние имена операций не показываем")
+    src = io.open(os.path.join(ROOT, "anki_web.py"), encoding="utf-8").read()
+    check('kind == "qc-deck"' in src, "веб-API знает операцию qc-deck")
+    check('kind == "verdicts"' in src, "веб-API знает операцию verdicts")
+    check("check_path" in src, "кнопка «Проверить» ничего не пишет в конфиг")
+    check("Лимит карточек должен быть целым числом" in src,
+          "сервер не пропускает мусор в лимите")
+
+    pipe = io.open(os.path.join(ROOT, "voice_pipeline.py"), encoding="utf-8").read()
+    check("def _ensure_indextts_service" in pipe,
+          "IndexTTS поднимает свой сервис, а не GPT-SoVITS")
+    check("ids = ids[:args.limit]" in pipe,
+          "force вместе с лимитом переозвучивает первые N карточек")
+    check("def _voice_file" in pipe,
+          "файл голоса ищется в папках обоих движков")
+
+
 def main():
     tests = [test_version_tuple, test_release_parse, test_download_sha,
              test_busy_download_no_deadlock, test_installer_ships_runtime_modules,
@@ -648,6 +697,7 @@ def main():
              test_engine_choice, test_indextts_folder_check,
              test_indextts_synth_needs_ref,
              test_engine_ui_on_main_screen,
+             test_qa_first_users_fixes,
              test_setup_status]
     failed = 0
     for t in tests:

@@ -360,11 +360,42 @@ def get_voice(name=None):
     v["name"] = name
     base = ENGINE if engine_kind() != ENGINE_INDEX else (indextts_dir() or CODE)
     for key in ("gpt", "sovits", "ref"):
-        if v.get(key) and not os.path.isabs(v[key]):
-            v[key] = os.path.join(base, v[key])
-    v["aux"] = [a if os.path.isabs(a) else os.path.join(base, a)
-                for a in v.get("aux") or []]
+        if v.get(key):
+            v[key] = _voice_file(v[key], base)
+    v["aux"] = [_voice_file(a, base) for a in v.get("aux") or []]
     return v
+
+
+def _voice_file(p, base):
+    """Путь к файлу голоса: относительный ищем в папке движка, а если там
+    нет — в папке другого движка.
+
+    Так сделано, потому что у IndexTTS голос — это референс, а референсы
+    часто лежат в папке GPT-SoVITS (там их и нашли при сканировании).
+    Раньше IndexTTS искал референс только у себя и голос «Мадара» не работал.
+    """
+    if not p:
+        return p
+    p = os.path.expanduser(p)
+    if os.path.isabs(p):
+        return p
+    first = os.path.normpath(os.path.join(base, p))
+    if os.path.exists(first):
+        return first
+    other = _other_engine_dir(base)
+    if other:
+        alt = os.path.normpath(os.path.join(other, p))
+        if os.path.exists(alt):
+            return alt
+    return first
+
+
+def _other_engine_dir(base):
+    """Папка другого движка (IndexTTS ↔ GPT-SoVITS)."""
+    cfg = _read_app_config() or {}
+    if base == indextts_dir(cfg):
+        return str(cfg.get("gptsovits_path") or "").strip()
+    return str(cfg.get("indextts_path") or "").strip()
 
 
 def ref_duration(path):
@@ -662,6 +693,11 @@ def set_weights(v):
 
 def ensure_voice(v, force=False):
     """Сервер запущен + веса голоса загружены. При сбое — перезапуск и повтор."""
+    if engine_kind() == ENGINE_INDEX:
+        # У IndexTTS веса голоса общие (модель одна), а голос — это референс.
+        # Переключать нечего: нужен только наш сервис с загруженной моделью.
+        _ensure_indextts_service()
+        return
     require_engine()
     cfg = load_voices()
     start_config = os.path.join(ENGINE, cfg.get("start_config") or DEFAULT_START_CONFIG)
@@ -1646,7 +1682,11 @@ def _resurrect(v):
     _RESURRECT["left"] -= 1
     print("Сервер не отвечает — поднимаю заново (осталось попыток: %d)..."
           % (_RESURRECT["left"] + 1))
-    start_server(_tts_start_config(), wait=240)
+    if engine_kind() == ENGINE_INDEX:
+        # поднимаем свой мост к IndexTTS, а не чужой GPT-SoVITS
+        _ensure_indextts_service(wait=240)
+    else:
+        start_server(_tts_start_config(), wait=240)
     ensure_voice(v, force=True)
     return True
 
@@ -2411,6 +2451,26 @@ def build_jobs(notes, mode, force, fields=None):
     return jobs
 
 
+def _plural(n, one, few, many):
+    """Правильное окончание: 1 операция, 2 операции, 5 операций."""
+    n = abs(int(n))
+    if n % 10 == 1 and n % 100 != 11:
+        return one
+    if 2 <= n % 10 <= 4 and not (12 <= n % 100 <= 14):
+        return few
+    return many
+
+
+def _field_title(field, fields):
+    """Человеческое название поля звука вместо 'sentence_audio'."""
+    fields = fields or DEFAULT_FIELDS
+    if field == fields.get("sentence_audio"):
+        return "звук предложения"
+    if field == fields.get("word_audio"):
+        return "звук слова"
+    return field
+
+
 def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
                 fields=None, verify=None, asr_model=None):
     v = get_voice(voice_name)
@@ -2419,12 +2479,18 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
     if not jobs:
         print("Всё уже озвучено (или пустой текст). --force — переделать.")
         return 0, 0
-    print("К озвучке: %d операций в %d карточках (голос '%s', mode=%s)"
-          % (len(jobs), len({j[0] for j in jobs}), v["name"], mode))
+    ncards = len({j[0] for j in jobs})
+    print("К озвучке: %d %s в %d %s (голос '%s', режим: %s)"
+          % (len(jobs), _plural(len(jobs), "операция", "операции", "операций"),
+             ncards, _plural(ncards, "карточке", "карточках", "карточках"),
+             v["name"], mode))
     ensure_voice(v)
     done, failed = 0, 0
     cache = {}
-    for nid, field, text, src_text in jobs:
+    for i, (nid, field, text, src_text) in enumerate(jobs, 1):
+        # строка этапа: видно, над чем идёт работа и сколько осталось
+        print("Карточка %d из %d — %s: %s"
+              % (i, len(jobs), _field_title(field, fields), text[:40]))
         try:
             key = (text, seed, speed)
             if key not in cache:
@@ -2626,13 +2692,8 @@ def cmd_server(args):
     print("Сервер GPT-SoVITS готов.")
 
 
-def cmd_indextts_server(args):
-    """Поднять сервис IndexTTS: модель грузится один раз и живёт в памяти.
-
-    Синтез идёт по HTTP (POST /tts) — в отличие от GPT-SoVITS, у IndexTTS
-    нет готового HTTP-API, поэтому рядом с приложением лежит наш мост
-    lab/indextts_service.py. Запускаем его в окружении IndexTTS (uv).
-    """
+def _start_indextts_service(wait=240):
+    """Поднять сервис IndexTTS (наш мост) и дождаться готовности."""
     root = indextts_dir()
     if not root:
         raise SystemExit("Не указана папка IndexTTS (вкладка «Приложение»).")
@@ -2673,11 +2734,30 @@ def cmd_indextts_server(args):
     log = open(log_path, "a", encoding="utf-8")
     subprocess.Popen(cmd, cwd=root, env=env, stdout=log,
                      stderr=subprocess.STDOUT)
-    print("Запускаю IndexTTS, ждём до %d c (модель грузится долго)..." % args.wait)
-    if not _wait_indextts(url, args.wait):
+    print("Запускаю IndexTTS, ждём до %d c (модель грузится долго)..." % wait)
+    if not _wait_indextts(url, wait):
         raise SystemExit("Сервис IndexTTS не поднялся за %d c, см. %s"
-                         % (args.wait, log_path))
+                         % (wait, log_path))
     print("IndexTTS готов.")
+
+
+def _ensure_indextts_service(wait=240):
+    """Сервис IndexTTS должен быть живым; если нет — поднимаем."""
+    url = indextts_url()
+    if _indextts_health(url):
+        return True
+    _start_indextts_service(wait=wait)
+    return True
+
+
+def cmd_indextts_server(args):
+    """Поднять сервис IndexTTS: модель грузится один раз и живёт в памяти.
+
+    Синтез идёт по HTTP (POST /tts) — в отличие от GPT-SoVITS, у IndexTTS
+    нет готового HTTP-API, поэтому рядом с приложением лежит наш мост
+    lab/indextts_service.py. Запускаем его в окружении IndexTTS (uv).
+    """
+    _start_indextts_service(wait=getattr(args, "wait", 240) or 240)
 
 
 def _indextts_health(url):
@@ -2822,11 +2902,20 @@ def cmd_voice(args):
         if not ids:
             raise SystemExit("Колода '%s' пуста." % args.deck)
         if args.limit:
-            ids = _pending_notes(ids, args.limit, fields, mode=args.mode)
+            if args.force:
+                # «Пересобрать всё заново» + лимит: берём первые N карточек
+                # колоды и переозвучиваем их. Раньше лимит отбрасывал уже
+                # озвученные карточки, и пересборка не работала вовсе.
+                ids = ids[:args.limit]
+            else:
+                ids = _pending_notes(ids, args.limit, fields, mode=args.mode)
     elif tag:
         ids = ac("findNotes", query='tag:"%s"' % tag)
         if args.limit:
-            ids = _pending_notes(ids, args.limit, fields, mode=args.mode)
+            if args.force:
+                ids = ids[:args.limit]
+            else:
+                ids = _pending_notes(ids, args.limit, fields, mode=args.mode)
     elif args.ids:
         ids = [int(x) for x in args.ids]
     else:

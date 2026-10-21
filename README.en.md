@@ -41,6 +41,7 @@ ogg files land straight in Anki fields. The internet is only needed to download 
 - [Requirements](#requirements)
 - [Quick start](#quick-start)
 - [Interface (four tabs)](#interface-four-tabs)
+- [What's new in 1.6](#whats-new-in-16)
 - [What's new in 1.5](#whats-new-in-15)
 - [What's new in 1.4](#whats-new-in-14)
 - [What's new in 1.3](#whats-new-in-13)
@@ -106,7 +107,7 @@ unpack themselves.
 
 ## Quick start
 
-1. Download **`AnkiVoice-Setup-1.5.exe`** from the
+1. Download **`AnkiVoice-Setup-1.6.exe`** from the
    [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) page — one
    file with everything inside.
 2. Run it: **“Далее” → “Установить” → “Завершить”** (Next → Install → Finish;
@@ -217,6 +218,36 @@ Light theme — the same tabs: [Dubbing](doc/shots/voice-light.png),
 [Deck fields](doc/shots/anki-light.png), [Voice](doc/shots/sound-light.png),
 [App](doc/shots/app-light.png). A full-page snapshot:
 [voice-dark-full.png](doc/shots/voice-dark-full.png).
+
+## What's new in 1.6
+
+Fixed after three "new users" went through the interface — an impatient one, a
+skeptic and a stress tester. Report and screenshots: [`qa/REPORT.md`](qa/REPORT.md).
+
+- **The card limit can no longer voice the whole deck.** "0", "-5" or "abc"
+  silently became "no limit", and one click started all 18 375 cards of the
+  "Архитектура" deck. The limit is now a whole number (20 by default), and an
+  empty field ("the whole deck") asks for a confirmation with the card count.
+- **"Rebuild everything" now works together with a limit** — before, the app
+  answered "Everything is already voiced" while the banner suggested exactly
+  that rebuild.
+- **With IndexTTS the app no longer starts GPT-SoVITS** (it hung for 10 minutes
+  talking about the wrong engine) and no longer "switches voice weights" —
+  for IndexTTS a voice is a single reference.
+- **The default voice works with IndexTTS**, and the ready-voices counter is
+  counted for the selected engine.
+- **"Build the "Брак" deck" and "Verdict summary" buttons work** — the web layer
+  did not know them and answered "Unknown operation: 'qc-deck'".
+- **A junk engine folder no longer corrupts the config**, and "Check" no longer
+  writes anything.
+- **The wizard's test player plays**, and the wizard shows the voice name
+  instead of the internal one.
+- **Feedback while dubbing:** a stage line in the log, and the progress shows
+  how much has passed and how much is left roughly.
+- **Honest labels:** everything runs on this computer and your cards are never
+  sent anywhere; the audio goes straight into the Anki fields and an existing
+  sound is overwritten; which buttons go online.
+- **Narrow window:** the sidebar becomes a strip, the cards stack in one column.
 
 ## What's new in 1.5
 

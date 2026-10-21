@@ -117,6 +117,24 @@ CURRENT = None          # type: Run | None
 LAST_RUN = None         # последний завершённый — чтобы лог не пропадал
 
 
+def _run_headline(args):
+    """Первая строка журнала — по-человечески, а не флагами командной строки."""
+    if not args:
+        return "Запуск"
+    if args[0] == "voice":
+        def val(flag):
+            return args[args.index(flag) + 1] if flag in args else ""
+
+        deck = val("--deck")
+        voice = val("--voice")
+        mode = val("--mode") or "both"
+        limit = val("--limit")
+        what = ("лимит %s карточек" % limit) if limit else "вся колода"
+        return ("Начинаю озвучку: колода «%s», голос «%s», режим %s, %s."
+                % (deck, voice, mode, what))
+    return "» " + " ".join(args)
+
+
 def start_run(title, args, on_line=None):
     """Запускает пайплайн. Возвращает (run, error)."""
     global CURRENT, LAST_RUN
@@ -165,7 +183,7 @@ def start_run(title, args, on_line=None):
         run = Run(title, args)
         CURRENT = run
 
-    run.push("» " + " ".join(args))
+    run.push(_run_headline(args))
 
     def _line(line):
         run.push(line)
@@ -313,12 +331,29 @@ def store_path(p, eng):
 
 
 def resolve_path(p, eng):
+    """Путь к файлу голоса.
+
+    Относительный путь ищем в папке движка, а если там файла нет — в папке
+    другого движка: у IndexTTS голос — это референс, а референсы часто
+    лежат в папке GPT-SoVITS (там их нашли при сканировании).
+    """
     if not p:
         return ""
     p = os.path.expanduser(p)
     if os.path.isabs(p):
         return p
-    return os.path.normpath(os.path.join(eng, p))
+    first = os.path.normpath(os.path.join(eng or "", p))
+    if os.path.exists(first):
+        return first
+    cfg = ag.load_config() or {}
+    idx = (cfg.get("indextts_path") or "").strip()
+    other = (cfg.get("gptsovits_path") or "").strip() if eng == idx \
+        else (cfg.get("indextts_path") or "").strip()
+    if other:
+        alt = os.path.normpath(os.path.join(other, p))
+        if os.path.exists(alt):
+            return alt
+    return first
 
 
 def voice_files_ok(v, eng):
@@ -456,6 +491,7 @@ def setup_status():
         "test": {
             "ok": bool(test_path),
             "voice": test_voice,
+            "display": (voices.get(test_voice) or {}).get("display") or test_voice,
             "path": test_path,
             "url": ("/api/audio?voice=" + urllib.parse.quote(test_voice)
                     if test_voice else ""),
@@ -769,6 +805,11 @@ class Handler(BaseHTTPRequestHandler):
                 return False
         if need_token:
             tok = (self.headers.get("X-AV-Token") or "").strip()
+            if not tok:
+                # теги <audio>/<img> не умеют слать заголовки — принимаем
+                # служебный ключ и в строке запроса
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                tok = (q.get("t") or [""])[0].strip()
             if tok != TOKEN:
                 self.close_connection = True
                 self._err("Запрос отклонён: нет служебного ключа", 403)
@@ -858,15 +899,44 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/config":
             cfg = ag.load_config()
+            # --- 1. проверка папки движка ДО записи ---
+            # Кнопка «Проверить» ничего не меняет (приходит check_path), а
+            # неверную папку мы больше не пишем в конфиг: после этого озвучка
+            # невозможна, пока путь не исправят руками.
+            if b.get("check_path"):
+                key = "indextts_path" if ag.engine_kind(cfg) == ag.ENGINE_INDEX \
+                    else "gptsovits_path"
+                p = (b.get(key) or "").strip()
+                if not p:
+                    self._json({"ok": True, "problems": [], "saved": False})
+                    return
+                probs = ag.validate_indextts(p) if key == "indextts_path" \
+                    else ag.validate_gptsovits(p)
+                self._json({"ok": not probs, "problems": probs, "saved": False})
+                return
+            for key in ("gptsovits_path", "indextts_path"):
+                if key in b:
+                    p = (b.get(key) or "").strip()
+                    if not p:
+                        continue          # пустую папку разрешаем (движок ищется сам)
+                    probs = ag.validate_indextts(p) if key == "indextts_path" \
+                        else ag.validate_gptsovits(p)
+                    if probs:
+                        self._json({"ok": False, "problems": probs,
+                                    "saved": False})
+                        return
             if "gptsovits_path" in b:
                 old = (cfg.get("gptsovits_path") or "").strip()
                 new = (b.get("gptsovits_path") or "").strip()
                 if new != old:
                     cfg["setup_done"] = False
-                    cfg.pop("last_test_voice", None)
+            if "indextts_path" in b:
+                old = (cfg.get("indextts_path") or "").strip()
+                new = (b.get("indextts_path") or "").strip()
+                if new != old:
+                    cfg["setup_done"] = False
             if "engine" in b and (b.get("engine") or "") != (cfg.get("engine") or ""):
                 cfg["setup_done"] = False
-                cfg.pop("last_test_voice", None)
             for k in ("gptsovits_path", "indextts_path", "indextts_url", "engine",
                       "engine_confirmed", "theme", "deck", "voice", "mode",
                       "sentence_src", "sentence_audio", "word_src",
@@ -1002,13 +1072,22 @@ class Handler(BaseHTTPRequestHandler):
 
     def api_state(self):
         cfg = ag.load_config()
-        path = (cfg.get("gptsovits_path") or "").strip()
-        auto = ""
-        if not path:
-            auto = ag.find_gptsovits_automatic() or ""
-            if auto:
-                path = auto
-        problems = ag.validate_gptsovits(path) if path else ["папка не указана"]
+        kind = ag.engine_kind(cfg)
+        # Папка движка — по ВЫБРАННОМУ движку: от неё зависят и пути голосов.
+        # Раньше считалась папка GPT-SoVITS, и при IndexTTS голоса выглядели
+        # готовыми, хотя референс искался не там.
+        if kind == ag.ENGINE_INDEX:
+            path = (cfg.get("indextts_path") or "").strip() or \
+                (ag.find_indextts_automatic() or "")
+            problems = ag.validate_indextts(path) if path else ["Папка IndexTTS не указана"]
+            auto = ""
+        else:
+            path = (cfg.get("gptsovits_path") or "").strip() or \
+                (ag.find_gptsovits_automatic() or "")
+            problems = ag.validate_gptsovits(path) if path else ["Папка GPT-SoVITS не указана"]
+            auto = ""
+            if not (cfg.get("gptsovits_path") or "").strip():
+                auto = ag.find_gptsovits_automatic() or ""
 
         vfile = read_voices_file()
         voices = vfile.get("voices", {})
@@ -1020,15 +1099,6 @@ class Handler(BaseHTTPRequestHandler):
             view[name] = d
 
         run = current_run()
-        kind = ag.engine_kind(cfg)
-        if kind == ag.ENGINE_INDEX:
-            path = (cfg.get("indextts_path") or "").strip() or \
-                (ag.find_indextts_automatic() or "")
-            problems = ag.validate_indextts(path) if path else ["Папка IndexTTS не указана"]
-        else:
-            path = (cfg.get("gptsovits_path") or "").strip() or \
-                (ag.find_gptsovits_automatic() or "")
-            problems = ag.validate_gptsovits(path) if path else ["Папка GPT-SoVITS не указана"]
         return {
             "cfg": cfg,
             "engine": kind,
@@ -1044,6 +1114,7 @@ class Handler(BaseHTTPRequestHandler):
             "tts": ag.tts_status(),
             "code_dir": ag.code_dir(),
             "config_file": ag.CONFIG_FILE,
+            "anki_media": ag.anki_media_folder(),
             "run": run.snapshot() if run else None,
             "last": (LAST_RUN.snapshot() if LAST_RUN and not LAST_RUN.running
                      else None),
@@ -1190,7 +1261,9 @@ class Handler(BaseHTTPRequestHandler):
     def _run(self, b):
         kind = b.get("kind")
         if kind == "voice":
-            args, title = self._args_voice(b)
+            args, title, err = self._args_voice(b)
+            if err:
+                return self._err(err)
             # поля не заполнены — отвечаем словами, а не падаем в 500
             if not args:
                 return self._err("Сначала выбери голос и колоду")
@@ -1226,8 +1299,12 @@ class Handler(BaseHTTPRequestHandler):
             args, title = ["selftest"], "Самопроверка пайплайна"
         elif kind == "scan":
             args, title = ["scan", "--apply", "--json"], "Сканирование весов в движке"
+        elif kind == "qc-deck":
+            args, title = ["qc-deck"], "Сборка колоды «Брак»"
+        elif kind == "verdicts":
+            args, title = ["verdicts"], "Сводка по вердиктам"
         else:
-            return self._err("Неизвестная операция: %r" % kind)
+            return self._err("Неизвестная операция. Обнови приложение.")
 
         run, err = start_run(title, args)
         if err:
@@ -1238,9 +1315,9 @@ class Handler(BaseHTTPRequestHandler):
         voice = (b.get("voice") or "").strip()
         deck = (b.get("deck") or "").strip()
         if not voice:
-            return None, None
+            return None, None, "Сначала выбери голос"
         if not deck:
-            return None, None
+            return None, None, "Сначала выбери колоду"
         # поля: что прислал клиент, иначе — автоподбор по полям колоды,
         # иначе — умолчания пайплайна (пустые флаги не передаём)
         g = {}
@@ -1275,15 +1352,26 @@ class Handler(BaseHTTPRequestHandler):
             # старое значение из профилей v1.1: «движок читает сам»
             reading = "asis"
         args += ["--reading", reading]
-        try:
-            limit = int(b.get("limit") or 0)
-        except (TypeError, ValueError):
-            limit = 0
+        # Лимит карточек: целое число не меньше нуля. Пусто или 0 — вся колода
+        # (с подтверждением в интерфейсе). Мусор раньше молча превращался в
+        # «без лимита», и приложение озвучивало ВСЮ колоду — на «Архитектуре»
+        # это 18 375 карточек.
+        limit_raw = str(b.get("limit") or "").strip()
+        limit = 0
+        if limit_raw:
+            try:
+                limit = int(limit_raw)
+            except (TypeError, ValueError):
+                return None, None, ("Лимит карточек должен быть целым числом "
+                                    "не меньше нуля.")
+            if limit < 0:
+                return None, None, ("Лимит карточек должен быть не меньше нуля. "
+                                    "Пусто или 0 — вся колода.")
         if limit > 0:
             args += ["--limit", str(limit)]
         if b.get("force"):
             args.append("--force")
-        return args, "Озвучка колоды «%s»" % deck
+        return args, "Озвучка колоды «%s»" % deck, None
 
     def _args_guard(self, b):
         """Своя проверка, чтобы ответ был понятным, а не stack-trace."""

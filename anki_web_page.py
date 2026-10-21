@@ -213,7 +213,23 @@ select{cursor:pointer}
 .eng.on .eng-t .mark{color:var(--accent)}
 .eng-d{font-size:12.5px;color:var(--sub);line-height:1.45}
 .eng-note{font-size:12.5px;color:var(--sub);margin-top:10px;line-height:1.5}
-@media (max-width:820px){.engines{grid-template-columns:1fr}}
+
+/* ---------------------------------------------------------- узкое окно */
+@media (max-width:780px){
+  .app{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .topbar{height:auto;flex-wrap:wrap;padding:8px 12px;gap:8px}
+  .chips{margin-left:0;flex-wrap:wrap}
+  .sidebar{position:static;height:auto;flex-direction:row;gap:6px;
+    overflow-x:auto;border-right:0;border-bottom:1px solid var(--border);
+    padding:8px 10px}
+  .nav{width:auto;white-space:nowrap;flex:none}
+  .side-foot{display:none}
+  .main{padding:14px 12px 40px}
+  .grid2{grid-template-columns:1fr}
+  .engines{grid-template-columns:1fr}
+  .modal,.modal.wizard{width:calc(100vw - 16px);max-height:92vh}
+  .card{padding:12px}
+}
 
 .switch{display:inline-flex;align-items:center;gap:9px;cursor:pointer;
   font-size:13.5px;color:var(--sub);user-select:none}
@@ -461,9 +477,9 @@ select{cursor:pointer}
         <div class="row">
           <div style="width:130px">
             <label class="f">Лимит карточек</label>
-            <input type="number" id="limit" value="0" min="0">
+            <input type="number" id="limit" value="20" min="1" step="1">
           </div>
-          <div class="hint" style="align-self:center;padding-bottom:10px">0 = все</div>
+          <div class="hint" style="align-self:center;padding-bottom:10px">пусто — вся колода</div>
           <label class="switch" style="align-self:center;padding-bottom:12px">
             <input type="checkbox" id="force"> Пересобрать всё заново
           </label>
@@ -479,11 +495,19 @@ select{cursor:pointer}
         <div class="row">
           <button class="btn primary big" id="btnStart">▶&nbsp; Начать озвучку</button>
           <button class="btn danger" id="btnStop" disabled>■&nbsp; Остановить</button>
+        </div>
+        <div class="row" style="margin-top:10px">
           <button class="btn" id="btnCheck">Проверить колоду</button>
           <button class="btn" id="btnSelftest">Самопроверка</button>
           <button class="btn" id="btnVerify" title="Распознать уже озвученные карточки и найти те, где модель потеряла кусок фразы">Проверить произношение</button>
-             <button class="btn" id="btnQCDeck" title="Собрать колоду «Брак»: сомнительные куски с вариантами — послушаешь и напишешь вердикт">Собрать колоду «Брак»</button>
+             <button class="btn" id="btnQCDeck" title="Создаёт в Anki отдельную колоду с копиями сомнительных карточек — оригиналы не меняются">Собрать колоду «Брак»</button>
              <button class="btn" id="btnVerdicts" title="Сводка по твоим вердиктам из колоды «Брак» — покажет, где наши пороги занижены">Сводка по вердиктам</button>
+        </div>
+        <div class="hint" style="margin-top:10px">
+          Звук пишется прямо в поля карточек Anki: <b>готовый звук перезаписывается</b>,
+          старые файлы остаются в папке медиа коллекции. Отмены нет — переозвучить
+          можно через «Пересобрать всё заново». Всё считается на этом компьютере,
+          карточки никуда не отправляются.
         </div>
 
         <div class="spacer" style="height:16px"></div>
@@ -704,7 +728,7 @@ select{cursor:pointer}
           <span class="hint" id="curVersion" style="margin:0"></span>
         </div>
         <div class="row">
-          <button class="btn" id="btnUpdate">Проверить обновления</button>
+          <button class="btn" id="btnUpdate" title="Сходит в сеть на GitHub и покажет changelog">Проверить обновления</button>
           <a class="btn ghost" id="lnkReleases" href="https://github.com/Daii1414/AnkiVoice/releases"
              target="_blank" rel="noopener">Релизы на GitHub</a>
         </div>
@@ -726,6 +750,7 @@ select{cursor:pointer}
           <tbody>
             <tr><td class="k">Программа</td><td class="v" id="pCode">—</td></tr>
             <tr><td class="k">Конфиг</td><td class="v" id="pCfg">—</td></tr>
+            <tr><td class="k">Медиа Anki (куда падает звук)</td><td class="v" id="pMedia">—</td></tr>
           </tbody>
         </table>
       </div>
@@ -733,7 +758,7 @@ select{cursor:pointer}
       <div class="card">
         <div class="row">
           <button class="btn ghost" id="btnQuit">Закрыть AnkiVoice</button>
-          <span class="hint">Закрывает приложение и локальный сервер. Карточки в Anki не трогаются.</span>
+          <span class="hint">Закрывает приложение и локальный сервер. Карточки и звук в Anki остаются как есть.</span>
         </div>
       </div>
     </section>
@@ -749,6 +774,7 @@ select{cursor:pointer}
     <div class="wsteps" id="wzSteps"></div>
     <div class="wbody" id="wzBody"></div>
     <footer>
+      <button class="btn sm ghost" id="wzSkip">Пропустить</button>
       <span class="sp" style="margin-left:auto"></span>
       <button class="btn sm" id="wzPrev">Назад</button>
       <button class="btn sm primary" id="wzNext">Далее</button>
@@ -984,28 +1010,32 @@ async function loadState(){
   // карточка «Где лежат файлы» — заполняем сразу, без нажатия «Диагностика»
   $("pCode").textContent = ST.code_dir || "—";
   $("pCfg").textContent  = ST.config_file || "—";
+  $("pMedia").textContent = ST.anki_media || "не нашли";
 
   // папка движка
   applyEngineUI();
   $("gptpath").value = ST.path || "";
   if(ST.problems && ST.problems.length){
     banner("appBanner","bad",
-      "<b>Папка GPT-SoVITS:</b> " + esc(ST.problems.join(" · ")) +
+      "<b>Папка движка:</b> " + esc(ST.problems.join(" · ")) +
       (ST.auto ? '<div class="acts"><button class="btn sm" id="bAuto">Подставить найденную: '+esc(ST.auto)+'</button></div>' : ""));
     const b = $("bAuto");
     if(b) b.onclick = ()=>{ $("gptpath").value = ST.auto; savePath(); };
     $("navBadge").style.display = "";
+    $("pathHint").innerHTML = '<span style="color:var(--err)">Папка не подходит</span>';
   }else{
     banner("appBanner", null);
     $("navBadge").style.display = "none";
-    $("pathHint").innerHTML = "Папка в порядке.";
+    $("pathHint").innerHTML = '<span style="color:var(--ok)">Папка в порядке ✓</span>';
   }
 
   // голоса
   renderVoiceList();
   fillVoiceSelect(c.voice);
   const dv = ST.voices && ST.default_voice && ST.voices[ST.default_voice];
-  $("voiceHint").innerHTML = dv
+  // подпись про голос по умолчанию — только если он и правда выбран,
+  // иначе она читается как противоречие («в списке одно, подписано другое»)
+  $("voiceHint").innerHTML = (dv && ST.default_voice === $("voice").value)
     ? "Голос по умолчанию: <b>" + esc(dv.display || ST.default_voice) + "</b>"
     : "";
 
@@ -1046,12 +1076,26 @@ function chip(el, ok, name, txt){
 }
 
 /* ================================================= колоды */
+let DECKS = [];           // [[имя, карточек], …] — из последней загрузки
+function deckCount(name){
+  const d = DECKS.find(x => x[0] === name);
+  return d ? d[1] : 0;
+}
+function deckHint(){
+  const n = deckCount($("deck").value);
+  const hint = $("deckHint");
+  if(!DECKS.length) return;
+  hint.innerHTML = "Колод в Anki: <b>" + DECKS.length + "</b>. В выбранной: <b>" +
+    (n < 0 ? "?" : n) + "</b> карточек" +
+    (n > 200 ? " — <b>озвучивать всю колоду долго</b>, поставь лимит" : "") + ".";
+}
 async function loadDecks(prefer){
   const hint = $("deckHint");
   hint.textContent = "Читаю колоды из Anki…";
   try{
     const j = await api("/api/decks");
     const decks = j.decks || [];
+    DECKS = decks;
     [$("deck"), $("deck2")].forEach(sel=>{
       const prev = sel.value;
       sel.innerHTML = decks.map(d=>
@@ -1066,8 +1110,7 @@ async function loadDecks(prefer){
     if(!decks.length){
       hint.innerHTML = "Anki не подключена — <b>открой Anki</b> и нажми «Обновить».";
     }else{
-      hint.innerHTML = "Колод в Anki: <b>" + decks.length + "</b>. Заметок в выбранной: <b>" +
-        (decks.find(d=>d[0]===$("deck").value)||[,"?"])[1] + "</b>.";
+      deckHint();
     }
     onDeckPick();
   }catch(e){
@@ -1082,6 +1125,7 @@ function onDeckPick(){
   // поля относятся к конкретной колоде: сменили колоду — перечитать
   clearFieldSelects();
   loadFields();
+  deckHint();
 }
 $("deck").onchange = onDeckPick;
 $("deck2").onchange = ()=>{
@@ -1352,9 +1396,24 @@ $("verifyPron").onchange = ()=>{
 $("btnStart").onclick = async ()=>{
   if(!$("deck").value) return toast("Сначала выбери колоду","bad");
   if(!$("voice").value) return toast("Сначала выбери голос","bad");
-  saveCfg({mode:mode(), limit:$("limit").value, voice:$("voice").value, deck:$("deck").value});
+  const raw = $("limit").value.trim();
+  let lim = 0;
+  if(raw !== ""){
+    lim = parseInt(raw, 10);
+    if(!Number.isFinite(lim) || lim < 0){
+      $("limit").value = "";
+      return toast("Лимит карточек — целое число не меньше нуля. Пусто или 0 — вся колода","bad");
+    }
+  }
+  // пустой лимит = вся колода: предупреждаем, если она большая
+  if(!lim){
+    const n = deckCount($("deck").value);
+    if(n > 200 && !confirm("Озвучить ВСЮ колоду «"+$("deck").value+"» — "+n+" карточек?\nЭто надолго: с IndexTTS примерно по минуте на карточку.")) return;
+  }
+  saveCfg({mode:mode(), limit:raw, voice:$("voice").value, deck:$("deck").value});
   await runOp(collectVoiceArgs());
 };
+$("limit").onchange = ()=>{ saveCfg({limit:$("limit").value.trim()}); };
 $("btnCheck").onclick = ()=>{
   if(!$("deck").value) return toast("Сначала выбери колоду","bad");
   runOp({kind:"check", deck:$("deck").value,
@@ -1363,6 +1422,7 @@ $("btnCheck").onclick = ()=>{
 };
 $("btnSelftest").onclick = ()=>runOp({kind:"selftest"});
 $("btnQCDeck").onclick = ()=>{
+  if(!confirm("Собрать колоду «Брак»?\nВ Anki появится новая колода с копиями сомнительных карточек и полем «Вердикт». Оригиналы не меняются.")) return;
   runOp({kind:"qc-deck"});
 };
 $("btnVerdicts").onclick = ()=>{
@@ -1391,8 +1451,14 @@ async function runOp(payload){
     beginRunUI(j.run);
     return true;
   }catch(e){
-    banner("voiceBanner","bad","<b>Не запустилось:</b> "+esc(e.message));
-    toast(e.message,"bad");
+    // если работа уже идёт — баннер не вешаем: он остался бы висеть до конца
+    // успешной озвучки и выглядел бы как поломка
+    if(!RUNNING){
+      banner("voiceBanner","bad","<b>Не запустилось:</b> "+esc(e.message));
+      toast(e.message,"bad");
+    }else{
+      toast(e.message,"bad");
+    }
     return false;
   }
 }
@@ -1425,10 +1491,13 @@ function endRunUI(s){
   const ok = s && s.code === 0;
   $("prog").className = "prog";
   $("prog").firstElementChild.style.width = "100%";
+  const stopped = STOPPED_BY_USER;
   $("progText").textContent = (s ? (s.title || "Готово") : "Готово") +
-    (s && s.code != null ? " — код " + s.code : "");
-  $("progPct").textContent = ok ? "✓ завершено" : "✗ есть ошибки";
-  $("progPct").style.color = ok ? "var(--ok)" : "var(--err)";
+    (stopped ? " — остановлено" :
+      (s && s.code != null ? " — код " + s.code : ""));
+  // остановка по кнопке — это не ошибка: озвученное до неё сохранено
+  $("progPct").textContent = stopped ? "■ остановлено" : (ok ? "✓ завершено" : "✗ есть ошибки");
+  $("progPct").style.color = stopped ? "var(--sub)" : (ok ? "var(--ok)" : "var(--err)");
   const t = (s && s.title) || "";
   let done = "";
   if(/Озвучка/.test(t)) done = "Результат записан в колоду.";
@@ -1508,14 +1577,25 @@ function scrollLog(){ const l=$("log"); l.scrollTop = l.scrollHeight; }
 function updateProgress(line, n){
   const m = /К озвучке:\s*(\d+)/.exec(line);
   if(m) PROG_TOTAL = +m[1];
+  const st = /^Карточка\s+(\d+)\s+из\s+(\d+)\s+—\s*(.*)$/.exec(line);
+  if(st){ PROG_CUR = +st[1]; PROG_STAGE = st[3]; }
   if(/^OK\s+\[/.test(line)) PROG_OK++;
   if(/^FAIL\s+\[/.test(line)) PROG_FAIL++;
   drawProgress(n);
 }
-let PROG_TOTAL = null, PROG_OK = 0, PROG_FAIL = 0;
-function resetProgress(){ PROG_TOTAL=null; PROG_OK=0; PROG_FAIL=0; }
+let PROG_TOTAL=null, PROG_OK=0, PROG_FAIL=0, PROG_CUR=0, PROG_STAGE="", PROG_START=0;
+function resetProgress(){
+  PROG_TOTAL=null; PROG_OK=0; PROG_FAIL=0; PROG_CUR=0; PROG_STAGE="";
+  PROG_START=Date.now();
+}
+function fmtSec(s){
+  s=Math.max(0,Math.round(s));
+  const m=Math.floor(s/60);
+  return m ? (m+" мин "+Math.round(s%60)+" с") : (s+" с");
+}
 function drawProgress(n){
   const el = $("prog"), bar = el.firstElementChild;
+  const elapsed = PROG_START ? (Date.now()-PROG_START)/1000 : 0;
   if(PROG_TOTAL){
     el.className = "prog";
     const pct = Math.min(100, Math.round(PROG_OK / PROG_TOTAL * 100));
@@ -1523,7 +1603,15 @@ function drawProgress(n){
     $("progPct").textContent = PROG_OK + " / " + PROG_TOTAL +
       (PROG_FAIL ? "  ·  ошибок: " + PROG_FAIL : "");
     $("progPct").style.color = PROG_FAIL ? "var(--err)" : "var(--sub)";
-    $("progText").textContent = "Озвучено карточек: " + PROG_OK;
+    let txt = "Озвучено карточек: " + PROG_OK;
+    if(PROG_CUR) txt += " · сейчас " + PROG_CUR + " из " + PROG_TOTAL;
+    if(elapsed) txt += " · прошло " + fmtSec(elapsed);
+    if(PROG_OK > 0 && PROG_TOTAL > PROG_OK){
+      const per = elapsed / PROG_OK;
+      txt += " · осталось ≈ " + fmtSec(per * (PROG_TOTAL - PROG_OK));
+    }
+    if(PROG_STAGE) txt += " · " + PROG_STAGE;
+    $("progText").textContent = txt;
   }else{
     el.className = "prog indet";
     $("progText").textContent = "Выполняется… (" + n + " строк журнала)";
@@ -1612,12 +1700,13 @@ async function setEngine(kind){
 }
 async function savePath(){
   const p = $("gptpath").value.trim();
+  if(!p) return toast("Укажи папку движка","bad");
   const patch = {}; patch[pathKey()] = p;
   const j = await api("/api/config", patch);
   if(j.problems && j.problems.length){
     banner("appBanner","bad","<b>Проблемы:</b> "+esc(j.problems.join(" · ")));
     $("pathHint").innerHTML = '<span style="color:var(--err)">'+esc(j.problems.join(" · "))+"</span>";
-    toast("Папка не подходит","bad");
+    toast("Папка не подходит — не сохранил","bad");
   }else{
     banner("appBanner", null);
     $("pathHint").innerHTML = '<span style="color:var(--ok)">Папка в порядке ✓</span>';
@@ -1627,9 +1716,11 @@ async function savePath(){
   }
 }
 $("btnSavePath").onclick = savePath;
+/* «Проверить» ничего не меняет: спрашиваем отдельно, без записи в конфиг */
 $("btnCheckPath").onclick = async ()=>{
   const p = $("gptpath").value.trim();
-  const patch = {}; patch[pathKey()] = p;
+  if(!p) return $("pathHint").innerHTML = '<span style="color:var(--err)">Укажи папку движка</span>';
+  const patch = {check_path:true}; patch[pathKey()] = p;
   const j = await api("/api/config", patch);
   $("pathHint").innerHTML = (j.problems && j.problems.length)
     ? '<span style="color:var(--err)">'+esc(j.problems.join(" · "))+"</span>"
@@ -1641,10 +1732,12 @@ $("btnDoctor").onclick = async ()=>{
   try{
     const d = await api("/api/doctor");
     const bad = [].concat(d.local_problems||[], d.problems||[]);
+    const engLabel = d.engine_label || (d.engine === "indextts" ? "IndexTTS 2.5" : "GPT-SoVITS");
     $("doctor").innerHTML = [
       "Программа: <b>"+esc(d.code_dir)+"</b>",
       "Конфиг: <b>"+esc(d.config_file)+"</b>",
-      "GPT-SoVITS: <b>"+esc(d.gptsovits_path||"—")+"</b>",
+      engLabel+": <b>"+esc(d.engine_path || d.gptsovits_path || "—")+"</b>",
+      "Медиа Anki (куда падает звук): <b>"+esc(d.anki_media || "не нашли")+"</b>",
       "Anki: <b>"+(d.anki?"подключена":"НЕ подключена")+"</b>",
       "Сервер: <b>"+(d.tts_server?"запущен":"не запущен")+"</b>",
       d.voices ? "Голосов: <b>"+d.voices.length+"</b> ("+esc(d.voices.join(", "))+")" : "",
@@ -1975,8 +2068,8 @@ function testHtml(s){
     (WZ.busy?"disabled":"")+'>'+(WZ.busy?"Синтезирую…":"Синтезировать тестовую фразу")+'</button>'+
     '<button class="btn sm" data-w="wzRefresh" '+(WZ.busy?"disabled":"")+'>Проверить снова</button></div>'+
     (s.test.ok ? '<div class="wresult">Тестовый звук готов ✓'+
-      (s.test.voice ? ' <span class="hint">голос: '+esc(s.test.voice)+'</span>' : "")+
-      '<audio controls preload="none" src="'+esc(s.test.url)+'&t='+Date.now()+'"></audio>'+
+      (s.test.voice ? ' <span class="hint">голос: '+esc(s.test.display || s.test.voice)+'</span>' : "")+
+      '<audio controls preload="none" src="'+esc(s.test.url)+'&t='+encodeURIComponent(AV_TOKEN)+'"></audio>'+
       (!s.done ? '<div class="hint">Это тест от прошлого запуска. Синтезируй фразу заново, чтобы завершить настройку.</div>' : "")+
       '</div>' : "")+
     (WZ.testError ? '<div class="wresult bad">'+esc(WZ.testError)+'</div>' : "")+
@@ -2158,6 +2251,16 @@ async function checkUpdates(){
       'target="_blank" rel="noopener">Открыть релизы</a></div></div>';
   }finally{ $("btnUpdate").disabled = false; }
 }
+/* Changelog с GitHub приходит в Markdown — показываем по-человечески:
+   без «##», «**» и «`». */
+function mdLite(s){
+  return String(s || "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/`([^`]+?)`/g, "$1")
+    .replace(/^\s*[-*]\s+/gm, "• ")
+    .replace(/^\s*>\s?/gm, "");
+}
 function renderUpdate(j){
   const a = j.asset || {};
   let h = '<div>Установлено <b>v'+esc(j.current)+'</b> · последний релиз <b>'+
@@ -2165,7 +2268,7 @@ function renderUpdate(j){
   if(j.available){
     h += '<div style="margin-top:8px;color:var(--ok)"><b>Доступно обновление '+
       esc(j.tag)+'</b></div>';
-    if(j.body) h += '<div class="update-pre">'+esc(j.body)+'</div>';
+    if(j.body) h += '<div class="update-pre">'+esc(mdLite(j.body))+'</div>';
     if(a.name && a.sha256){
       h += '<div class="wactions"><button class="btn sm primary" data-up="dl">Скачать установщик'+
         (a.size ? " ("+fmtMb(a.size)+")" : "")+'</button>'+
@@ -2179,7 +2282,7 @@ function renderUpdate(j){
   }else{
     h += '<div style="margin-top:8px;color:var(--ok)">Новых версий нет.</div>';
     if(j.body) h += '<details style="margin-top:10px"><summary>Что нового в '+
-      esc(j.tag || "последнем релизе")+'</summary><div class="update-pre">'+esc(j.body)+'</div></details>';
+      esc(j.tag || "последнем релизе")+'</summary><div class="update-pre">'+esc(mdLite(j.body))+'</div></details>';
   }
   $("updateBox").innerHTML = h;
   const dl = $("updateBox").querySelector('[data-up="dl"]');
@@ -2246,6 +2349,7 @@ async function runUpdate(){
 }
 
 $("wzClose").onclick = closeWizard;
+$("wzSkip").onclick = ()=>{ markEngineConfirmed(); closeWizard(); };
 $("wzPrev").onclick = ()=>{
   if(WZ.step > 0){ WZ.step--; WZ.testError = ""; WZ.serverError = ""; renderWizard(); }
 };

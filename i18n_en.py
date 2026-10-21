@@ -437,6 +437,34 @@ I18N_EN = {
     "Сервис IndexTTS слушает только": "The IndexTTS service listens only on",
     "Мастер настройки, обновление, диагностика и файлы. Движок синтеза выбирается на главном экране.":
         "Setup wizard, updates, diagnostics and files. The synthesis engine is chosen on the main screen.",
+    # --- разбор первых пользователей (1.6) ---
+    "пусто — вся колода": "empty — the whole deck",
+    "Пропустить": "Skip",
+    "Медиа Anki (куда падает звук)": "Anki media (where the audio lands)",
+    "Звук пишется прямо в поля карточек Anki:":
+        "The audio is written straight into the Anki card fields:",
+    "готовый звук перезаписывается":
+        "an existing sound is overwritten",
+    ", старые файлы остаются в папке медиа коллекции. Отмены нет — переозвучить можно через «Пересобрать всё заново». Всё считается на этом компьютере, карточки никуда не отправляются.":
+        ", the old files stay in the collection's media folder. There is no undo — you can re-record with “Rebuild everything”. Everything runs on this computer; your cards are never sent anywhere.",
+    "Закрывает приложение и локальный сервер. Карточки и звук в Anki остаются как есть.":
+        "Closes the app and the local server. Your cards and their audio stay as they are.",
+    "Папка не подходит — не сохранил": "Folder doesn't fit — not saved",
+    "Папка не подходит": "Folder doesn't fit",
+    "не нашли": "not found",
+    "Лимит карточек должен быть целым числом больше нуля. Чтобы озвучить всю колоду, оставь поле пустым":
+        "The card limit must be a whole number greater than zero. Leave it empty to voice the whole deck",
+    "Лимит карточек — целое число не меньше нуля. Пусто или 0 — вся колода":
+        "The card limit must be a whole number not below zero. Empty or 0 means the whole deck",
+    "Лимит карточек должен быть целым числом не меньше нуля.":
+        "The card limit must be a whole number not below zero.",
+    "Лимит карточек должен быть не меньше нуля. Пусто или 0 — вся колода.":
+        "The card limit must not be below zero. Empty or 0 means the whole deck.",
+    "Лимит карточек должен быть больше нуля. Чтобы озвучить всю колоду, оставь поле пустым и подтверди запуск.":
+        "The card limit must be greater than zero. Leave it empty and confirm to voice the whole deck.",
+    "■ остановлено": "■ stopped",
+    "Начинаю озвучку: колода": "Starting dubbing: deck",
+    "Сходит в сеть на GitHub и покажет changelog": "Goes online to GitHub and shows the changelog",
 
     # --- мастер и шапки (аудит интерфейса) ---
     ". Фуригана:":

@@ -37,7 +37,7 @@ import traceback
 import urllib.request
 
 APP_NAME = "AnkiVoice"
-APP_VERSION = "1.5"
+APP_VERSION = "1.6"
 LEGACY_APP_NAME = "AnkiTTS"   # старое имя (до переименования) — конфиг переносим
 ANKI_CONNECT = "http://127.0.0.1:8765"
 TTS_HOST, TTS_PORT = "127.0.0.1", 9880
@@ -308,6 +308,31 @@ def anki_status():
         return False
 
 
+def anki_media_folder():
+    """Папка медиа коллекции Anki — туда падают файлы озвучки.
+
+    Профилей бывает несколько, берём тот, чья папка менялась последней.
+    """
+    root = os.path.join(os.environ.get("APPDATA", ""), "Anki2")
+    if not os.path.isdir(root):
+        return ""
+    best, best_t = "", 0.0
+    try:
+        names = os.listdir(root)
+    except OSError:
+        return ""
+    for name in names:
+        p = os.path.join(root, name, "collection.media")
+        if os.path.isdir(p):
+            try:
+                t = os.path.getmtime(p)
+            except OSError:
+                t = 0.0
+            if t > best_t:
+                best, best_t = p, t
+    return best
+
+
 def tts_status():
     """True, если сервер синтеза слушает порт (GPT-SoVITS или IndexTTS)."""
     if engine_kind() == ENGINE_INDEX:
@@ -433,16 +458,27 @@ def doctor(gpt_path=None, as_json=False):
     """Диагностика без интерфейса. Возвращает код выхода 0/1."""
     report = {"config": CONFIG_FILE}
     cfg = load_config()
-    path = gpt_path or cfg.get("gptsovits_path") or ""
-    if not path and not gpt_path:
-        auto = find_gptsovits_automatic()
-        if auto:
-            path = auto
-            report["auto_found"] = True
-    report["gptsovits_path"] = path
+    kind = engine_kind(cfg)
+    if kind == ENGINE_INDEX:
+        path = cfg.get("indextts_path") or find_indextts_automatic() or ""
+        report["engine"] = kind
+        report["engine_path"] = path
+        report["engine_label"] = "IndexTTS 2.5"
+        report["problems"] = validate_indextts(path) if path else ["Папка IndexTTS не указана"]
+    else:
+        path = gpt_path or cfg.get("gptsovits_path") or ""
+        if not path and not gpt_path:
+            auto = find_gptsovits_automatic()
+            if auto:
+                path = auto
+                report["auto_found"] = True
+        report["engine"] = kind
+        report["engine_path"] = path
+        report["engine_label"] = "GPT-SoVITS"
+        report["gptsovits_path"] = path
+        report["problems"] = validate_gptsovits(path)
     report["local_problems"] = validate_local()
-    report["problems"] = validate_gptsovits(path)
-    if path and not report["problems"]:
+    if path and not report["problems"] and kind == ENGINE_GPT:
         voices, default = load_voices()
         report["voices"] = sorted(voices)
         report["default_voice"] = default
@@ -457,8 +493,13 @@ def doctor(gpt_path=None, as_json=False):
         except Exception as e:
             report["pyopenjtalk"] = False
             report["pyopenjtalk_error"] = repr(e)
+    elif path and not report["problems"]:
+        voices, default = load_voices()
+        report["voices"] = sorted(voices)
+        report["default_voice"] = default
     report["anki"] = anki_status()
     report["tts_server"] = tts_status()
+    report["anki_media"] = anki_media_folder()
     report["ok"] = (not report["problems"] and not report["local_problems"]
                     and report["anki"])
     if as_json:
@@ -467,7 +508,9 @@ def doctor(gpt_path=None, as_json=False):
         out("Диагностика %s" % APP_NAME)
         out("  инструмент   : %s" % code_dir())
         out("  конфиг       : %s" % CONFIG_FILE)
-        out("  GPT-SoVITS   : %s" % (path or "— не указан"))
+        out("  %-12s: %s" % (report.get("engine_label") or "движок",
+                             path or "— не указан"))
+        out("  медиа Anki   : %s" % (report.get("anki_media") or "— не нашли"))
         for pr in report["local_problems"]:
             out("  ПРОБЛЕМА(инструмент): %s" % pr)
         for pr in report["problems"]:
