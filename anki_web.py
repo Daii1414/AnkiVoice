@@ -59,6 +59,7 @@ GITHUB_REPO = "Daii1414/AnkiVoice"
 GITHUB_API = "https://api.github.com/repos/" + GITHUB_REPO
 RELEASES_URL = "https://github.com/" + GITHUB_REPO + "/releases"
 GPT_SOVITS_RELEASES = "https://github.com/RVC-Boss/GPT-SoVITS/releases"
+INDEXTTS_RELEASES = "https://github.com/index-tts/index-tts"
 ANKI_CONNECT_CODE = "2055492159"
 ANKI_CONNECT_URL = "https://ankiweb.net/shared/info/" + ANKI_CONNECT_CODE
 UPDATE_TTL = 300                    # секунд; кнопка «Проверить» обходит кэш
@@ -122,16 +123,41 @@ def start_run(title, args, on_line=None):
     if not args:
         return None, "Не собрались аргументы запуска — проверь выбор голоса и колоды."
     cfg = ag.load_config()
-    path = (cfg.get("gptsovits_path") or "").strip()
-    if not path:
-        auto = ag.find_gptsovits_automatic()
-        if auto:
-            path = auto
-    if not path:
-        return None, "Не указана папка GPT-SoVITS — укажи её во вкладке «Приложение»."
-    problems = ag.validate_gptsovits(path)
-    if problems:
-        return None, "Папка GPT-SoVITS не подходит:\n  • " + "\n  • ".join(problems)
+    kind = ag.engine_kind(cfg)
+    if kind == ag.ENGINE_INDEX:
+        # IndexTTS: нужна его папка, а питон движка GPT-SoVITS — только ради
+        # QC и проверки произношения (если его нет, работаем на встроенном
+        # рантайме приложения: акустическая проверка останется, а распознавание
+        # произношения — нет).
+        path = (cfg.get("indextts_path") or "").strip()
+        if not path:
+            auto = ag.find_indextts_automatic()
+            if auto:
+                path = auto
+        if not path:
+            return None, ("Не указана папка IndexTTS — укажи её во вкладке "
+                          "«Приложение».")
+        problems = ag.validate_indextts(path)
+        if problems:
+            return None, ("Папка IndexTTS не подходит:\n  • "
+                          + "\n  • ".join(problems))
+        gpt_path = (cfg.get("gptsovits_path") or "").strip()
+        if not os.path.isfile(os.path.join(gpt_path, "runtime", "python.exe")):
+            gpt_path = ""
+    else:
+        path = (cfg.get("gptsovits_path") or "").strip()
+        if not path:
+            auto = ag.find_gptsovits_automatic()
+            if auto:
+                path = auto
+        if not path:
+            return None, ("Не указана папка GPT-SoVITS — укажи её во вкладке "
+                          "«Приложение».")
+        problems = ag.validate_gptsovits(path)
+        if problems:
+            return None, ("Папка GPT-SoVITS не подходит:\n  • "
+                          + "\n  • ".join(problems))
+        gpt_path = path
 
     with STATE_LOCK:
         if CURRENT and CURRENT.running:
@@ -155,7 +181,7 @@ def start_run(title, args, on_line=None):
         LAST_RUN = run
 
     try:
-        r = ag.pipeline_cmd(path, args, _line, _done)
+        r = ag.pipeline_cmd(gpt_path, args, _line, _done)
     except Exception as e:
         run.finish(-1)
         run.push("!! Ошибка запуска: %r" % (e,))
@@ -296,7 +322,10 @@ def resolve_path(p, eng):
 
 
 def voice_files_ok(v, eng):
-    for key in ("gpt", "sovits", "ref"):
+    # У IndexTTS голос — это один референс: весов модели (.ckpt/.pth) у
+    # голоса нет, они общие у движка.
+    keys = ("ref",) if ag.engine_kind() == ag.ENGINE_INDEX else ("gpt", "sovits", "ref")
+    for key in keys:
         p = v.get(key, "")
         if not p or not os.path.exists(resolve_path(p, eng)):
             return False
@@ -317,20 +346,32 @@ def _test_audio(voice):
 def setup_status():
     """Один снимок для мастера: что уже готово и что делать дальше."""
     cfg = ag.load_config()
-    path = (cfg.get("gptsovits_path") or "").strip()
-    auto = ""
-    if not path:
-        auto = ag.find_gptsovits_automatic() or ""
-        if auto:
-            path = auto
-    problems = ag.validate_gptsovits(path) if path else ["Папка GPT-SoVITS не указана"]
+    kind = ag.engine_kind(cfg)
+    is_index = kind == ag.ENGINE_INDEX
+    if is_index:
+        path = (cfg.get("indextts_path") or "").strip()
+        auto = ""
+        if not path:
+            auto = ag.find_indextts_automatic() or ""
+            if auto:
+                path = auto
+        problems = ag.validate_indextts(path) if path else ["Папка IndexTTS не указана"]
+    else:
+        path = (cfg.get("gptsovits_path") or "").strip()
+        auto = ""
+        if not path:
+            auto = ag.find_gptsovits_automatic() or ""
+            if auto:
+                path = auto
+        problems = ag.validate_gptsovits(path) if path else ["Папка GPT-SoVITS не указана"]
 
     vfile = read_voices_file()
     voices = vfile.get("voices", {})
     rows, ready = [], []
+    need_keys = ("ref",) if is_index else ("gpt", "sovits", "ref")
     for name, v in sorted(voices.items()):
         missing = []
-        for key in ("gpt", "sovits", "ref"):
+        for key in need_keys:
             p = v.get(key, "")
             if not p or not os.path.exists(resolve_path(p, path)):
                 missing.append(key)
@@ -373,15 +414,23 @@ def setup_status():
         "done": done,
         "engine": {
             "ok": engine_ok,
+            "kind": kind,
             "path": path,
             "auto": auto,
             "problems": problems,
-            "expected": "runtime\\python.exe и api_v2.py",
-            "download_url": GPT_SOVITS_RELEASES,
-            "hint": ("Скачай Windows-пакет GPT-SoVITS v2Pro со страницы релизов, "
-                     "распакуй в папку без кириллицы (например, D:\\GPT-SoVITS) "
-                     "и укажи её здесь. Внутри должны лежать runtime\\python.exe "
-                     "и api_v2.py."),
+            "expected": ("checkpoints\\config.yaml и .venv"
+                         if is_index else "runtime\\python.exe и api_v2.py"),
+            "download_url": (INDEXTTS_RELEASES if is_index
+                             else GPT_SOVITS_RELEASES),
+            "hint": (("Поставь IndexTTS 2.5: git clone "
+                      "https://github.com/index-tts/index-tts, затем "
+                      "uv sync --extra webui и скачай веса в checkpoints. "
+                      "Папку укажи здесь.")
+                     if is_index else
+                     ("Скачай Windows-пакет GPT-SoVITS v2Pro со страницы релизов, "
+                      "распакуй в папку без кириллицы (например, D:\\GPT-SoVITS) "
+                      "и укажи её здесь. Внутри должны лежать runtime\\python.exe "
+                      "и api_v2.py.")),
         },
         "anki": {
             "ok": anki_ok,
@@ -815,7 +864,11 @@ class Handler(BaseHTTPRequestHandler):
                 if new != old:
                     cfg["setup_done"] = False
                     cfg.pop("last_test_voice", None)
-            for k in ("gptsovits_path", "theme", "deck", "voice", "mode",
+            if "engine" in b and (b.get("engine") or "") != (cfg.get("engine") or ""):
+                cfg["setup_done"] = False
+                cfg.pop("last_test_voice", None)
+            for k in ("gptsovits_path", "indextts_path", "indextts_url", "engine",
+                      "theme", "deck", "voice", "mode",
                       "sentence_src", "sentence_audio", "word_src",
                       "word_audio", "furigana_src", "reading", "limit",
                       "verify_pronunciation", "asr_model", "lang"):
@@ -856,6 +909,23 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/setup/server":
             cfg = ag.load_config()
+            if ag.engine_kind(cfg) == ag.ENGINE_INDEX:
+                eng = (cfg.get("indextts_path") or "").strip() or \
+                    (ag.find_indextts_automatic() or "")
+                if not eng:
+                    return self._err("Сначала укажи папку IndexTTS.")
+                problems = ag.validate_indextts(eng)
+                if problems:
+                    return self._err("Папка IndexTTS не подходит: "
+                                     + "; ".join(problems))
+                if ag.tts_status():
+                    return self._json({"ok": True, "already": True,
+                                       "message": "Сервис IndexTTS уже запущен."})
+                run, err = start_run("Подготовка сервиса IndexTTS",
+                                     ["indextts-server", "--wait", "900"])
+                if err:
+                    return self._err(err)
+                return self._json({"ok": True, "run": run.snapshot()})
             eng = (cfg.get("gptsovits_path") or "").strip() or \
                 (ag.find_gptsovits_automatic() or "")
             if not eng:
@@ -945,8 +1015,18 @@ class Handler(BaseHTTPRequestHandler):
             view[name] = d
 
         run = current_run()
+        kind = ag.engine_kind(cfg)
+        if kind == ag.ENGINE_INDEX:
+            path = (cfg.get("indextts_path") or "").strip() or \
+                (ag.find_indextts_automatic() or "")
+            problems = ag.validate_indextts(path) if path else ["Папка IndexTTS не указана"]
+        else:
+            path = (cfg.get("gptsovits_path") or "").strip() or \
+                (ag.find_gptsovits_automatic() or "")
+            problems = ag.validate_gptsovits(path) if path else ["Папка GPT-SoVITS не указана"]
         return {
             "cfg": cfg,
+            "engine": kind,
             "version": ag.APP_VERSION,
             "pron": dict(zip(("ok", "msg"), pron_status())),
             "setup_done": bool(cfg.get("setup_done")),
@@ -1075,21 +1155,30 @@ class Handler(BaseHTTPRequestHandler):
         cfg = read_voices_file()
         if name in cfg.get("voices", {}):
             return self._err("Голос «%s» уже есть" % name)
-        for k in ("gpt", "sovits", "ref", "prompt_text"):
+        is_index = ag.engine_kind() == ag.ENGINE_INDEX
+        # У IndexTTS голос — это один референс: весов у голоса нет.
+        need = ("ref",) if is_index else ("gpt", "sovits", "ref", "prompt_text")
+        for k in need:
             if not (b.get(k) or "").strip():
                 return self._err("Заполни поле: %s" % k)
-        eng = (ag.load_config().get("gptsovits_path") or "")
-        cfg.setdefault("voices", {})[name] = {
+        cfg = ag.load_config()
+        eng = ((cfg.get("indextts_path") or "") if is_index
+               else (cfg.get("gptsovits_path") or ""))
+        entry = {
             "display": (b.get("display") or name).strip(),
-            "gpt": store_path(b["gpt"].strip(), eng),
-            "sovits": store_path(b["sovits"].strip(), eng),
             "ref": store_path(b["ref"].strip(), eng),
             "aux": [],
-            "prompt_text": b["prompt_text"].strip(),
+            "prompt_text": (b.get("prompt_text") or "").strip(),
             "prompt_lang": (b.get("prompt_lang") or "ja").strip() or "ja",
             "temperature": 0.6, "top_p": 0.6, "top_k": 20,
             "speed": 1.0, "seed": 42,
         }
+        if not is_index:
+            entry["gpt"] = store_path(b["gpt"].strip(), eng)
+            entry["sovits"] = store_path(b["sovits"].strip(), eng)
+        else:
+            entry["lang"] = (b.get("lang") or "JA").strip() or "JA"
+        cfg.setdefault("voices", {})[name] = entry
         write_voices_file(cfg)
         self._json({"ok": True, "name": name})
 

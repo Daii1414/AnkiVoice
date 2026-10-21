@@ -171,6 +171,68 @@ def validate_gptsovits(path):
     return problems
 
 
+# --------------------------------------------------------- второй движок
+ENGINE_GPT = "gpt-sovits"
+ENGINE_INDEX = "indextts"
+INDEXTTS_DEFAULT_URL = "http://127.0.0.1:9881"
+
+
+def engine_kind(cfg=None):
+    """Какой движок выбран: 'gpt-sovits' (по умолчанию) или 'indextts'."""
+    c = cfg if cfg is not None else load_config()
+    kind = str((c or {}).get("engine") or "").strip().lower()
+    if kind in (ENGINE_INDEX, "indextts2", "indextts2.5", "index-tts", "index_tts"):
+        return ENGINE_INDEX
+    return ENGINE_GPT
+
+
+def indextts_url(cfg=None):
+    c = cfg if cfg is not None else load_config()
+    url = str((c or {}).get("indextts_url") or "").strip() or INDEXTTS_DEFAULT_URL
+    return url.rstrip("/")
+
+
+def validate_indextts(path):
+    """Проблемы с папкой IndexTTS. Пустой список = папка подходит."""
+    problems = []
+    if not path:
+        return ["Папка IndexTTS не указана"]
+    if not os.path.isdir(path):
+        return ["Папка не существует: %s" % path]
+    for rel, what in (
+        (os.path.join("checkpoints", "config.yaml"), "конфиг модели"),
+        (os.path.join("checkpoints", "gpt.pth"), "веса GPT"),
+    ):
+        if not os.path.exists(os.path.join(path, rel)):
+            problems.append("Нет %s: %s" % (what, os.path.join(path, rel)))
+    if not os.path.exists(os.path.join(path, ".venv", "Scripts", "python.exe")) \
+            and not os.path.exists(os.path.join(path, ".venv", "bin", "python")):
+        problems.append("Нет окружения .venv — поставь IndexTTS (uv sync)")
+    return problems
+
+
+def find_indextts_automatic():
+    """Автопоиск папки IndexTTS (обычно D:\\DOWNLOAD\\index-tts)."""
+    import string
+    drives = [d + ":\\" for d in string.ascii_uppercase if os.path.exists(d + ":\\")]
+    drives.sort(key=lambda p: p[0] != "D")
+    for root in drives:
+        for base in (os.path.join(root, "DOWNLOAD"), root):
+            if not os.path.isdir(base):
+                continue
+            try:
+                names = sorted(os.listdir(base))
+            except OSError:
+                continue
+            for name in names:
+                low = name.lower()
+                if "index" in low and "tts" in low:
+                    p = os.path.join(base, name)
+                    if os.path.isdir(os.path.join(p, "checkpoints")):
+                        return p
+    return None
+
+
 def validate_local():
     """Проблемы с самим инструментом (файлы рядом с программой)."""
     problems = []
@@ -247,7 +309,16 @@ def anki_status():
 
 
 def tts_status():
-    """True, если сервер GPT-SoVITS слушает порт."""
+    """True, если сервер синтеза слушает порт (GPT-SoVITS или IndexTTS)."""
+    if engine_kind() == ENGINE_INDEX:
+        try:
+            import urllib.request
+            url = indextts_url() + "/health"
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            with opener.open(url, timeout=3) as r:
+                return r.read(64).find(b'"ok":true') >= 0
+        except Exception:
+            return False
     try:
         s = socket.create_connection((TTS_HOST, TTS_PORT), timeout=2)
         s.close()
@@ -333,14 +404,23 @@ class _PipelineRun:
 def pipeline_cmd(gpt_path, args, on_line=None, on_done=None):
     """Запуск voice_pipeline.py в фоне. Возвращает _PipelineRun.
 
-    gpt_path — папка ДВИЖКА (куда ставить python и api). Сам скрипт
-    пайплайна лежит рядом с программой (CODE). Движок передаём дочернему
-    процессу через переменную GPT_SOVITS_ROOT, чтобы резолюция совпала.
+    gpt_path — папка ДВИЖКА (куда ставить python и api). Если её нет —
+    работаем на встроенном рантайме приложения (он есть всегда, но без
+    faster-whisper: акустическая проверка будет, распознавание — нет).
+    Сам скрипт пайплайна лежит рядом с программой (CODE). Движок передаём
+    дочернему процессу через переменную GPT_SOVITS_ROOT, чтобы резолюция
+    совпала.
     """
-    python = os.path.join(gpt_path, "runtime", "python.exe")
+    if gpt_path and os.path.isfile(os.path.join(gpt_path, "runtime", "python.exe")):
+        python = os.path.join(gpt_path, "runtime", "python.exe")
+    else:
+        python = os.path.join(code_dir(), "pyruntime", "python.exe")
     script = os.path.join(code_dir(), "voice_pipeline.py")
-    env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8",
-               GPT_SOVITS_ROOT=gpt_path)
+    env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+    if gpt_path:
+        env["GPT_SOVITS_ROOT"] = gpt_path
+    else:
+        env.pop("GPT_SOVITS_ROOT", None)
     cmd = [python, "-u", script] + list(args)
     run = _PipelineRun()
     run.run(cmd, code_dir(), env, on_line, on_done)

@@ -526,6 +526,52 @@ def test_real_furigana_never_doubled():
               "%s: термин в тексте на синтез без удвоения (%s)" % (where, text))
 
 
+def test_engine_choice():
+    """Движок выбирается переключателем в интерфейсе (в конфиге)."""
+    check(ag.engine_kind({}) == "gpt-sovits", "по умолчанию GPT-SoVITS")
+    check(ag.engine_kind({"engine": "gpt-sovits"}) == "gpt-sovits", "явно GPT-SoVITS")
+    check(ag.engine_kind({"engine": "indextts"}) == "indextts", "явно IndexTTS")
+    check(ag.engine_kind({"engine": "IndexTTS2.5"}) == "indextts", "IndexTTS 2.5")
+    check(vp.engine_kind({"engine": "indextts"}) == "indextts", "пайплайн видит выбор")
+    check(vp.indextts_url({}) == "http://127.0.0.1:9881", "адрес сервиса по умолчанию")
+    check(vp.indextts_url({"indextts_url": "http://127.0.0.1:9999/"})
+          == "http://127.0.0.1:9999", "адрес сервиса из конфига")
+
+
+def test_indextts_folder_check():
+    """Папка IndexTTS: нужны веса (checkpoints) и окружение (.venv)."""
+    import tempfile
+    tmp = tempfile.mkdtemp(prefix="av_idx_")
+    check(ag.validate_indextts("") != [], "пустая папка — есть замечания")
+    check(ag.validate_indextts(os.path.join(tmp, "нет")) != [], "нет папки — замечания")
+    os.makedirs(os.path.join(tmp, "checkpoints"), exist_ok=True)
+    for rel in (os.path.join("checkpoints", "config.yaml"),
+                 os.path.join("checkpoints", "gpt.pth")):
+        with open(os.path.join(tmp, rel), "wb") as f:
+            f.write(b"x")
+    problems = ag.validate_indextts(tmp)
+    check(any(".venv" in p for p in problems),
+          "без .venv — замечание про окружение")
+    os.makedirs(os.path.join(tmp, ".venv", "Scripts"), exist_ok=True)
+    with open(os.path.join(tmp, ".venv", "Scripts", "python.exe"), "wb") as f:
+        f.write(b"x")
+    check(ag.validate_indextts(tmp) == [], "полная папка — замечаний нет")
+
+
+def test_indextts_synth_needs_ref():
+    """Без референса IndexTTS должен сказать об этом, а не молчать."""
+    old = vp.engine_kind
+    vp.engine_kind = lambda cfg=None: "indextts"
+    try:
+        try:
+            vp._synth_once_indextts({"name": "v", "ref": ""}, "テスト")
+            raise AssertionError("ожидалась ошибка из-за пустого референса")
+        except SystemExit as e:
+            check("референс" in str(e), "внятная ошибка про референс")
+    finally:
+        vp.engine_kind = old
+
+
 def test_setup_status():
     eng = tempfile.mkdtemp(prefix="anki_voice_engine_")
     for name in ("g.ckpt", "s.pth", "r.wav"):
@@ -582,6 +628,8 @@ def main():
              test_check_targets_spoken_text, test_reading_mode_auto,
              test_broken_config_not_wiped, test_furigana_not_doubled,
              test_latin_term_kept_as_is, test_real_furigana_never_doubled,
+             test_engine_choice, test_indextts_folder_check,
+             test_indextts_synth_needs_ref,
              test_setup_status]
     failed = 0
     for t in tests:

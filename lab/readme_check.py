@@ -112,14 +112,14 @@ def main():
     # ---- 6. установщик везёт те же модули, что перечислены в README ----
     iss = read("AnkiVoice.iss")
     shipped = set(re.findall(r'Source:\s*"lab\\([^"]+)"', iss))
-    claimed = set(re.findall(r"7 \u043c\u043e\u0434\u0443\u043b\u0435\u0439", ru))
-    if len(shipped) != 7:
-        fail("установщик везёт %d модулей lab/, а README говорит о 7: %s"
+    claimed = set(re.findall(r"8 \u043c\u043e\u0434\u0443\u043b\u0435\u0439", ru))
+    if len(shipped) != 8:
+        fail("установщик везёт %d модулей lab/, а README говорит о 8: %s"
              % (len(shipped), ", ".join(sorted(shipped))))
     else:
-        ok("установщик везёт 7 модулей lab/ (%s)" % ", ".join(sorted(shipped)))
+        ok("установщик везёт 8 модулей lab/ (%s)" % ", ".join(sorted(shipped)))
     if not claimed:
-        fail("в README нет упоминания про 7 модулей установщика")
+        fail("в README нет упоминания про 8 модулей установщика")
 
     # ---- 7. режимы чтения: авто (по полю с фуриганой) и только кандзи ----
     page = read("anki_web_page.py")

@@ -251,7 +251,7 @@ Light theme — the same tabs: [Dubbing](doc/shots/voice-light.png),
   again before the installer starts.
 * **Live diagnostics** - the "App" tab shows the state of the engine, Anki,
   the server, the voices and the test phrase.
-* **The installer ships the reading stack** - 7 modules from `lab/` are now in
+* **The installer ships the reading stack** - 8 modules from `lab/` are now in
   the installed app: the reading system (provenance, domain dictionary,
   resolver), QC v2 and the pronunciation check. They used to be missing, and
   the app silently worked on the simple "has audio" criterion.
@@ -268,6 +268,51 @@ Light theme — the same tabs: [Dubbing](doc/shots/voice-light.png),
 
 The full list of changes is in [CHANGELOG.md](CHANGELOG.md) and in
 [release v1.2](https://github.com/Daii1414/AnkiVoice/releases/tag/v1.2).
+## A second engine: IndexTTS 2.5
+
+Besides GPT-SoVITS you can run **IndexTTS 2.5**, a zero-shot engine that
+needs only one reference clip. The switch lives in **“App” → “Synthesis
+engine”**. The choice is remembered and applies to the whole app.
+
+| | GPT-SoVITS | IndexTTS 2.5 |
+|---|---|---|
+| a voice | `.ckpt` + `.pth` files + a reference | **one reference** (3-10 s) |
+| weights | per voice | shared by the model |
+| install | unpacked archive | `git clone` + `uv sync --extra webui` + weights in `checkpoints` |
+| Japanese reading | the engine's g2p | its own Japanese g2p (`ja_g2p`) |
+
+Install IndexTTS 2.5:
+
+```
+git clone https://github.com/index-tts/index-tts.git D:\DOWNLOAD\index-tts
+cd D:\DOWNLOAD\index-tts
+uv sync --extra webui
+uv tool install "huggingface-hub"
+hf download IndexTeam/IndexTTS-2.5 --local-dir checkpoints
+```
+
+Point AnkiVoice at that folder in “App” (or press “Check” - it finds the
+folder by itself). `uv` has to be in PATH and the NVIDIA driver needs CUDA
+12.8 or newer.
+
+**Why a bridge.** IndexTTS has no HTTP API - only a Python API and a web UI.
+AnkiVoice starts a small service next to itself
+(`lab/indextts_service.py`, shipped with the installer) that loads the model
+**once** and answers `POST /tts`. Without it every card would reload the
+weights.
+
+What stays the same: the acoustic QC, the reading mode (auto / kanji only),
+the rules for substituting the furigana reading, writing the audio into the
+card, the review deck and the verdicts.
+
+What is missing in the IndexTTS mode:
+
+* the **content check** (recognising our own voice) - it lives in the
+  GPT-SoVITS environment (faster-whisper). Without GPT-SoVITS the acoustic
+  check remains and the recognition is off;
+* the manual sampling settings (seed, temperature, top_p, top_k) - IndexTTS
+  has none, the interface hides them.
+
 ## Pronunciation check
 
 GPT-SoVITS sometimes **loses a chunk of a sentence or invents extra**: the
@@ -523,7 +568,7 @@ windows-latest.
 | `pyruntime.zip` | Bundled Python + Haqumei 0.12.2 + SudachiPy 0.7 (~44 MB, unpacks itself) |
 | `sudachidict.zip` | Sudachi core dictionary 20261015 (~73 MB, unpacked by the helper) |
 | `voices.json` | Voice registry: weights, references, prompt, sampling |
-| `lab/` | Reading system and QC v2 modules (7 files ship with the installer) + tests and dev tools |
+| `lab/` | Reading system, QC v2 modules and the IndexTTS service (8 files ship with the installer) + tests and dev tools |
 | `doc/` | UI screenshots, logo, engine media, measurement reports |
 | `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md` | History, development rules, security policy |
 | `.github/` | CI, issue and pull request templates |

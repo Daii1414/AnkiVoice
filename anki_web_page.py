@@ -544,21 +544,25 @@ select{cursor:pointer}
               <input type="checkbox" id="v_noref"> Без текста референса
             </label>
             <div class="spacer"></div>
-            <label class="f">Текст референса</label>
-            <textarea id="v_prompt" placeholder="что говорит голос в референсе"></textarea>
-            <div class="row" style="margin-top:10px">
-              <div class="grow"><label class="f">Язык промпта</label>
-                <input type="text" id="v_lang" value="ja"></div>
-              <div style="width:110px"><label class="f">Seed</label>
-                <input type="number" id="v_seed" value="42"></div>
+            <div id="v_gptPrompt">
+              <label class="f">Текст референса</label>
+              <textarea id="v_prompt" placeholder="что говорит голос в референсе"></textarea>
+              <div class="row" style="margin-top:10px">
+                <div class="grow"><label class="f">Язык промпта</label>
+                  <input type="text" id="v_lang" value="ja"></div>
+                <div style="width:110px"><label class="f">Seed</label>
+                  <input type="number" id="v_seed" value="42"></div>
+              </div>
             </div>
           </div>
           <div>
-            <label class="f">Доп. файлы (aux)</label>
-            <div id="auxList" style="display:flex;flex-direction:column;gap:8px"></div>
-            <button class="btn sm ghost" id="btnAux">＋ добавить файл</button>
+            <div id="v_gptAux">
+              <label class="f">Доп. файлы (aux)</label>
+              <div id="auxList" style="display:flex;flex-direction:column;gap:8px"></div>
+              <button class="btn sm ghost" id="btnAux">＋ добавить файл</button>
+            </div>
             <div class="spacer" style="height:14px"></div>
-            <div class="grid2">
+            <div class="grid2" id="v_gptParams">
               <div class="sld"><label class="f">Температура</label>
                 <div class="sld-row">
                   <input type="range" id="v_temp_r" min="0" max="2" step="0.01">
@@ -663,7 +667,18 @@ select{cursor:pointer}
       </div>
 
       <div class="card">
-        <label class="f">Папка GPT-SoVITS</label>
+        <label class="f">Движок синтеза</label>
+        <div class="row">
+          <div class="grow">
+            <select id="engineSel">
+              <option value="gpt-sovits">GPT-SoVITS — голос из весов .ckpt и .pth</option>
+              <option value="indextts">IndexTTS 2.5 — голос из одного референса</option>
+            </select>
+          </div>
+        </div>
+        <div class="hint" id="engineHint"></div>
+        <div class="spacer" style="height:12px"></div>
+        <label class="f" id="enginePathLabel">Папка GPT-SoVITS</label>
         <div class="row">
           <div class="grow"><input type="text" id="gptpath" placeholder="D:\DOWNLOAD\GPT-SoVITS-…"></div>
           <button class="btn sm" id="btnPickGpt">Обзор…</button>
@@ -949,6 +964,7 @@ async function loadState(){
   $("pCfg").textContent  = ST.config_file || "—";
 
   // папка движка
+  applyEngineUI();
   $("gptpath").value = ST.path || "";
   if(ST.problems && ST.problems.length){
     banner("appBanner","bad",
@@ -1503,9 +1519,36 @@ async function saveCfg(patch){
   catch(e){ console.warn(e); return; }
   try{ ST = await api("/api/state"); }catch(e){ console.warn(e); }
 }
+const AV_ENGINES = {
+  "gpt-sovits": {label:"Папка GPT-SoVITS", ph:"D:\\DOWNLOAD\\GPT-SoVITS-…",
+                 pick:"Папка GPT-SoVITS",
+                 hint:"Движок с весами: у каждого голоса свои файлы .ckpt и .pth."},
+  "indextts":   {label:"Папка IndexTTS 2.5", ph:"D:\\DOWNLOAD\\index-tts",
+                 pick:"Папка IndexTTS",
+                 hint:"Zero-shot движок: голос — это один референс, веса общие у модели."}
+};
+function engineNow(){ return (ST && ST.engine) || "gpt-sovits"; }
+function pathKey(){ return engineNow() === "indextts" ? "indextts_path" : "gptsovits_path"; }
+function applyEngineUI(){
+  const e = AV_ENGINES[engineNow()] || AV_ENGINES["gpt-sovits"];
+  const isIndex = engineNow() === "indextts";
+  // у IndexTTS голос — это один референс: параметров сэмплирования нет
+  ["v_gptPrompt","v_gptAux","v_gptParams"].forEach(id=>{
+    const el = $(id); if(el) el.style.display = isIndex ? "none" : "";
+  });
+  ["a_gpt","a_gpt_b","a_sov","a_sov_b","v_noref"].forEach(id=>{
+    const el = $(id); if(el) el.style.display = isIndex ? "none" : "";
+  });
+  $("enginePathLabel").textContent = e.label;
+  $("gptpath").placeholder = e.ph;
+  $("btnPickGpt").title = e.pick;
+  $("engineHint").textContent = e.hint;
+  if($("engineSel")) $("engineSel").value = engineNow();
+}
 async function savePath(){
   const p = $("gptpath").value.trim();
-  const j = await api("/api/config", {gptsovits_path:p});
+  const patch = {}; patch[pathKey()] = p;
+  const j = await api("/api/config", patch);
   if(j.problems && j.problems.length){
     banner("appBanner","bad","<b>Проблемы:</b> "+esc(j.problems.join(" · ")));
     $("pathHint").innerHTML = '<span style="color:var(--err)">'+esc(j.problems.join(" · "))+"</span>";
@@ -1521,7 +1564,8 @@ async function savePath(){
 $("btnSavePath").onclick = savePath;
 $("btnCheckPath").onclick = async ()=>{
   const p = $("gptpath").value.trim();
-  const j = await api("/api/config", {gptsovits_path:p});
+  const patch = {}; patch[pathKey()] = p;
+  const j = await api("/api/config", patch);
   $("pathHint").innerHTML = (j.problems && j.problems.length)
     ? '<span style="color:var(--err)">'+esc(j.problems.join(" · "))+"</span>"
     : '<span style="color:var(--ok)">Папка в порядке ✓</span>';
@@ -1619,7 +1663,20 @@ document.addEventListener("keydown", e=>{
 document.querySelectorAll("[data-pick]").forEach(b=>{
   b.onclick = ()=>openPicker(b.dataset.pick, "file", b.dataset.ext||"", "Выбор файла");
 });
-$("btnPickGpt").onclick = ()=>openPicker($("gptpath"), "dir", "", "Папка GPT-SoVITS");
+$("btnPickGpt").onclick = ()=>openPicker($("gptpath"), "dir", "",
+  (AV_ENGINES[engineNow()] || AV_ENGINES["gpt-sovits"]).pick);
+$("engineSel").onchange = async ()=>{
+  const kind = $("engineSel").value;
+  try{
+    await api("/api/config", {engine: kind});
+    ST = await api("/api/state");
+    applyEngineUI();
+    $("gptpath").value = ST.path || "";
+    $("pathHint").textContent = "—";
+    try{ await loadSetup(); }catch(e){}
+    toast(kind === "indextts" ? "Движок: IndexTTS 2.5" : "Движок: GPT-SoVITS", "good");
+  }catch(e){ toast(e.message, "bad"); }
+};
 
 /* ================================================= добавление голоса */
 function addVoiceDialog(){

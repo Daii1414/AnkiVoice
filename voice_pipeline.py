@@ -42,6 +42,7 @@ import html
 import json
 import os
 import re
+import shutil
 import unicodedata
 import socket
 import subprocess
@@ -123,6 +124,37 @@ ANKI_CONNECT = "http://127.0.0.1:8765"
 TTS_HOST, TTS_PORT = "127.0.0.1", 9880
 TTS_URL = "http://%s:%d" % (TTS_HOST, TTS_PORT)
 DEFAULT_START_CONFIG = os.path.join("GPT_SoVITS", "configs", "tts_infer.yaml")
+
+# ------------------------------------------------------------- выбор движка
+# Движков два: GPT-SoVITS (как раньше) и IndexTTS 2.5. Выбор хранится в
+# конфиге приложения (engine), чтобы переключатель в интерфейсе был один
+# на всё приложение.
+ENGINE_GPT = "gpt-sovits"
+ENGINE_INDEX = "indextts"
+INDEXTTS_DEFAULT_URL = "http://127.0.0.1:9881"
+
+
+def engine_kind(cfg=None):
+    """Какой движок выбран: 'gpt-sovits' (по умолчанию) или 'indextts'."""
+    c = cfg if cfg is not None else _read_app_config()
+    kind = str((c or {}).get("engine") or "").strip().lower()
+    if kind in (ENGINE_INDEX, "indextts2", "indextts2.5", "index-tts", "index_tts"):
+        return ENGINE_INDEX
+    return ENGINE_GPT
+
+
+def indextts_url(cfg=None):
+    """Адрес сервиса IndexTTS (он поднимается нашим же скриптом)."""
+    c = cfg if cfg is not None else _read_app_config()
+    url = str((c or {}).get("indextts_url") or "").strip() or INDEXTTS_DEFAULT_URL
+    return url.rstrip("/")
+
+
+def indextts_dir(cfg=None):
+    """Папка с установленным IndexTTS (репозиторий с checkpoints и .venv)."""
+    c = cfg if cfg is not None else _read_app_config()
+    return str((c or {}).get("indextts_path") or "").strip()
+
 
 # Какие поля карточки читать (текст) и куда писать (звук). Можно переопределить
 # на вкладке «Поля колоды» / через CLI — разные колоды называют поля по-разному.
@@ -315,7 +347,8 @@ def save_voices(cfg):
 
 
 def get_voice(name=None):
-    require_engine()
+    if engine_kind() != ENGINE_INDEX:
+        require_engine()          # для IndexTTS движок GPT-SoVITS не нужен
     cfg = load_voices()
     name = name or cfg.get("default_voice")
     if not name:
@@ -325,10 +358,11 @@ def get_voice(name=None):
                          % (name, ", ".join(sorted(cfg["voices"])) or "—"))
     v = dict(cfg["voices"][name])
     v["name"] = name
+    base = ENGINE if engine_kind() != ENGINE_INDEX else (indextts_dir() or CODE)
     for key in ("gpt", "sovits", "ref"):
         if v.get(key) and not os.path.isabs(v[key]):
-            v[key] = os.path.join(ENGINE, v[key])
-    v["aux"] = [a if os.path.isabs(a) else os.path.join(ENGINE, a)
+            v[key] = os.path.join(base, v[key])
+    v["aux"] = [a if os.path.isabs(a) else os.path.join(base, a)
                 for a in v.get("aux") or []]
     return v
 
@@ -1803,8 +1837,58 @@ def split_method_for(text):
     return "cut0" if len(text or "") <= 45 else "cut2"
 
 
+def _synth_once_indextts(v, text, speed=1.0, **overrides):
+    """Синтез через сервис IndexTTS 2.5.
+
+    Сервис (lab/indextts_service.py) держит модель в памяти — веса грузятся
+    один раз при старте, а не на каждую карточку. Голос у IndexTTS — это
+    один референс (никаких .ckpt/.pth), поэтому и параметров меньше.
+
+    Возвращает (blob, ext) — как _synth_once.
+    """
+    url = indextts_url()
+    ref = v.get("ref") or ""
+    if not ref:
+        raise SystemExit("У голоса '%s' не задан файл референса."
+                         % (v.get("name") or "?"))
+    if not os.path.isfile(ref):
+        raise SystemExit("Нет файла референса: %s" % ref)
+    dur = float(overrides.get("duration_factor") or 0) or (
+        1.0 / max(0.25, float(speed or 1.0)))
+    payload = {
+        "text": text,
+        "spk_audio_prompt": ref,
+        "lang": (v.get("lang") or "JA"),
+        "duration_factor": dur,
+        "emo_alpha": float(v.get("emo_alpha") or 1.0),
+    }
+    if v.get("emo_audio"):
+        payload["emo_audio_prompt"] = v["emo_audio"]
+    if overrides.get("use_random"):
+        payload["use_random"] = True
+    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(url + "/tts", data=data,
+                                 headers={"Content-Type": "application/json"})
+    try:
+        with _NO_PROXY.open(req, timeout=900) as resp:
+            blob = resp.read()
+    except urllib.error.HTTPError as e:
+        try:
+            detail = e.read().decode("utf-8", "replace")
+        except Exception:
+            detail = "HTTP %s" % e.code
+        raise SystemExit("IndexTTS отказал: %s" % detail[:300])
+    except Exception as e:
+        raise SystemExit("IndexTTS недоступен (%s): %s" % (url, e))
+    if not blob:
+        raise SystemExit("IndexTTS вернул пустой звук.")
+    return blob, "wav"
+
+
 def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True, verify=None,
                  asr_model=None, **overrides):
+    if engine_kind() == ENGINE_INDEX:
+        return _synth_once_indextts(v, text, speed=speed, **overrides)
     # Sampling defaults follow the official GPT-SoVITS webui (calmer than the raw
     # API defaults of temperature=1.0 / top_p=1.0, which sound over-expressive).
     # Any of these can be overridden per voice in voices.json.
@@ -1904,6 +1988,16 @@ _QC_ATTEMPTS = (
     ({"prompt_text": "", "text_split_method": "cut5", "seed_off": 67},
      "без промпта+старая разбивка",
      "пробую без промпта и со старой разбивкой..."),
+)
+
+# У IndexTTS нет сида и температуры: там другая схема спасения — меняем
+# скорость и включаем случайное сэмплирование.
+_QC_ATTEMPTS_INDEX = (
+    ({"duration_factor": 0.92}, "чуть быстрее", "пробую прочитать быстрее..."),
+    ({"duration_factor": 1.10}, "чуть медленнее", "пробую прочитать медленнее..."),
+    ({"use_random": True}, "случайно", "пробую другой вариантSampling..."),
+    ({"duration_factor": 0.92, "use_random": True}, "быстрее и случайно",
+     "пробую быстрее и с другим вариантом..."),
 )
 
 
@@ -2050,7 +2144,9 @@ def synth(v, text, seed=42, speed=1.0, _oom_retry=True, src=None,
     tried = 0
     best = None            # (blob, ext, покрытие, сигналы) — лучший вариант
     suspect = None         # результат проверки: «похоже, но не уверен»
-    for over, what, msg in ((None, None, None),) + _QC_ATTEMPTS:
+    attempts = (_QC_ATTEMPTS_INDEX if engine_kind() == ENGINE_INDEX
+                else _QC_ATTEMPTS)
+    for over, what, msg in ((None, None, None),) + attempts:
         if tried:
             print("  [%s] %s: %s" % (text[:24], what, msg))
         s, tv, nv, extra = seed, v, v_prompt, {}
@@ -2522,6 +2618,77 @@ def cmd_server(args):
     """
     start_server(_tts_start_config(), wait=args.wait)
     print("Сервер GPT-SoVITS готов.")
+
+
+def cmd_indextts_server(args):
+    """Поднять сервис IndexTTS: модель грузится один раз и живёт в памяти.
+
+    Синтез идёт по HTTP (POST /tts) — в отличие от GPT-SoVITS, у IndexTTS
+    нет готового HTTP-API, поэтому рядом с приложением лежит наш мост
+    lab/indextts_service.py. Запускаем его в окружении IndexTTS (uv).
+    """
+    root = indextts_dir()
+    if not root:
+        raise SystemExit("Не указана папка IndexTTS (вкладка «Приложение»).")
+    if not os.path.isdir(root):
+        raise SystemExit("Папки IndexTTS нет: %s" % root)
+    model_dir = os.path.join(root, "checkpoints")
+    cfg = os.path.join(model_dir, "config.yaml")
+    if not os.path.isfile(cfg):
+        raise SystemExit("Нет весов IndexTTS: %s" % cfg)
+    script = os.path.join(CODE, "lab", "indextts_service.py")
+    if not os.path.isfile(script):
+        raise SystemExit("Нет сервиса: %s" % script)
+    url = indextts_url()
+    port = 9881
+    m = re.search(r":(\d+)(?:/|$)", url)
+    if m:
+        port = int(m.group(1))
+    if _indextts_health(url):
+        print("Сервис IndexTTS уже работает.")
+        return
+    # .venv — уже готовое окружение IndexTTS; uv оставляем запасным путём
+    # (он может уйти в сеть и зависнуть на проверке зависимостей).
+    venv_py = os.path.join(root, ".venv", "Scripts", "python.exe")
+    if not os.path.isfile(venv_py):
+        venv_py = os.path.join(root, ".venv", "bin", "python")
+    uv = shutil.which("uv")
+    if os.path.isfile(venv_py):
+        cmd = [venv_py, "-u", script, "--model-dir", model_dir,
+               "--port", str(port)]
+    elif uv:
+        cmd = [uv, "run", "--project", root, "python", script,
+               "--model-dir", model_dir, "--port", str(port)]
+    else:
+        raise SystemExit("Не найден .venv и нет uv — поставь IndexTTS "
+                         "(uv sync --extra webui).")
+    env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+    log_path = os.path.join(CODE, "indextts_service.log")
+    log = open(log_path, "a", encoding="utf-8")
+    subprocess.Popen(cmd, cwd=root, env=env, stdout=log,
+                     stderr=subprocess.STDOUT)
+    print("Запускаю IndexTTS, ждём до %d c (модель грузится долго)..." % args.wait)
+    if not _wait_indextts(url, args.wait):
+        raise SystemExit("Сервис IndexTTS не поднялся за %d c, см. %s"
+                         % (args.wait, log_path))
+    print("IndexTTS готов.")
+
+
+def _indextts_health(url):
+    try:
+        with _NO_PROXY.open(url + "/health", timeout=3) as r:
+            return b'"ok":true' in r.read(256)
+    except Exception:
+        return False
+
+
+def _wait_indextts(url, timeout):
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        if _indextts_health(url):
+            return True
+        time.sleep(3)
+    return False
 
 
 def cmd_serve(args):
@@ -3536,6 +3703,10 @@ def main():
     p = sub.add_parser("server", help="поднять api_v2 без загрузки голоса")
     p.add_argument("--wait", type=int, default=600)
 
+    p = sub.add_parser("indextts-server",
+                       help="поднять сервис IndexTTS (модель в памяти)")
+    p.add_argument("--wait", type=int, default=900)
+
     p = sub.add_parser("serve", help="поднять сервер/переключить голос")
     p.add_argument("--voice")
     p.add_argument("--force", action="store_true")
@@ -3662,6 +3833,7 @@ def main():
     if args.cmd in ("server", "serve", "test", "clone", "voice", "make-deck"):
         acquire_lock()
     result = {"list": cmd_list, "add": cmd_add, "server": cmd_server,
+              "indextts-server": cmd_indextts_server,
               "serve": cmd_serve, "test": cmd_test,
               "clone": cmd_clone, "voice": cmd_voice, "make-deck": cmd_make_deck,
               "check": cmd_check, "scan": cmd_scan, "qc-deck": cmd_qc_deck,

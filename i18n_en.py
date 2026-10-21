@@ -399,6 +399,20 @@ I18N_EN = {
     "Готово ✓": "Ready ✓",
     "Кубота Хитоси": "Hitoshi Kubota",
     "и": "and",
+    # --- выбор движка (1.3) ---
+    "Движок синтеза": "Synthesis engine",
+    "GPT-SoVITS — голос из весов .ckpt и .pth":
+        "GPT-SoVITS — a voice from .ckpt and .pth weights",
+    "IndexTTS 2.5 — голос из одного референса":
+        "IndexTTS 2.5 — a voice from a single reference",
+    "Папка IndexTTS 2.5": "IndexTTS 2.5 folder",
+    "Папка IndexTTS": "IndexTTS folder",
+    "Движок с весами: у каждого голоса свои файлы .ckpt и .pth.":
+        "Engine with weights: every voice has its own .ckpt and .pth files.",
+    "Zero-shot движок: голос — это один референс, веса общие у модели.":
+        "Zero-shot engine: a voice is a single reference, the weights are shared.",
+    "Движок: IndexTTS 2.5": "Engine: IndexTTS 2.5",
+    "Движок: GPT-SoVITS": "Engine: GPT-SoVITS",
 
     # --- мастер и шапки (аудит интерфейса) ---
     ". Фуригана:":
