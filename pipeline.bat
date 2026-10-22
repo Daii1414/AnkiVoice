@@ -44,8 +44,8 @@ rem pass the resolved engine to the child so it resolves identically
 set "GPT_SOVITS_ROOT=%ENGINE%"
 
 rem --- the pipeline lives in app\ (in the installed app — next to this file) ---
-set "PIPELINE=%~dp0voice_pipeline.py"
-if not exist "%PIPELINE%" set "PIPELINE=%~dp0app\voice_pipeline.py"
+set "PIPELINE=%~dp0app\voice_pipeline.py"
+if not exist "%PIPELINE%" set "PIPELINE=%~dp0voice_pipeline.py"
 
 if "%~1"=="" (
     "%ENGINE%\runtime\python.exe" -u "%PIPELINE%"

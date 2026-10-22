@@ -89,6 +89,11 @@ Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\AnkiVoice.exe"; \
 Filename: "{app}\AnkiVoice.exe"; Description: "Запустить {#MyAppName}"; \
   Flags: nowait postinstall skipifsilent
 
+[InstallDelete]
+; при обновлении убираем файлы прежней раскладки (код лежал в корне)
+Type: files; Name: "{app}\anki_gui.py"; "{app}\anki_web.py"; "{app}\voice_pipeline.py"; "{app}\sudachi_g2p.py"; "{app}\g2p_core.py"; "{app}\kana_stress.py"; "{app}\voices.json"; "{app}\pyruntime.zip"; "{app}\sudachidict.zip"
+Type: dirs; Name: "{app}\app"; "{app}\bundled"
+
 [UninstallDelete]
 ; pyruntime и логи создаёт сама программа — установщик о них не знает
 Type: filesandordirs; Name: "{app}\pyruntime"
