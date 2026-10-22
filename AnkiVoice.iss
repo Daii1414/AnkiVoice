@@ -91,12 +91,21 @@ Filename: "{app}\AnkiVoice.exe"; Description: "Запустить {#MyAppName}";
 
 [InstallDelete]
 ; при обновлении убираем файлы прежней раскладки (код лежал в корне)
-Type: files; Name: "{app}\anki_gui.py"; "{app}\anki_web.py"; "{app}\voice_pipeline.py"; "{app}\sudachi_g2p.py"; "{app}\g2p_core.py"; "{app}\kana_stress.py"; "{app}\voices.json"; "{app}\pyruntime.zip"; "{app}\sudachidict.zip"
-Type: dirs; Name: "{app}\app"; "{app}\bundled"
+Type: files; Name: "{app}\anki_gui.py"
+Type: files; Name: "{app}\anki_web.py"
+Type: files; Name: "{app}\voice_pipeline.py"
+Type: files; Name: "{app}\sudachi_g2p.py"
+Type: files; Name: "{app}\g2p_core.py"
+Type: files; Name: "{app}\kana_stress.py"
+Type: files; Name: "{app}\voices.json"
+Type: files; Name: "{app}\pyruntime.zip"
+Type: files; Name: "{app}\sudachidict.zip"
 
 [UninstallDelete]
 ; pyruntime и логи создаёт сама программа — установщик о них не знает
 Type: filesandordirs; Name: "{app}\pyruntime"
 Type: filesandordirs; Name: "{app}\logs"
 Type: filesandordirs; Name: "{app}\lab"
+Type: filesandordirs; Name: "{app}\app"
+Type: filesandordirs; Name: "{app}\bundled"
 Type: files; Name: "{app}\gptsovits_path.txt"
