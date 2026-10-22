@@ -14,6 +14,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FAILURES = []
 CHECKED = [0]
 
+# Документы, между которыми сверяется страница. README — витрина, остальное
+# вынесено в doc/ и CONTRIBUTING: проверка идёт по всем сразу, иначе ссылка
+# из README на документ (или наоборот) может остаться мёртвой.
+DOCS = [
+    "README.md", "README.en.md",
+    "CONTRIBUTING.md", "CONTRIBUTING.en.md",
+    "doc/reading.md", "doc/reading.en.md",
+    "doc/fields.md", "doc/fields.en.md",
+    "doc/cli.md", "doc/cli.en.md",
+    "doc/engines.md", "doc/engines.en.md",
+]
+
 
 def fail(msg):
     FAILURES.append(msg)
@@ -32,9 +44,10 @@ def read(path):
 def main():
     ru = read("README.md")
     en = read("README.en.md")
+    docs = [(read(p), p) for p in DOCS]
 
     # ---- 1. файлы, упомянутые в таблице структуры ----
-    for doc, name in ((ru, "README.md"), (en, "README.en.md")):
+    for doc, name in docs:
         for m in re.finditer(r"^\|\s*`([^`]+)`", doc, re.M):
             rel = m.group(1).strip()
             if rel in (".github", "lab"):
@@ -55,8 +68,8 @@ def main():
                 else:
                     ok("%s: файл %s есть" % (name, rel))
 
-    # ---- 2. картинки из README ----
-    for doc, name in ((ru, "README.md"), (en, "README.en.md")):
+    # ---- 2. картинки из всех документов ----
+    for doc, name in docs:
         for m in re.finditer(r"!\[[^\]]*\]\(([^)]+)\)", doc):
             rel = m.group(1).strip()
             if rel.startswith("http"):
@@ -76,7 +89,7 @@ def main():
             out.add(re.sub(r"\s+", "-", t))
         return out
 
-    for doc, name in ((ru, "README.md"), (en, "README.en.md")):
+    for doc, name in docs:
         have = anchors(doc)
         for m in re.finditer(r"^\- \[[^\]]+\]\(#([^)]+)\)", doc, re.M):
             a = m.group(1).strip()
@@ -88,7 +101,7 @@ def main():
     # ---- 3a. все внутренние ссылки (не только оглавление) ведут куда-то ----
     # Раньше проверялись только ссылки из оглавления, поэтому мёртвая ссылка
     # в шапке или в таблице проходила CI молча.
-    for doc, name in ((ru, "README.md"), (en, "README.en.md")):
+    for doc, name in docs:
         have = anchors(doc)
         for m in re.finditer(r"\]\(#([^)]+)\)", doc):
             a = m.group(1).strip()
@@ -97,12 +110,35 @@ def main():
             else:
                 ok("%s: ссылка #%s есть" % (name, a))
 
+    # ---- 3a2. HTML-якоря (<a href="#...">) тоже ведут на заголовки ----
+    for doc, name in docs:
+        have = anchors(doc)
+        for m in re.finditer(r'<a href="#([^"]+)"', doc):
+            a = m.group(1).strip()
+            if a and a not in have:
+                fail("%s: ссылка #%s не ведёт ни на один заголовок" % (name, a))
+            else:
+                ok("%s: ссылка #%s есть" % (name, a))
+
+    # ---- 3b. ссылки на файлы (не якоря) ведут в существующие файлы ----
+    for doc, name in docs:
+        base = os.path.dirname(os.path.join(ROOT, name))
+        for m in re.finditer(r"\]\(([^)#][^)]*)\)", doc):
+            rel = m.group(1).strip()
+            if rel.startswith("http") or rel.startswith("mailto"):
+                continue
+            target = os.path.normpath(os.path.join(base, rel))
+            if not os.path.exists(target):
+                fail("%s: ссылка на несуществующий файл %s" % (name, rel))
+            else:
+                ok("%s: файл %s есть" % (name, rel))
+
     # ---- 4. команды консоли существуют ----
     pipeline = read("app/voice_pipeline.py")
     cmds = set(re.findall(r'add_parser\("([^"]+)"', pipeline))
     gui = read("app/anki_gui.py")
     gui_cmds = set(re.findall(r'add_parser\("([^"]+)"', gui))
-    for doc, name in ((ru, "README.md"), (en, "README.en.md")):
+    for doc, name in docs:
         for m in re.finditer(r"pipeline\.bat\s+([a-z][a-z-]+)", doc):
             c = m.group(1)
             if c not in cmds:
@@ -127,7 +163,8 @@ def main():
     # ---- 6. установщик везёт те же модули, что перечислены в README ----
     iss = read("AnkiVoice.iss")
     shipped = set(re.findall(r'Source:\s*"lab\\([^"]+)"', iss))
-    claimed = set(re.findall(r"10 \u043c\u043e\u0434\u0443\u043b\u0435\u0439", ru))
+    all_text = "\n".join(d for d, _ in docs)
+    claimed = set(re.findall(r"10 \u043c\u043e\u0434\u0443\u043b\u0435\u0439", all_text))
     if len(shipped) != 10:
         fail("установщик везёт %d модулей lab/, а README говорит о 10: %s"
              % (len(shipped), ", ".join(sorted(shipped))))
@@ -152,11 +189,11 @@ def main():
     else:
         ok("режим выбирается по карточке (reading_mode)")
     for token in ("авто", "asis", "--reading"):
-        if token not in ru:
+        if token not in ru and token not in all_text:
             fail("в README.md нет упоминания: %s" % token)
         else:
             ok("в README.md описано: %s" % token)
-    if "auto" not in en.lower():
+    if "auto" not in en.lower() and "auto" not in all_text.lower():
         fail("в README.en.md не описан автоматический режим")
     else:
         ok("в README.en.md описан автоматический режим")

@@ -35,7 +35,7 @@ straight in the Anki fields.</p>
   <a href="#interface-four-tabs">Interface</a> •
   <a href="#how-kanji-are-read">Reading</a> •
   <a href="#troubleshooting">If it does not work</a> •
-  <a href="#development">Development</a>
+  <a href="#documentation">Documentation</a>
 </p>
 
 <p align="center"><img src="doc/shots/voice-dark.png" alt="The AnkiVoice interface: engine choice, deck, voice and the Start dubbing button" width="820"></p>
@@ -66,14 +66,10 @@ straight in the Anki fields.</p>
 - [Pronunciation check](#pronunciation-check)
 - [A second engine: IndexTTS 2.5](#a-second-engine-indextts-25)
 - [How kanji are read](#how-kanji-are-read)
-- [How text becomes hiragana](#how-text-becomes-hiragana)
-- [Card fields](#card-fields)
-- [Console](#console)
+- [Documentation](#documentation)
 - [Updates](#updates)
 - [Troubleshooting](#troubleshooting)
 - [What gets overwritten, what goes over the network](#what-gets-overwritten-what-goes-over-the-network)
-- [Development](#development)
-- [Repository layout](#repository-layout)
 - [Contributing](#contributing)
 - [License](#license)
 - [Credits](#credits)
@@ -275,37 +271,8 @@ top, as two large cards. The choice is remembered and applies to the whole app.
 
 You switch between them with two large cards on the main screen.
 
-Install IndexTTS 2.5:
-
-```
-git clone https://github.com/index-tts/index-tts.git D:\DOWNLOAD\index-tts
-cd D:\DOWNLOAD\index-tts
-uv sync --extra webui
-uv tool install "huggingface-hub"
-hf download IndexTeam/IndexTTS-2.5 --local-dir checkpoints
-```
-
-Point AnkiVoice at that folder in “App” (or press “Check” - it finds the
-folder by itself). `uv` has to be in PATH and the NVIDIA driver needs CUDA
-12.8 or newer.
-
-**Why a bridge.** IndexTTS has no HTTP API - only a Python API and a web UI.
-AnkiVoice starts a small service next to itself
-(`lab/indextts_service.py`, shipped with the installer) that loads the model
-**once** and answers `POST /tts`. Without it every card would reload the
-weights.
-
-What stays the same: the acoustic QC, the reading mode (auto / kanji only),
-the rules for substituting the furigana reading, writing the audio into the
-card, the review deck and the verdicts.
-
-What is missing in the IndexTTS mode:
-
-* the **content check** (recognising our own voice) - it lives in the
-  GPT-SoVITS environment (faster-whisper). Without GPT-SoVITS the acoustic
-  check remains and the recognition is off;
-* the manual sampling settings (seed, temperature, top_p, top_k) - IndexTTS
-  has none, the interface hides them.
+The details - installation, the bridge and what is missing in this mode - are
+in [doc/engines.en.md](doc/engines.en.md).
 
 ## Pronunciation check
 
@@ -395,6 +362,9 @@ Two exceptions, both measured on cards with katakana terms:
   96 seconds and coverage 0.89 against 4 seconds and 1.00.
 
 In the console this is the `--reading ""|mix|asis` flag (empty = auto).
+
+How exactly the text becomes hiragana, step by step - in
+[doc/reading.en.md](doc/reading.en.md).
 | Case | What the app does | Why |
 |---|---|---|
 | A term with furigana | substitutes the reading from the furigana field | the card knows it better than the engine |
@@ -402,79 +372,16 @@ In the console this is the `--reading ""|mix|asis` flag (empty = auto).
 | Latin letters and digits (3D, PLATEAU) | does not convert to kana | the engine reads it better: 4 s against 96 s |
 | The word is not found in the text | the card stays as it is | you cannot substitute a foreign reading |
 
-## How text becomes hiragana
+## Documentation
 
-The sentence goes to the engine **in kanji**: GPT-SoVITS reads the kanji
-itself, in the context of the sentence - that is what makes the sound connected
-instead of a set of separate pieces.
+| Document | What it covers |
+|---|---|
+| [doc/reading.en.md](doc/reading.en.md) | how text becomes hiragana: the reading pipeline, latin, digits, g2p |
+| [doc/fields.en.md](doc/fields.en.md) | card fields: where the text comes from and where the sound goes |
+| [doc/cli.en.md](doc/cli.en.md) | the console: every `pipeline.bat` and `AnkiVoice.exe` command |
+| [doc/engines.en.md](doc/engines.en.md) | the second engine, IndexTTS 2.5: installation, bridge, limits |
+| [CONTRIBUTING.en.md](CONTRIBUTING.en.md) | development: build, checks, repository layout |
 
-The `kanaize()` pipeline prepares hiragana - but only where it is needed:
-
-* **the main term** - in the mode with a furigana the reading is taken from the
-  card's furigana; if the furigana does not fit (the word is not found in the
-  text, the reading still has kanji in it) the word is converted to kana by our
-  own pipeline;
-* **in the "kanji only" mode** nothing is prepared: both the word and the
-  sentence go to the engine as they are, it reads them itself.
-
-The steps of `kanaize()`:
-
-1. **NFKC normalization** — full-width letters/digits and half-width katakana
-   are folded into normal forms (punctuation is left alone);
-2. **Latin → katakana by letters** (`IEC` → アイイーシー);
-3. **katakana → hiragana** (greetings コンニチハ/コンバンハ stay katakana —
-   otherwise MeCab reads them as a particle; the repetition marks ヽゝゞヾ are
-   expanded contextually — repeat of the previous syllable);
-4. **g2p only for the kanji that are left**: Haqumei reads every word in the
-   context of the sentence (sandhi, neighbouring katakana), with Sudachi over
-   the UniDic dictionary and pyopenjtalk (MeCab) as fallbacks; digits always go
-   through MeCab, because Sudachi reads numbers as dates (2024 → 二月二日);
-5. **one more katakana → hiragana pass** — and the API receives pure hiragana.
-
-What the pipeline **does not touch**: the note in Anki itself (a copy of the
-text is processed) and the card's furigana (it is only used as a reading
-source).
-
-Reading is covered by tests: `pipeline.bat selftest` (10 substitution checks
-and 11 reading-mode checks) and the extended battery
-`python app/kana_stress.py` (63 difficult words). Detailed measurements live in
-[doc/reports/](doc/reports); every number quoted on this page is collected in
-[doc/reports/MEASUREMENTS.en.md](doc/reports/MEASUREMENTS.en.md).
-
-## Card fields
-
-Decks name their fields differently — where to take the text from and where to
-write the audio is configurable (GUI: the “Поля колоды” tab; console: the
-`voice` / `make-deck` / `check` commands):
-
-```
---sentence-src "Sentence"             field with the sentence text
---sentence-audio "SentenceAudio"      field the sentence audio goes to
---word-src "Expression"               field with the word (furigana parsing works for Expression)
---word-audio "ExpressionAudio"        field the word audio goes to
---furigana-src "ExpressionFurigana"   field with the furigana of the main word
-    --reading ""|mix|asis         reading mode (see above; empty = auto)
-```
-
-## Console
-
-`pipeline.bat` is the same thing in the console; it finds the engine folder on
-its own:
-
-```
-pipeline.bat list              list of voices
-pipeline.bat selftest          check the environment (run it when in trouble)
-pipeline.bat test --voice madara --text "こんにちは"
-pipeline.bat voice --voice madara --deck "Архитектура" --mode both
-pipeline.bat verify --deck "Архитектура"    check the pronunciation of what is voiced
-pipeline.bat qc-deck                         build the "Брак" deck with variants
-pipeline.bat verdicts                        summary of your verdicts
-pipeline.bat check --deck "Архитектура"          full check of a deck
-pipeline.bat check --deck "Архитектура" --fast   the same without downloading audio
-pipeline.bat scan --apply     find voices in the engine and add them to voices.json
-```
-
-Diagnostics are available in the exe as well: `AnkiVoice.exe doctor`.
 ## Updates
 
 * **From the app**: the “Приложение” tab → **“Проверить обновления”**. The
@@ -528,91 +435,6 @@ fully offline.
 Useful: `selftest` prints exactly what it sees (engine, voices, reading
 dictionary, reading modules, QC v2, AnkiConnect, server) — 90% of problems are
 visible immediately.
-
-## Development
-
-```bash
-git clone https://github.com/Daii1414/AnkiVoice.git
-cd AnkiVoice
-```
-
-A rebuild is needed only after editing `app/anki_gui.py`, `app/anki_web.py` or
-`anki_web_page.py` — `voice_pipeline.py` runs from disk and takes effect
-immediately.
-
-**exe** (needs the Python from the GPT-SoVITS engine with PyInstaller):
-
-```bat
-set ENGINE=C:\Path\To\GPT-SoVITS
-%ENGINE%\runtime\python.exe -m pip install pyinstaller
-%ENGINE%\runtime\python.exe -m PyInstaller --noconfirm --onefile --windowed ^
-    --name AnkiVoice --distpath . --workpath %TEMP%\pyi_build --specpath %TEMP% app\anki_gui.py
-```
-
-**installer** (Inno Setup 6, run it from the repository root):
-
-```bat
-ISCC.exe AnkiVoice.iss
-```
-
-→ produces `dist\AnkiVoice-Setup-x.y.exe`.
-
-**tests** (Python 3.12+, no GPU and no network needed):
-
-```bash
-python -m pip install numpy haqumei
-python lab/qc_unit.py
-python lab/quality_unit.py
-python lab/test_g2p_infrastructure.py
-python lab/test_v12_features.py
-python lab/web_js_check.py
-python lab/integration_check.py
-python lab/readme_check.py
-python lab/fmt_check.py
-```
-
-`lab/readme_check.py` compares the READMEs with the code: the files listed in
-the layout table, the images, the table-of-contents anchors, the console
-commands, the number of reading modes and the modules shipped with the
-installer. If they drift apart, it fails.
-
-`lab/fmt_check.py` checks that every format string has as many placeholders
-as there are arguments - such a mismatch only blows up at the moment it runs,
-usually at the very end of a long job.
-
-`lab/robust_tests.py` — 10 robustness checks of the pipeline; it needs a
-running Anki. CI runs everything else on every push
-([checks.yml](.github/workflows/checks.yml)) and builds the installer on
-windows-latest.
-
-## Repository layout
-
-| File | What it is |
-|---|---|
-| `AnkiVoice.exe` | The app with the interface (double-click) |
-| `AnkiVoice.iss` | Installer build script (Inno Setup 6) |
-| `app/voice_pipeline.py` | All logic: synthesis, kanji reading, substitution, CLI |
-| `app/anki_gui.py` | Exe entry point: web UI by default, `--classic` for the old window |
-| `app/anki_web.py` | Local HTTP server for the UI (127.0.0.1 only) |
-| `app/anki_web_page.py` | HTML/CSS/JS for the page (offline, no CDN) |
-| `pipeline.bat` | Console entry point |
-| `app/sudachi_g2p.py` | Fallback “reader” helper: SudachiPy 0.7 + UniDic dictionary |
-| `app/g2p_core.py` | Haqumei reading core: word in sentence context, pron form |
-| `app/kana_stress.py` | A battery of 63 difficult words for reading checks |
-| `app/i18n_en.py` | Dictionary of the English interface (RU/EN) |
-| `lab/pron_check.py` | Pronunciation check: recognition, coverage, quarantine, locating the divergence |
-| `lab/align_ja.py` | Experimental acoustic alignment with a Japanese CTC model (off by default) |
-| `bundled/pyruntime.zip` | Bundled Python + Haqumei 0.12.2 + SudachiPy 0.7 (~44 MB, unpacks itself) |
-| `bundled/sudachidict.zip` | Sudachi core dictionary 20261015 (~73 MB, unpacked by the helper) |
-| `app/voices.json` | Voice registry: weights, references, prompt, sampling |
-| `lab/` | Reading system, QC v2 modules and the IndexTTS service (10 files ship with the installer) + tests and dev tools |
-| `doc/` | UI screenshots, logo, engine media, measurement reports |
-| `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md` | History, development rules, security policy |
-| `.github/` | CI, issue and pull request templates |
-| `LICENSE` | AGPL-3.0 |
-
-Not tracked by git: `gptsovits_path.txt`, `pyruntime/` (unpacked from the zip),
-`test_*.ogg`, `logs/`, `dist/`.
 
 ## Contributing
 
