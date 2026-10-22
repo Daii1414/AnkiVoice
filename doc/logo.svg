@@ -49,7 +49,4 @@
     <rect x="224" y="40" width="6" height="40" rx="3" fill="url(#wave)"/>
     <rect x="240" y="56" width="6" height="8"  rx="3" fill="url(#wave)"/>
   </g>
-
-  <text x="1090" y="176" text-anchor="end" font-family="Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
-        font-size="19" font-weight="600" fill="#4CD797">v1.9</text>
 </svg>

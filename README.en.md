@@ -44,10 +44,21 @@ straight in the Anki fields.</p>
 
 ---
 
+## What this is and who it is for
+
+| Who you are | What you get | Read next |
+|---|---|---|
+| I learn Japanese with Anki cards | ready `.ogg` files in the card fields, all local | [Your first sound](#your-first-sound) |
+| I want a specific voice | a 3-10 s reference plus the engine weights | [Which engine to pick](#a-second-engine-indextts-25) |
+| I want the terms read exactly | the reading comes from the card's furigana | [How kanji are read](#how-kanji-are-read) |
+| I am looking for a TTS HTTP API | not this one: it is an Anki app, not a service | — |
+
+![One card before and after: AnkiVoice does not change the card text and adds sound to two fields](doc/shots/before-after.en.png)
+
+
 ## Table of contents
 
 - [Features](#features)
-- [What this is and who it is for](#what-this-is-and-who-it-is-for)
 - [How it works](#how-it-works)
 - [What you need before installing](#what-you-need-before-installing)
 - [Your first sound](#your-first-sound)
@@ -68,17 +79,6 @@ straight in the Anki fields.</p>
 - [Credits](#credits)
 
 ---
-
-## What this is and who it is for
-
-| Who you are | What you get | Read next |
-|---|---|---|
-| I learn Japanese with Anki cards | ready `.ogg` files in the card fields, all local | [Your first sound](#your-first-sound) |
-| I want a specific voice | a 3-10 s reference plus the engine weights | [Which engine to pick](#a-second-engine-indextts-25) |
-| I want the terms read exactly | the reading comes from the card's furigana | [How kanji are read](#how-kanji-are-read) |
-| I am looking for a TTS HTTP API | not this one: it is an Anki app, not a service | — |
-
-![One card before and after: AnkiVoice does not change the card text and adds sound to two fields](doc/shots/before-after.en.png)
 
 ## Features
 

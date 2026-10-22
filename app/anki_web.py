@@ -293,7 +293,16 @@ def pron_status():
     в питоне движка).
     """
     try:
-        lab = os.path.join(ag.code_dir(), "lab")
+        # lab/ лежит рядом с кодом (в установленном виде) или на уровень выше
+        # (в репозитории) — тот же порядок поиска, что и в voice_pipeline.
+        lab = None
+        for p in (os.path.join(ag.code_dir(), "lab"),
+                  os.path.join(ag.repo_root(), "lab")):
+            if os.path.isdir(p):
+                lab = p
+                break
+        if lab is None:
+            return False, "не найдена папка lab/ с модулями проверки"
         if lab not in sys.path:
             sys.path.insert(0, lab)
         import pron_check
