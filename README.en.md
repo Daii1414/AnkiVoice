@@ -24,7 +24,7 @@ straight in the Anki fields.</p>
 
 <p align="center">
   <a href="https://github.com/Daii1414/AnkiVoice/releases/latest">
-    <img alt="Download AnkiVoice 1.8 for Windows" src="https://img.shields.io/badge/%E2%96%A8%20Download%20AnkiVoice%201.8%20%E2%80%94%20125%20MB-4F46E5">
+    <img alt="Download AnkiVoice for Windows" src="https://img.shields.io/badge/%E2%96%A8%20Download%20AnkiVoice%20%E2%80%94%20125%20MB-4F46E5">
   </a>
   &nbsp;&nbsp;
   <a href="#what-you-need-before-installing">What you need before installing →</a>
@@ -56,9 +56,10 @@ straight in the Anki fields.</p>
 ## Table of contents
 
 - [Features](#features)
+- [What this is and who it is for](#what-this-is-and-who-it-is-for)
 - [How it works](#how-it-works)
 - [What you need before installing](#what-you-need-before-installing)
-- [Quick start](#quick-start)
+- [Your first sound in 60 seconds](#your-first-sound-in-60-seconds)
 - [Interface (four tabs)](#interface-four-tabs)
 - [Pronunciation check](#pronunciation-check)
 - [A second engine: IndexTTS 2.5](#a-second-engine-indextts-25)
@@ -124,7 +125,9 @@ Nothing else has to be installed: the reading dictionary and the bundled Python
 are already inside the installer (`pyruntime.zip`, `sudachidict.zip`) and
 unpack themselves.
 
-## Quick start
+## Your first sound in 60 seconds
+
+![The setup wizard: engine, folder, AnkiConnect, test phrase](doc/shots/wizard-dark.png)
 
 1. Download **`AnkiVoice-Setup-1.8.exe`** from the
    [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) page — one
@@ -331,6 +334,15 @@ Three buttons on the "Dubbing" tab:
 * **"Verdict summary"** - counts your labels and shows where our thresholds
   sit too low.
 
+### What the app checks on its own
+
+| What it checks | How | Result |
+|---|---|---|
+| Silence, clipping, duplicates | QC v2 over several signals | rejects are re-generated automatically |
+| Breaks inside the speech | a pause longer than 4 s inside a phrase | the piece is re-synthesized |
+| Level and speed | too quiet or too fast | re-synthesis at another speed |
+| Pronunciation (optional) | ASR listens to its own audio and compares it with the text | a hint, the decision is yours |
+
 **We check sentences, not words.** An isolated word is transcribed
 unreliably: the zones "real failure" and "false alarm" overlap completely. The
 word is guarded by the acoustic QC (silence, tempo, length).
@@ -342,6 +354,15 @@ it, not against one global number.
 What it needs: `faster-whisper` in the GPT-SoVITS python and one downloaded
 model (in the HuggingFace cache). Without them the check simply does not run
 and dubbing goes on as usual. One piece takes about 0.5 s on a GPU.
+## What this is and who it is for
+
+| Who you are | What you get | Read next |
+|---|---|---|
+| I learn Japanese with Anki cards | ready `.ogg` files in the card fields, all local | [Your first sound in 60 seconds](#quick-start) |
+| I want a specific voice | a 3-10 s reference plus the engine weights | [Which engine to pick](#a-second-engine-indextts-25) |
+| I want the terms read exactly | the reading comes from the card's furigana | [How kanji are read](#how-kanji-are-read) |
+| I am looking for a TTS HTTP API | not this one: it is an Anki app, not a service | — |
+
 ## How kanji are read
 
 GPT-SoVITS can read kanji on its own - but on rare terms it picks its own
@@ -382,6 +403,13 @@ Two exceptions, both measured on cards with katakana terms:
   96 seconds and coverage 0.89 against 4 seconds and 1.00.
 
 In the console this is the `--reading ""|mix|asis` flag (empty = auto).
+| Case | What the app does | Why |
+|---|---|---|
+| A term with furigana | substitutes the reading from the furigana field | the card knows it better than the engine |
+| Okurigana (データ) | leaves the word as it is | otherwise it would sound twice |
+| Latin letters and digits (3D, PLATEAU) | does not convert to kana | the engine reads it better: 4 s against 96 s |
+| The word is not found in the text | the card stays as it is | you cannot substitute a foreign reading |
+
 ## How text becomes hiragana
 
 The sentence goes to the engine **in kanji**: GPT-SoVITS reads the kanji
