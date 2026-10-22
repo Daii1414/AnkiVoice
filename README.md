@@ -22,7 +22,7 @@
 
 <p align="center">
   <a href="https://github.com/Daii1414/AnkiVoice/releases/latest">
-    <img alt="Скачать AnkiVoice 1.7 для Windows" src="https://img.shields.io/badge/%E2%96%A8%20Скачать%20AnkiVoice%201.7%20%E2%80%94%20125%20МБ-4F46E5">
+    <img alt="Скачать AnkiVoice 1.8 для Windows" src="https://img.shields.io/badge/%E2%96%A8%20Скачать%20AnkiVoice%201.8%20%E2%80%94%20125%20МБ-4F46E5">
   </a>
 </p>
 
@@ -478,7 +478,7 @@ set ENGINE=C:\Путь\К\GPT-SoVITS
 ISCC.exe AnkiVoice.iss
 ```
 
-→ получится `dist\AnkiVoice-Setup-1.6.exe`.
+→ получится `dist\AnkiVoice-Setup-1.8.exe`.
 
 **тесты** (Python 3.12+, без GPU и без сети):
 

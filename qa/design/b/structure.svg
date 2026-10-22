@@ -1,0 +1,773 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="3730" viewBox="0 0 1400 3730" role="img" aria-label="AnkiVoice: схема новой структуры README по вопросам читателя" font-family="Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#101a2b" stop-opacity="0.6"/>
+      <stop offset="0.35" stop-color="#0a0f1a" stop-opacity="0"/>
+    </linearGradient>
+
+    <g id="row1024">
+      <rect x="0" y="0" width="1024" height="16" rx="4" fill="#0e1729"/>
+    </g>
+    <g id="row500">
+      <rect x="0" y="0" width="500" height="16" rx="4" fill="#0e1729"/>
+    </g>
+    <g id="row480">
+      <rect x="0" y="0" width="480" height="16" rx="4" fill="#0e1729"/>
+    </g>
+    <g id="bar">
+      <rect x="0" y="0" width="110" height="9" rx="4" fill="#2b3d5c"/>
+    </g>
+    <g id="barshort">
+      <rect x="0" y="0" width="66" height="9" rx="4" fill="#2b3d5c"/>
+    </g>
+
+    <g id="chip-table">
+      <rect width="112" height="26" rx="13" fill="#58a6ff" fill-opacity="0.14" stroke="#58a6ff" stroke-width="1.2"/>
+      <text x="56" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#58a6ff">ТАБЛИЦА</text>
+    </g>
+    <g id="chip-shot">
+      <rect width="118" height="26" rx="13" fill="#4CD797" fill-opacity="0.13" stroke="#4CD797" stroke-width="1.2"/>
+      <text x="59" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#4CD797">КАРТИНКА</text>
+    </g>
+    <g id="chip-text">
+      <rect width="104" height="26" rx="13" fill="#7c879b" fill-opacity="0.12" stroke="#7c879b" stroke-width="1.2"/>
+      <text x="52" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#9aa5b8">ТЕКСТ</text>
+    </g>
+    <g id="chip-schema">
+      <rect width="106" height="26" rx="13" fill="#8B9BFF" fill-opacity="0.14" stroke="#8B9BFF" stroke-width="1.2"/>
+      <text x="53" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#8B9BFF">СХЕМА</text>
+    </g>
+
+    <g id="arw" stroke="#58a6ff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M0 0 H20"/>
+      <path d="M14 -5 L20 0 L14 5"/>
+    </g>
+    <g id="imgbox">
+      <rect x="0" y="0" width="492" height="76" rx="10" fill="#0e1729" stroke="#2b3a55" stroke-width="1.5" stroke-dasharray="7 5"/>
+    </g>
+    <g id="stepdot">
+      <circle cx="40" cy="0" r="11" fill="#12203a" stroke="#58a6ff" stroke-width="1.5"/>
+    </g>
+  </defs>
+
+  <rect width="1400" height="3730" fill="#0a0f1a"/>
+  <rect x="0" y="0" width="1400" height="3730" fill="url(#sheen)"/>
+
+  <!-- ============ шапка макета ============ -->
+  <text x="40" y="70" font-size="40" font-weight="800" fill="#ffffff">AnkiVoice — новая структура README</text>
+  <rect x="42" y="90" width="82" height="7" fill="#58a6ff"/>
+  <text x="40" y="126" font-size="18" fill="#97A1B3">Страница целиком, сверху вниз. Слева — рубрики и вопрос читателя, справа — блоки с типом содержимого.</text>
+  <text x="40" y="152" font-size="14" fill="#6b7689">Левая полоса блока = тип содержимого. Серые линии = текст, сетка = таблица, пунктир = снимок экрана, рамки со стрелками = схема.</text>
+
+  <g transform="translate(40,172)">
+    <use href="#chip-table"/>
+    <text x="124" y="18" font-size="13" fill="#97A1B3">таблица вместо простыни</text>
+  </g>
+  <g transform="translate(340,172)">
+    <use href="#chip-schema"/>
+    <text x="118" y="18" font-size="13" fill="#97A1B3">схема</text>
+  </g>
+  <g transform="translate(560,172)">
+    <use href="#chip-shot"/>
+    <text x="130" y="18" font-size="13" fill="#97A1B3">снимок интерфейса</text>
+  </g>
+  <g transform="translate(830,172)">
+    <use href="#chip-text"/>
+    <text x="116" y="18" font-size="13" fill="#97A1B3">короткий текст или список</text>
+  </g>
+  <g transform="translate(1130,172)">
+    <rect x="0" y="0" width="230" height="26" rx="13" fill="#8B9BFF" fill-opacity="0.10" stroke="#8B9BFF" stroke-width="1.2"/>
+    <text x="115" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#8B9BFF">RU и EN — одна структура</text>
+  </g>
+
+  <line x1="40" y1="212" x2="1360" y2="212" stroke="#1f4b7a" stroke-width="1.5"/>
+
+  <!-- ============ левая колонка: рубрики ============ -->
+  <text x="40" y="240" font-size="12" font-weight="700" letter-spacing="2.5" fill="#58a6ff">РУБРИКИ И ВОПРОСЫ</text>
+  <line x1="54" y1="256" x2="54" y2="3420" stroke="#1f4b7a" stroke-width="1.5"/>
+
+  <g>
+    <rect x="42" y="246" width="24" height="20" rx="6" fill="#12203a" stroke="#58a6ff" stroke-width="1.2"/>
+    <text x="54" y="261" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">0</text>
+    <text x="78" y="264" font-size="14.5" font-weight="600" fill="#E7ECF5">Шапка</text>
+    <text x="78" y="284" font-size="12" fill="#7C879B">что это, за 10 секунд</text>
+  </g>
+  <g>
+    <rect x="42" y="464" width="24" height="20" rx="6" fill="#12203a" stroke="#58a6ff" stroke-width="1.2"/>
+    <text x="54" y="479" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">1</text>
+    <text x="78" y="482" font-size="14.5" font-weight="600" fill="#E7ECF5">Что это и для кого</text>
+    <text x="78" y="502" font-size="12" fill="#7C879B">подходит ли мне</text>
+  </g>
+  <g>
+    <rect x="42" y="662" width="24" height="20" rx="6" fill="#12203a" stroke="#58a6ff" stroke-width="1.2"/>
+    <text x="54" y="677" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">2</text>
+    <text x="78" y="680" font-size="14.5" font-weight="600" fill="#E7ECF5">Первый звук за 60 секунд</text>
+    <text x="78" y="700" font-size="12" fill="#7C879B">как получить результат</text>
+  </g>
+  <g>
+    <rect x="42" y="845" width="24" height="20" rx="6" fill="#12203a" stroke="#58a6ff" stroke-width="1.2"/>
+    <text x="54" y="860" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">3</text>
+    <text x="78" y="863" font-size="14.5" font-weight="600" fill="#E7ECF5">Что нужно до установки</text>
+    <text x="78" y="883" font-size="12" fill="#7C879B">что и сколько весит</text>
+  </g>
+  <g>
+    <rect x="42" y="1098" width="24" height="20" rx="6" fill="#12203a" stroke="#58a6ff" stroke-width="1.2"/>
+    <text x="54" y="1113" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">4</text>
+    <text x="78" y="1116" font-size="14.5" font-weight="600" fill="#E7ECF5">Приложение и движок</text>
+    <text x="78" y="1136" font-size="12" fill="#7C879B">главная путаница</text>
+  </g>
+  <g>
+    <rect x="42" y="1311" width="24" height="20" rx="6" fill="#12203a" stroke="#58a6ff" stroke-width="1.2"/>
+    <text x="54" y="1326" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">5</text>
+    <text x="78" y="1329" font-size="14.5" font-weight="600" fill="#E7ECF5">Выбор движка</text>
+    <text x="78" y="1349" font-size="12" fill="#7C879B">GPT-SoVITS или IndexTTS</text>
+  </g>
+  <g>
+    <rect x="42" y="1569" width="24" height="20" rx="6" fill="#12203a" stroke="#58a6ff" stroke-width="1.2"/>
+    <text x="54" y="1584" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">6</text>
+    <text x="78" y="1587" font-size="14.5" font-weight="600" fill="#E7ECF5">Установка</text>
+    <text x="78" y="1607" font-size="12" fill="#7C879B">как поставить</text>
+  </g>
+  <g>
+    <rect x="42" y="1772" width="24" height="20" rx="6" fill="#12203a" stroke="#58a6ff" stroke-width="1.2"/>
+    <text x="54" y="1787" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">7</text>
+    <text x="78" y="1790" font-size="14.5" font-weight="600" fill="#E7ECF5">Как пользоваться</text>
+    <text x="78" y="1810" font-size="12" fill="#7C879B">как озвучить колоду</text>
+  </g>
+  <g>
+    <rect x="42" y="1965" width="24" height="20" rx="6" fill="#12203a" stroke="#58a6ff" stroke-width="1.2"/>
+    <text x="54" y="1980" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">8</text>
+    <text x="78" y="1983" font-size="14.5" font-weight="600" fill="#E7ECF5">Режимы чтения</text>
+    <text x="78" y="2003" font-size="12" fill="#7C879B">авто или только кандзи</text>
+  </g>
+  <g>
+    <rect x="42" y="2158" width="24" height="20" rx="6" fill="#12203a" stroke="#58a6ff" stroke-width="1.2"/>
+    <text x="54" y="2173" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">9</text>
+    <text x="78" y="2176" font-size="14.5" font-weight="600" fill="#E7ECF5">Фуригана и исключения</text>
+    <text x="78" y="2196" font-size="12" fill="#7C879B">почему прочитало не так</text>
+  </g>
+  <g>
+    <rect x="42" y="2371" width="24" height="20" rx="6" fill="#12203a" stroke="#58a6ff" stroke-width="1.2"/>
+    <text x="54" y="2386" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">10</text>
+    <text x="78" y="2389" font-size="14.5" font-weight="600" fill="#E7ECF5">Качество и произношение</text>
+    <text x="78" y="2409" font-size="12" fill="#7C879B">что проверяет приложение</text>
+  </g>
+  <g>
+    <rect x="42" y="2584" width="24" height="20" rx="6" fill="#12203a" stroke="#58a6ff" stroke-width="1.2"/>
+    <text x="54" y="2599" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">11</text>
+    <text x="78" y="2602" font-size="14.5" font-weight="600" fill="#E7ECF5">Если не работает</text>
+    <text x="78" y="2622" font-size="12" fill="#7C879B">симптом, причина, решение</text>
+  </g>
+  <g>
+    <rect x="42" y="2857" width="24" height="20" rx="6" fill="#12203a" stroke="#58a6ff" stroke-width="1.2"/>
+    <text x="54" y="2872" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">12</text>
+    <text x="78" y="2875" font-size="14.5" font-weight="600" fill="#E7ECF5">Перезапись и сеть</text>
+    <text x="78" y="2895" font-size="12" fill="#7C879B">что куда уходит</text>
+  </g>
+  <g>
+    <rect x="42" y="3070" width="24" height="20" rx="6" fill="#12203a" stroke="#58a6ff" stroke-width="1.2"/>
+    <text x="54" y="3085" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">13</text>
+    <text x="78" y="3088" font-size="14.5" font-weight="600" fill="#E7ECF5">Обновления и удаление</text>
+    <text x="78" y="3108" font-size="12" fill="#7C879B">обновить, снести, найти</text>
+  </g>
+  <g>
+    <rect x="42" y="3213" width="24" height="20" rx="6" fill="#12203a" stroke="#58a6ff" stroke-width="1.2"/>
+    <text x="54" y="3228" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">14</text>
+    <text x="78" y="3231" font-size="14.5" font-weight="600" fill="#E7ECF5">Разработчику</text>
+    <text x="78" y="3251" font-size="12" fill="#7C879B">код, тесты, сборка</text>
+  </g>
+  <g>
+    <rect x="42" y="3356" width="24" height="20" rx="6" fill="#12203a" stroke="#58a6ff" stroke-width="1.2"/>
+    <text x="54" y="3371" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">15</text>
+    <text x="78" y="3374" font-size="14.5" font-weight="600" fill="#E7ECF5">Лицензия и участие</text>
+    <text x="78" y="3394" font-size="12" fill="#7C879B">AGPL-3.0, issues, credits</text>
+  </g>
+
+  <!-- ============ B0 шапка ============ -->
+  <g transform="translate(280,230)">
+    <rect x="0" y="0" width="1080" height="200" rx="16" fill="#0c1322" stroke="#1f4b7a" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="200" rx="3" fill="#8B9BFF"/>
+    <text x="28" y="36" font-size="24" font-weight="700" fill="#ffffff">Шапка: одно предложение, кнопка, схема</text>
+    <text x="28" y="60" font-size="15" fill="#97A1B3">за 10 секунд понятно, что это и что качать — механизм показан до кнопки</text>
+    <g transform="translate(1226,18)"><use href="#chip-schema"/></g>
+
+    <rect x="28" y="76" width="220" height="66" rx="10" fill="#101a2c" stroke="#2b3a55" stroke-width="1.5" stroke-dasharray="7 5"/>
+    <text x="138" y="114" text-anchor="middle" font-size="12" fill="#6b7689">doc/logo.svg</text>
+    <rect x="28" y="152" width="230" height="32" rx="16" fill="#1c4f8f" stroke="#58a6ff" stroke-width="1.2"/>
+    <text x="143" y="173" text-anchor="middle" font-size="12" font-weight="700" fill="#cfe6ff">Скачать AnkiVoice 1.8 — 125 МБ</text>
+
+    <rect x="268" y="76" width="150" height="26" rx="13" fill="#12203a" stroke="#2b3a55"/>
+    <text x="343" y="94" text-anchor="middle" font-size="11.5" fill="#9aa5b8">Работает офлайн</text>
+    <rect x="430" y="76" width="150" height="26" rx="13" fill="#12203a" stroke="#2b3a55"/>
+    <text x="505" y="94" text-anchor="middle" font-size="11.5" fill="#9aa5b8">Без аккаунтов</text>
+    <rect x="592" y="76" width="110" height="26" rx="13" fill="#12203a" stroke="#2b3a55"/>
+    <text x="647" y="94" text-anchor="middle" font-size="11.5" fill="#9aa5b8">AGPL-3.0</text>
+
+    <g transform="translate(268,118)">
+      <rect x="0" y="0" width="150" height="44" rx="8" fill="#0f1c2e" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="75" y="27" text-anchor="middle" font-size="11.5" fill="#cfe6ff">Карточка Anki</text>
+      <use href="#arw" x="162" y="22"/>
+      <rect x="202" y="0" width="150" height="44" rx="8" fill="#0f1c2e" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="277" y="27" text-anchor="middle" font-size="11.5" fill="#cfe6ff">Режим чтения</text>
+      <use href="#arw" x="364" y="22"/>
+      <rect x="404" y="0" width="150" height="44" rx="8" fill="#0f1c2e" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="479" y="27" text-anchor="middle" font-size="11.5" fill="#cfe6ff">Движок (локально)</text>
+      <use href="#arw" x="566" y="22"/>
+      <rect x="606" y="0" width="150" height="44" rx="8" fill="#0f1c2e" stroke="#58a6ff" stroke-width="1.5"/>
+      <text x="681" y="27" text-anchor="middle" font-size="11.5" fill="#cfe6ff">.ogg в поле</text>
+    </g>
+    <text x="268" y="184" font-size="11.5" fill="#7C879B">doc/how-it-works.svg — поднять наверх, до кнопки «Скачать»</text>
+  </g>
+
+  <!-- ============ B1 что это и для кого ============ -->
+  <g transform="translate(280,448)">
+    <rect x="0" y="0" width="1080" height="180" rx="16" fill="#0c1322" stroke="#1f4b7a" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="180" rx="3" fill="#58a6ff"/>
+    <text x="28" y="36" font-size="24" font-weight="700" fill="#ffffff">Что это и для кого</text>
+    <text x="28" y="60" font-size="15" fill="#97A1B3">короткий абзац + таблица «кто ты → что делать дальше»</text>
+    <g transform="translate(1220,18)"><use href="#chip-table"/></g>
+
+    <rect x="28" y="76" width="1024" height="22" rx="5" fill="#16305a"/>
+    <text x="38" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Кто ты</text>
+    <text x="338" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Что получишь</text>
+    <text x="738" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Читай дальше</text>
+    <use href="#row1024" x="28" y="100"/>
+    <use href="#row1024" x="28" y="118"/>
+    <use href="#row1024" x="28" y="136"/>
+    <path d="M328 98 V154 M728 98 V154" stroke="#22314d" stroke-width="1"/>
+    <text x="36" y="112" font-size="10.5" fill="#93a1b8">Учу японский по карточкам Anki</text>
+    <text x="336" y="112" font-size="10.5" fill="#93a1b8">Готовые .ogg в полях, всё локально</text>
+    <text x="736" y="112" font-size="10.5" fill="#93a1b8">Первый звук за 60 секунд</text>
+    <text x="36" y="130" font-size="10.5" fill="#93a1b8">Хочу конкретный голос</text>
+    <text x="336" y="130" font-size="10.5" fill="#93a1b8">Референс 3–10 с плюс веса</text>
+    <text x="736" y="130" font-size="10.5" fill="#93a1b8">Какой движок выбрать</text>
+    <text x="36" y="148" font-size="10.5" fill="#93a1b8">Ищу TTS по HTTP API</text>
+    <text x="336" y="148" font-size="10.5" fill="#93a1b8">Не подойдёт: это приложение для Anki</text>
+    <text x="736" y="148" font-size="10.5" fill="#93a1b8">—</text>
+  </g>
+
+  <!-- ============ B2 первый звук за 60 секунд ============ -->
+  <g transform="translate(280,646)">
+    <rect x="0" y="0" width="1080" height="165" rx="16" fill="#0c1322" stroke="#1f4b7a" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="165" rx="3" fill="#4CD797"/>
+    <text x="28" y="36" font-size="24" font-weight="700" fill="#ffffff">Первый звук за 60 секунд</text>
+    <text x="28" y="60" font-size="15" fill="#97A1B3">4 шага до первой озвучленной карточки — самый частый вопрос</text>
+    <g transform="translate(1214,18)"><use href="#chip-shot"/></g>
+
+    <g transform="translate(0,86)"><use href="#stepdot"/><text x="40" y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">1</text></g>
+    <text x="62" y="90" font-size="12.5" fill="#cfd8e6">Скачай AnkiVoice-Setup-1.8.exe — 125 МБ, один файл</text>
+    <g transform="translate(0,110)"><use href="#stepdot"/><text x="40" y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">2</text></g>
+    <text x="62" y="114" font-size="12.5" fill="#cfd8e6">Запусти → мастер: движок, папка, AnkiConnect, тест</text>
+    <g transform="translate(0,134)"><use href="#stepdot"/><text x="40" y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">3</text></g>
+    <text x="62" y="138" font-size="12.5" fill="#cfd8e6">Выбери колоду и голос, нажми «Начать озвучку»</text>
+    <g transform="translate(0,158)"><use href="#stepdot"/><text x="40" y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">4</text></g>
+    <text x="62" y="162" font-size="12.5" fill="#cfd8e6">Готово: .ogg лежат в полях карточки</text>
+
+    <g transform="translate(560,76)">
+      <use href="#imgbox"/>
+      <text x="246" y="42" text-anchor="middle" font-size="12" fill="#6b7689">doc/shots/wizard-dark.png</text>
+    </g>
+    <text x="560" y="172" font-size="11.5" fill="#7C879B">Один снимок мастера вместо тура по кнопкам</text>
+  </g>
+
+  <!-- ============ B3 что нужно до установки ============ -->
+  <g transform="translate(280,829)">
+    <rect x="0" y="0" width="1080" height="235" rx="16" fill="#0c1322" stroke="#1f4b7a" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="235" rx="3" fill="#58a6ff"/>
+    <text x="28" y="36" font-size="24" font-weight="700" fill="#ffffff">Что нужно до установки</text>
+    <text x="28" y="60" font-size="15" fill="#97A1B3">что скачать, сколько весит, что обязательно — вместо списка с прозаическими вставками</text>
+    <g transform="translate(1220,18)"><use href="#chip-table"/></g>
+
+    <rect x="28" y="76" width="1024" height="22" rx="5" fill="#16305a"/>
+    <text x="36" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Что</text>
+    <text x="272" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Где взять</text>
+    <text x="552" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Размер</text>
+    <text x="672" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Обязательно</text>
+    <text x="822" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Зачем</text>
+    <use href="#row1024" x="28" y="100"/>
+    <use href="#row1024" x="28" y="118"/>
+    <use href="#row1024" x="28" y="136"/>
+    <use href="#row1024" x="28" y="154"/>
+    <use href="#row1024" x="28" y="172"/>
+    <use href="#row1024" x="28" y="190"/>
+    <path d="M264 98 V208 M544 98 V208 M664 98 V208 M814 98 V208" stroke="#22314d" stroke-width="1"/>
+
+    <text x="36" y="112" font-size="10.5" fill="#93a1b8">AnkiVoice (программа)</text>
+    <text x="272" y="112" font-size="10.5" fill="#93a1b8">Releases → AnkiVoice-Setup-1.8.exe</text>
+    <text x="552" y="112" font-size="10.5" fill="#93a1b8">125 МБ / ~1 ГБ</text>
+    <text x="672" y="112" font-size="10.5" fill="#93a1b8">да</text>
+    <text x="822" y="112" font-size="10.5" fill="#93a1b8">окно и локальный сервер</text>
+
+    <text x="36" y="130" font-size="10.5" fill="#93a1b8">Anki + AnkiConnect</text>
+    <text x="272" y="130" font-size="10.5" fill="#93a1b8">Anki → Add-ons → 2055492159</text>
+    <text x="552" y="130" font-size="10.5" fill="#93a1b8">~0 МБ</text>
+    <text x="672" y="130" font-size="10.5" fill="#93a1b8">да</text>
+    <text x="822" y="130" font-size="10.5" fill="#93a1b8">мост к колодам и полям</text>
+
+    <text x="36" y="148" font-size="10.5" fill="#93a1b8">Движок (один из двух)</text>
+    <text x="272" y="148" font-size="10.5" fill="#93a1b8">GPT-SoVITS releases / index-tts</text>
+    <text x="552" y="148" font-size="10.5" fill="#93a1b8">6–10 ГБ / ~5 ГБ</text>
+    <text x="672" y="148" font-size="10.5" fill="#93a1b8">да, один</text>
+    <text x="822" y="148" font-size="10.5" fill="#93a1b8">синтез речи</text>
+
+    <text x="36" y="166" font-size="10.5" fill="#93a1b8">Голос</text>
+    <text x="272" y="166" font-size="10.5" fill="#93a1b8">в движке или у сообщества</text>
+    <text x="552" y="166" font-size="10.5" fill="#93a1b8">веса + 3–10 с</text>
+    <text x="672" y="166" font-size="10.5" fill="#93a1b8">да</text>
+    <text x="822" y="166" font-size="10.5" fill="#93a1b8">тембр и характер речи</text>
+
+    <text x="36" y="184" font-size="10.5" fill="#93a1b8">Модель распознавания</text>
+    <text x="272" y="184" font-size="10.5" fill="#93a1b8">кэш HuggingFace (faster-whisper)</text>
+    <text x="552" y="184" font-size="10.5" fill="#93a1b8">~1,5 ГБ</text>
+    <text x="672" y="184" font-size="10.5" fill="#93a1b8">нет</text>
+    <text x="822" y="184" font-size="10.5" fill="#93a1b8">только проверка произношения</text>
+
+    <text x="36" y="202" font-size="10.5" fill="#93a1b8">GPU и драйвер NVIDIA</text>
+    <text x="272" y="202" font-size="10.5" fill="#93a1b8">CUDA 12.8+ (для IndexTTS 2.5)</text>
+    <text x="552" y="202" font-size="10.5" fill="#93a1b8">от 6 ГБ VRAM</text>
+    <text x="672" y="202" font-size="10.5" fill="#93a1b8">да</text>
+    <text x="822" y="202" font-size="10.5" fill="#93a1b8">синтез на GPU</text>
+
+    <text x="28" y="224" font-size="11.5" fill="#7C879B">Интернет нужен только чтобы скачать — сама озвучка идёт полностью офлайн. Ссылка на движок есть и в мастере.</text>
+  </g>
+
+  <!-- ============ B4 приложение и движок ============ -->
+  <g transform="translate(280,1082)">
+    <rect x="0" y="0" width="1080" height="195" rx="16" fill="#0c1322" stroke="#1f4b7a" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="195" rx="3" fill="#58a6ff"/>
+    <text x="28" y="36" font-size="24" font-weight="700" fill="#ffffff">Приложение и движок — это разные установки</text>
+    <text x="28" y="60" font-size="15" fill="#97A1B3">главная путаница новичка: движок в установщик не входит</text>
+    <g transform="translate(1220,18)"><use href="#chip-table"/></g>
+
+    <rect x="28" y="76" width="1024" height="22" rx="5" fill="#16305a"/>
+    <text x="36" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Вопрос</text>
+    <text x="216" y="92" font-size="11" font-weight="700" fill="#bcd9ff">AnkiVoice (приложение)</text>
+    <text x="496" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Движок синтеза</text>
+    <text x="826" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Подсказка</text>
+    <use href="#row1024" x="28" y="100"/>
+    <use href="#row1024" x="28" y="118"/>
+    <use href="#row1024" x="28" y="136"/>
+    <use href="#row1024" x="28" y="154"/>
+    <path d="M208 98 V172 M488 98 V172 M818 98 V172" stroke="#22314d" stroke-width="1"/>
+
+    <text x="36" y="112" font-size="10.5" fill="#93a1b8">Откуда берётся</text>
+    <text x="216" y="112" font-size="10.5" fill="#93a1b8">GitHub Releases, один файл</text>
+    <text x="496" y="112" font-size="10.5" fill="#93a1b8">официальный релиз движка</text>
+    <text x="826" y="112" font-size="10.5" fill="#93a1b8">движок качается отдельно</text>
+
+    <text x="36" y="130" font-size="10.5" fill="#93a1b8">Размер</text>
+    <text x="216" y="130" font-size="10.5" fill="#93a1b8">125 МБ, на диске ~1 ГБ</text>
+    <text x="496" y="130" font-size="10.5" fill="#93a1b8">6–10 ГБ / ~5 ГБ</text>
+    <text x="826" y="130" font-size="10.5" fill="#93a1b8">в 5–10 раз тяжелее</text>
+
+    <text x="36" y="148" font-size="10.5" fill="#93a1b8">Что внутри</text>
+    <text x="216" y="148" font-size="10.5" fill="#93a1b8">интерфейс, сервер, словарь чтения</text>
+    <text x="496" y="148" font-size="10.5" fill="#93a1b8">модель и веса голосов</text>
+    <text x="826" y="148" font-size="10.5" fill="#93a1b8">звук делает движок</text>
+
+    <text x="36" y="166" font-size="10.5" fill="#93a1b8">Если его нет</text>
+    <text x="216" y="166" font-size="10.5" fill="#93a1b8">приложение работает, синтез нет</text>
+    <text x="496" y="166" font-size="10.5" fill="#93a1b8">озвучка невозможна</text>
+    <text x="826" y="166" font-size="10.5" fill="#93a1b8">сначала ставим движок</text>
+  </g>
+
+  <!-- ============ B5 сравнение движков ============ -->
+  <g transform="translate(280,1295)">
+    <rect x="0" y="0" width="1080" height="240" rx="16" fill="#0c1322" stroke="#1f4b7a" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="240" rx="3" fill="#58a6ff"/>
+    <text x="28" y="36" font-size="24" font-weight="700" fill="#ffffff">GPT-SoVITS или IndexTTS 2.5</text>
+    <text x="28" y="60" font-size="15" fill="#97A1B3">ставь один — второй не нужен; переключение двумя карточками на главном экране</text>
+    <g transform="translate(1220,18)"><use href="#chip-table"/></g>
+
+    <rect x="28" y="76" width="1024" height="22" rx="5" fill="#16305a"/>
+    <text x="36" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Параметр</text>
+    <text x="286" y="92" font-size="11" font-weight="700" fill="#bcd9ff">GPT-SoVITS v2Pro</text>
+    <text x="676" y="92" font-size="11" font-weight="700" fill="#bcd9ff">IndexTTS 2.5</text>
+    <use href="#row1024" x="28" y="100"/>
+    <use href="#row1024" x="28" y="118"/>
+    <use href="#row1024" x="28" y="136"/>
+    <use href="#row1024" x="28" y="154"/>
+    <use href="#row1024" x="28" y="172"/>
+    <use href="#row1024" x="28" y="190"/>
+    <use href="#row1024" x="28" y="208"/>
+    <path d="M278 98 V226 M668 98 V226" stroke="#22314d" stroke-width="1"/>
+
+    <text x="36" y="112" font-size="10.5" fill="#93a1b8">Размер на диске</text>
+    <text x="286" y="112" font-size="10.5" fill="#93a1b8">6–10 ГБ, веса голосов отдельно</text>
+    <text x="676" y="112" font-size="10.5" fill="#93a1b8">~5 ГБ весов модели</text>
+
+    <text x="36" y="130" font-size="10.5" fill="#93a1b8">Как ставится</text>
+    <text x="286" y="130" font-size="10.5" fill="#93a1b8">распаковать архив Windows</text>
+    <text x="676" y="130" font-size="10.5" fill="#93a1b8">git clone + uv sync + hf download</text>
+
+    <text x="36" y="148" font-size="10.5" fill="#93a1b8">Голос и веса</text>
+    <text x="286" y="148" font-size="10.5" fill="#93a1b8">.ckpt + .pth + референс 3–10 с</text>
+    <text x="676" y="148" font-size="10.5" fill="#93a1b8">только референс 3–10 с, веса общие</text>
+
+    <text x="36" y="166" font-size="10.5" fill="#93a1b8">Чтение японского</text>
+    <text x="286" y="166" font-size="10.5" fill="#93a1b8">g2p движка</text>
+    <text x="676" y="166" font-size="10.5" fill="#93a1b8">свой ja_g2p</text>
+
+    <text x="36" y="184" font-size="10.5" fill="#93a1b8">Проверка произношения</text>
+    <text x="286" y="184" font-size="10.5" fill="#93a1b8">есть, faster-whisper в окружении</text>
+    <text x="676" y="184" font-size="10.5" fill="#93a1b8">нет, только акустический QC</text>
+
+    <text x="36" y="202" font-size="10.5" fill="#93a1b8">Ручные настройки звука</text>
+    <text x="286" y="202" font-size="10.5" fill="#93a1b8">seed, temperature, top_p, top_k</text>
+    <text x="676" y="202" font-size="10.5" fill="#93a1b8">нет, интерфейс прячет</text>
+
+    <text x="36" y="220" font-size="10.5" fill="#93a1b8">Для кого</text>
+    <text x="286" y="220" font-size="10.5" fill="#93a1b8">хочу качество и контроль</text>
+    <text x="676" y="220" font-size="10.5" fill="#93a1b8">хочу минимум возни: один референс</text>
+
+    <text x="28" y="234" font-size="11.5" fill="#7C879B">Установку IndexTTS 2.5 (git, uv, веса) — в doc/engines.md, из README уходит.</text>
+  </g>
+
+  <!-- ============ B6 установка ============ -->
+  <g transform="translate(280,1553)">
+    <rect x="0" y="0" width="1080" height="185" rx="16" fill="#0c1322" stroke="#1f4b7a" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="185" rx="3" fill="#4CD797"/>
+    <text x="28" y="36" font-size="24" font-weight="700" fill="#ffffff">Установка: шаг за шагом</text>
+    <text x="28" y="60" font-size="15" fill="#97A1B3">установщик → мастер → папка движка → AnkiConnect</text>
+    <g transform="translate(1214,18)"><use href="#chip-shot"/></g>
+
+    <g transform="translate(0,86)"><use href="#stepdot"/><text x="40" y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">1</text></g>
+    <text x="62" y="90" font-size="12.5" fill="#cfd8e6">Установщик: Далее → Установить → Завершить</text>
+    <g transform="translate(0,112)"><use href="#stepdot"/><text x="40" y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">2</text></g>
+    <text x="62" y="116" font-size="12.5" fill="#cfd8e6">SmartScreen: Подробнее → Выполнить в любом случае</text>
+    <g transform="translate(0,138)"><use href="#stepdot"/><text x="40" y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">3</text></g>
+    <text x="62" y="142" font-size="12.5" fill="#cfd8e6">AnkiConnect: Add-ons → 2055492159, перезапустить Anki</text>
+    <g transform="translate(0,160)"><use href="#stepdot"/><text x="40" y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">4</text></g>
+    <text x="62" y="164" font-size="12.5" fill="#cfd8e6">Указать папку движка и пройти тестовую фразу</text>
+
+    <g transform="translate(560,76)">
+      <use href="#imgbox"/>
+      <text x="246" y="42" text-anchor="middle" font-size="12" fill="#6b7689">doc/shots/wizard-dark.png</text>
+    </g>
+    <text x="560" y="172" font-size="11.5" fill="#7C879B">Снимки обновляются на каждый релиз</text>
+  </g>
+
+  <!-- ============ B7 как пользоваться ============ -->
+  <g transform="translate(280,1756)">
+    <rect x="0" y="0" width="1080" height="175" rx="16" fill="#0c1322" stroke="#1f4b7a" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="175" rx="3" fill="#4CD797"/>
+    <text x="28" y="36" font-size="24" font-weight="700" fill="#ffffff">Как пользоваться: озвучка колоды</text>
+    <text x="28" y="60" font-size="15" fill="#97A1B3">выбрал колоду и голос — нажал кнопку; тур по кнопкам уходит в подраздел</text>
+    <g transform="translate(1214,18)"><use href="#chip-shot"/></g>
+
+    <g transform="translate(0,86)"><use href="#stepdot"/><text x="40" y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">1</text></g>
+    <text x="62" y="90" font-size="12.5" fill="#cfd8e6">«Поля колоды»: колода и роли полей (настраиваются сами)</text>
+    <g transform="translate(0,110)"><use href="#stepdot"/><text x="40" y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">2</text></g>
+    <text x="62" y="114" font-size="12.5" fill="#cfd8e6">«Голос»: голос и референс 3–10 с</text>
+    <g transform="translate(0,134)"><use href="#stepdot"/><text x="40" y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">3</text></g>
+    <text x="62" y="138" font-size="12.5" fill="#cfd8e6">«Озвучка»: колода, голос, что озвучивать, лимит</text>
+    <g transform="translate(0,158)"><use href="#stepdot"/><text x="40" y="4" text-anchor="middle" font-size="11" font-weight="700" fill="#9fd0ff">4</text></g>
+    <text x="62" y="162" font-size="12.5" fill="#cfd8e6">«Начать озвучку» — звук ложится в поля карточки</text>
+
+    <g transform="translate(560,76)">
+      <rect x="0" y="0" width="118" height="44" rx="8" fill="#0e1729" stroke="#2b3a55" stroke-width="1.2" stroke-dasharray="6 4"/>
+      <rect x="126" y="0" width="118" height="44" rx="8" fill="#0e1729" stroke="#2b3a55" stroke-width="1.2" stroke-dasharray="6 4"/>
+      <rect x="252" y="0" width="118" height="44" rx="8" fill="#0e1729" stroke="#2b3a55" stroke-width="1.2" stroke-dasharray="6 4"/>
+      <rect x="378" y="0" width="114" height="44" rx="8" fill="#0e1729" stroke="#2b3a55" stroke-width="1.2" stroke-dasharray="6 4"/>
+      <text x="59" y="26" text-anchor="middle" font-size="10.5" fill="#6b7689">anki-dark</text>
+      <text x="185" y="26" text-anchor="middle" font-size="10.5" fill="#6b7689">sound-dark</text>
+      <text x="311" y="26" text-anchor="middle" font-size="10.5" fill="#6b7689">voice-dark</text>
+      <text x="435" y="26" text-anchor="middle" font-size="10.5" fill="#6b7689">app-dark</text>
+    </g>
+    <text x="560" y="146" font-size="11.5" fill="#7C879B">Четыре вкладки — четыре снимка, а не 40 пунктов списком</text>
+  </g>
+
+  <!-- ============ B8 режимы чтения ============ -->
+  <g transform="translate(280,1949)">
+    <rect x="0" y="0" width="1080" height="175" rx="16" fill="#0c1322" stroke="#1f4b7a" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="175" rx="3" fill="#58a6ff"/>
+    <text x="28" y="36" font-size="24" font-weight="700" fill="#ffffff">Режимы чтения: авто или только кандзи</text>
+    <text x="28" y="60" font-size="15" fill="#97A1B3">что уходит движку, что слышно и когда включать — таблицей</text>
+    <g transform="translate(1220,18)"><use href="#chip-table"/></g>
+
+    <rect x="28" y="76" width="1024" height="22" rx="5" fill="#16305a"/>
+    <text x="36" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Режим</text>
+    <text x="226" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Что уходит движку</text>
+    <text x="626" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Что слышно</text>
+    <text x="846" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Когда включать</text>
+    <use href="#row1024" x="28" y="100"/>
+    <use href="#row1024" x="28" y="118"/>
+    <path d="M218 98 V136 M618 98 V136 M838 98 V136" stroke="#22314d" stroke-width="1"/>
+
+    <text x="36" y="112" font-size="10.5" fill="#93a1b8">Авто (по умолчанию)</text>
+    <text x="226" y="112" font-size="10.5" fill="#93a1b8">кандзи, но чтение термина — из фуриганы</text>
+    <text x="626" y="112" font-size="10.5" fill="#93a1b8">точный термин, обычный текст</text>
+    <text x="846" y="112" font-size="10.5" fill="#93a1b8">универсальный</text>
+
+    <text x="36" y="130" font-size="10.5" fill="#93a1b8">Только кандзи</text>
+    <text x="226" y="130" font-size="10.5" fill="#93a1b8">весь текст кандзи, без подстановок</text>
+    <text x="626" y="130" font-size="10.5" fill="#93a1b8">самый цельный звук</text>
+    <text x="846" y="130" font-size="10.5" fill="#93a1b8">обычные слова, без терминов</text>
+
+    <text x="28" y="156" font-size="11.5" fill="#7C879B">Режим — настройка колоды: у каждой колоды он свой.</text>
+    <text x="28" y="170" font-size="11.5" fill="#7C879B">В «авто» решение принимается по каждой карточке: пустое поле фуриганы = «читай кандзи сам».</text>
+  </g>
+
+  <!-- ============ B9 фуригана и исключения ============ -->
+  <g transform="translate(280,2142)">
+    <rect x="0" y="0" width="1080" height="195" rx="16" fill="#0c1322" stroke="#1f4b7a" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="195" rx="3" fill="#58a6ff"/>
+    <text x="28" y="36" font-size="24" font-weight="700" fill="#ffffff">Фуригана, латиница, цифры</text>
+    <text x="28" y="60" font-size="15" fill="#97A1B3">почему прочитало не так — и что приложение делает с этим</text>
+    <g transform="translate(1220,18)"><use href="#chip-table"/></g>
+
+    <rect x="28" y="76" width="1024" height="22" rx="5" fill="#16305a"/>
+    <text x="36" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Случай</text>
+    <text x="336" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Что делает приложение</text>
+    <text x="736" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Почему</text>
+    <use href="#row1024" x="28" y="100"/>
+    <use href="#row1024" x="28" y="118"/>
+    <use href="#row1024" x="28" y="136"/>
+    <use href="#row1024" x="28" y="154"/>
+    <path d="M328 98 V172 M728 98 V172" stroke="#22314d" stroke-width="1"/>
+
+    <text x="36" y="112" font-size="10.5" fill="#93a1b8">Термин с фуриганой</text>
+    <text x="336" y="112" font-size="10.5" fill="#93a1b8">подставляет чтение из поля фуриганы</text>
+    <text x="736" y="112" font-size="10.5" fill="#93a1b8">карточка знает правильнее движка</text>
+
+    <text x="36" y="130" font-size="10.5" fill="#93a1b8">Окуригана (データ)</text>
+    <text x="336" y="130" font-size="10.5" fill="#93a1b8">оставляет слово как есть</text>
+    <text x="736" y="130" font-size="10.5" fill="#93a1b8">иначе прозвучит дважды</text>
+
+    <text x="36" y="148" font-size="10.5" fill="#93a1b8">Латиница и цифры (3D)</text>
+    <text x="336" y="148" font-size="10.5" fill="#93a1b8">не переводит в кана</text>
+    <text x="736" y="148" font-size="10.5" fill="#93a1b8">движок читает лучше: 4 с против 96 с</text>
+
+    <text x="36" y="166" font-size="10.5" fill="#93a1b8">Слово не найдено в тексте</text>
+    <text x="336" y="166" font-size="10.5" fill="#93a1b8">карточка остаётся как есть</text>
+    <text x="736" y="166" font-size="10.5" fill="#93a1b8">нельзя подставить чужое чтение</text>
+
+    <text x="28" y="188" font-size="11.5" fill="#7C879B">Фуригана карточки — источник истины для основного слова. Замеры и правила kanaize — в doc/reading.md.</text>
+  </g>
+
+  <!-- ============ B10 качество и произношение ============ -->
+  <g transform="translate(280,2355)">
+    <rect x="0" y="0" width="1080" height="195" rx="16" fill="#0c1322" stroke="#1f4b7a" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="195" rx="3" fill="#58a6ff"/>
+    <text x="28" y="36" font-size="24" font-weight="700" fill="#ffffff">Качество звука и проверка произношения</text>
+    <text x="28" y="60" font-size="15" fill="#97A1B3">что приложение проверяет само — и что это значит для тебя</text>
+    <g transform="translate(1220,18)"><use href="#chip-table"/></g>
+
+    <rect x="28" y="76" width="500" height="22" rx="5" fill="#16305a"/>
+    <text x="36" y="92" font-size="11" font-weight="700" fill="#bcd9ff">QC v2 — что бракуется</text>
+    <use href="#row500" x="28" y="100"/>
+    <use href="#row500" x="28" y="118"/>
+    <use href="#row500" x="28" y="136"/>
+    <use href="#row500" x="28" y="154"/>
+    <path d="M240 98 V172" stroke="#22314d" stroke-width="1"/>
+    <text x="36" y="112" font-size="10.5" fill="#93a1b8">Тишина, обрезка, дубль</text>
+    <text x="248" y="112" font-size="10.5" fill="#93a1b8">тихо, срезано, повтор</text>
+    <text x="36" y="130" font-size="10.5" fill="#93a1b8">Разрывы в речи</text>
+    <text x="248" y="130" font-size="10.5" fill="#93a1b8">пауза больше 4 с внутри фразы</text>
+    <text x="36" y="148" font-size="10.5" fill="#93a1b8">Уровень и темп</text>
+    <text x="248" y="148" font-size="10.5" fill="#93a1b8">неслышно или слишком быстро</text>
+    <text x="36" y="166" font-size="10.5" fill="#93a1b8">Итог</text>
+    <text x="248" y="166" font-size="10.5" fill="#93a1b8">брак перегенерируется сам</text>
+
+    <rect x="572" y="76" width="480" height="22" rx="5" fill="#16305a"/>
+    <text x="580" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Проверка произношения — совет</text>
+    <use href="#row480" x="572" y="100"/>
+    <use href="#row480" x="572" y="118"/>
+    <use href="#row480" x="572" y="136"/>
+    <use href="#row480" x="572" y="154"/>
+    <path d="M784 98 V172" stroke="#22314d" stroke-width="1"/>
+    <text x="580" y="112" font-size="10.5" fill="#93a1b8">Что делает</text>
+    <text x="792" y="112" font-size="10.5" fill="#93a1b8">слушает свой звук, сверяет с текстом</text>
+    <text x="580" y="130" font-size="10.5" fill="#93a1b8">Цена</text>
+    <text x="792" y="130" font-size="10.5" fill="#93a1b8">~0,5 с на кусок, модель ~1,5 ГБ</text>
+    <text x="580" y="148" font-size="10.5" fill="#93a1b8">Надёжность</text>
+    <text x="792" y="148" font-size="10.5" fill="#93a1b8">27 карточек: 2 брака, 25 ложных</text>
+    <text x="580" y="166" font-size="10.5" fill="#93a1b8">Итог</text>
+    <text x="792" y="166" font-size="10.5" fill="#93a1b8">колода «Брак», решение — твоё</text>
+
+    <text x="28" y="188" font-size="11.5" fill="#7C879B">Проверка произношения по умолчанию выключена: с ней первый звук идёт в 10 раз дольше.</text>
+  </g>
+
+  <!-- ============ B11 если не работает ============ -->
+  <g transform="translate(280,2568)">
+    <rect x="0" y="0" width="1080" height="255" rx="16" fill="#0c1322" stroke="#1f4b7a" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="255" rx="3" fill="#58a6ff"/>
+    <text x="28" y="36" font-size="24" font-weight="700" fill="#ffffff">Если что-то не работает</text>
+    <text x="28" y="60" font-size="15" fill="#97A1B3">симптом → причина → что делать; 90% проблем видно в selftest</text>
+    <g transform="translate(1220,18)"><use href="#chip-table"/></g>
+
+    <rect x="28" y="76" width="1024" height="22" rx="5" fill="#16305a"/>
+    <text x="36" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Симптом</text>
+    <text x="336" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Причина</text>
+    <text x="636" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Что делать</text>
+    <use href="#row1024" x="28" y="100"/>
+    <use href="#row1024" x="28" y="118"/>
+    <use href="#row1024" x="28" y="136"/>
+    <use href="#row1024" x="28" y="154"/>
+    <use href="#row1024" x="28" y="172"/>
+    <use href="#row1024" x="28" y="190"/>
+    <use href="#row1024" x="28" y="208"/>
+    <use href="#row1024" x="28" y="226"/>
+    <path d="M328 98 V244 M628 98 V244" stroke="#22314d" stroke-width="1"/>
+
+    <text x="36" y="112" font-size="10.5" fill="#93a1b8">Не найдена папка движка</text>
+    <text x="336" y="112" font-size="10.5" fill="#93a1b8">путь не указан или указан неверно</text>
+    <text x="636" y="112" font-size="10.5" fill="#93a1b8">«Обзор…» на главном экране или GPT_SOVITS_ROOT</text>
+
+    <text x="36" y="130" font-size="10.5" fill="#93a1b8">AnkiConnect недоступен</text>
+    <text x="336" y="130" font-size="10.5" fill="#93a1b8">Anki закрыта или дополнения нет</text>
+    <text x="636" y="130" font-size="10.5" fill="#93a1b8">открыть Anki, Add-ons → 2055492159, перезапустить</text>
+
+    <text x="36" y="148" font-size="10.5" fill="#93a1b8">Мастер просит папку движка</text>
+    <text x="336" y="148" font-size="10.5" fill="#93a1b8">движок ставится отдельно, в установщике его нет</text>
+    <text x="636" y="148" font-size="10.5" fill="#93a1b8">поставить движок и указать его папку</text>
+
+    <text x="36" y="166" font-size="10.5" fill="#93a1b8">Готовых голосов: 0 из 5</text>
+    <text x="336" y="166" font-size="10.5" fill="#93a1b8">веса или референс не в папке движка</text>
+    <text x="636" y="166" font-size="10.5" fill="#93a1b8">«Обновить веса в движке» или указать путь</text>
+
+    <text x="36" y="184" font-size="10.5" fill="#93a1b8">Референс 12 с — нужно 3–10 с</text>
+    <text x="336" y="184" font-size="10.5" fill="#93a1b8">клип вне диапазона</text>
+    <text x="636" y="184" font-size="10.5" fill="#93a1b8">перерезать референс</text>
+
+    <text x="36" y="202" font-size="10.5" fill="#93a1b8">Сервер вернул пустой звук</text>
+    <text x="336" y="202" font-size="10.5" fill="#93a1b8">видеопамять занята браузером или игрой</text>
+    <text x="636" y="202" font-size="10.5" fill="#93a1b8">закрыть тяжёлые программы, перезапустить сервер</text>
+
+    <text x="36" y="220" font-size="10.5" fill="#93a1b8">Первый звук идёт минутами</text>
+    <text x="336" y="220" font-size="10.5" fill="#93a1b8">включена проверка произношения</text>
+    <text x="636" y="220" font-size="10.5" fill="#93a1b8">выключить «Проверять произношение»</text>
+
+    <text x="36" y="238" font-size="10.5" fill="#93a1b8">Звук старый, хочу заново</text>
+    <text x="336" y="238" font-size="10.5" fill="#93a1b8">лимит берёт только карточки без звука</text>
+    <text x="636" y="238" font-size="10.5" fill="#93a1b8">«Пересобрать всё заново», спросит подтверждение</text>
+  </g>
+
+  <!-- ============ B12 перезапись и сеть ============ -->
+  <g transform="translate(280,2841)">
+    <rect x="0" y="0" width="1080" height="195" rx="16" fill="#0c1322" stroke="#1f4b7a" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="195" rx="3" fill="#58a6ff"/>
+    <text x="28" y="36" font-size="24" font-weight="700" fill="#ffffff">Что перезаписывается, что уходит в сеть</text>
+    <text x="28" y="60" font-size="15" fill="#97A1B3">границы приложения — честно, без недосказанности</text>
+    <g transform="translate(1220,18)"><use href="#chip-table"/></g>
+
+    <rect x="28" y="76" width="500" height="22" rx="5" fill="#16305a"/>
+    <text x="36" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Действие — что с карточкой</text>
+    <use href="#row500" x="28" y="100"/>
+    <use href="#row500" x="28" y="118"/>
+    <use href="#row500" x="28" y="136"/>
+    <use href="#row500" x="28" y="154"/>
+    <path d="M240 98 V172" stroke="#22314d" stroke-width="1"/>
+    <text x="36" y="112" font-size="10.5" fill="#93a1b8">Озвучка</text>
+    <text x="248" y="112" font-size="10.5" fill="#93a1b8">в поле звука пишется новый файл</text>
+    <text x="36" y="130" font-size="10.5" fill="#93a1b8">Текст карточки</text>
+    <text x="248" y="130" font-size="10.5" fill="#93a1b8">не меняется никогда</text>
+    <text x="36" y="148" font-size="10.5" fill="#93a1b8">Колода «Брак»</text>
+    <text x="248" y="148" font-size="10.5" fill="#93a1b8">создаёт новую колоду с клонами</text>
+    <text x="36" y="166" font-size="10.5" fill="#93a1b8">Проверка произношения</text>
+    <text x="248" y="166" font-size="10.5" fill="#93a1b8">ничего не пишет, только слушает</text>
+
+    <rect x="572" y="76" width="480" height="22" rx="5" fill="#16305a"/>
+    <text x="580" y="92" font-size="11" font-weight="700" fill="#bcd9ff">Что уходит в сеть</text>
+    <use href="#row480" x="572" y="100"/>
+    <use href="#row480" x="572" y="118"/>
+    <use href="#row480" x="572" y="136"/>
+    <use href="#row480" x="572" y="154"/>
+    <path d="M800 98 V172" stroke="#22314d" stroke-width="1"/>
+    <text x="580" y="112" font-size="10.5" fill="#93a1b8">Синтез речи</text>
+    <text x="808" y="112" font-size="10.5" fill="#93a1b8">локально, 127.0.0.1</text>
+    <text x="580" y="130" font-size="10.5" fill="#93a1b8">Чтение иероглифов</text>
+    <text x="808" y="130" font-size="10.5" fill="#93a1b8">локально, словарь в установщике</text>
+    <text x="580" y="148" font-size="10.5" fill="#93a1b8">Распознавание</text>
+    <text x="808" y="148" font-size="10.5" fill="#93a1b8">локально, faster-whisper</text>
+    <text x="580" y="166" font-size="10.5" fill="#93a1b8">«Проверить обновления»</text>
+    <text x="808" y="166" font-size="10.5" fill="#93a1b8">единственный запрос в сеть</text>
+
+    <text x="28" y="188" font-size="11.5" fill="#7C879B">Звук перезаписывается без отмены — это сказано прямо, потому что формулировка «карточки не трогаются» вводила в заблуждение.</text>
+  </g>
+
+  <!-- ============ B13 обновления ============ -->
+  <g transform="translate(280,3054)">
+    <rect x="0" y="0" width="1080" height="125" rx="16" fill="#0c1322" stroke="#1f4b7a" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="125" rx="3" fill="#7c879b"/>
+    <text x="28" y="36" font-size="24" font-weight="700" fill="#ffffff">Обновления, удаление, где лежат файлы</text>
+    <text x="28" y="60" font-size="15" fill="#97A1B3">три коротких ответа, без подробностей</text>
+    <g transform="translate(1228,18)"><use href="#chip-text"/></g>
+    <g transform="translate(28,78)"><use href="#bar"/><text x="126" y="9" font-size="11.5" fill="#93a1b8">Обновление: вкладка «Приложение» → «Проверить обновления», сверяется SHA256</text></g>
+    <g transform="translate(28,96)"><use href="#barshort"/><text x="82" y="9" font-size="11.5" fill="#93a1b8">Удаление: Пуск → «Удалить AnkiVoice», настройки и голоса остаются</text></g>
+    <g transform="translate(28,114)"><use href="#bar"/><text x="126" y="9" font-size="11.5" fill="#93a1b8">Файлы: %LOCALAPPDATA%\Programs\AnkiVoice и папка медиа Anki</text></g>
+  </g>
+
+  <!-- ============ B14 разработчику ============ -->
+  <g transform="translate(280,3197)">
+    <rect x="0" y="0" width="1080" height="125" rx="16" fill="#0c1322" stroke="#1f4b7a" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="125" rx="3" fill="#7c879b"/>
+    <text x="28" y="36" font-size="24" font-weight="700" fill="#ffffff">Разработчику</text>
+    <text x="28" y="60" font-size="15" fill="#97A1B3">только ссылки: детали живут в своих файлах</text>
+    <g transform="translate(1228,18)"><use href="#chip-text"/></g>
+    <g transform="translate(28,78)"><use href="#bar"/><text x="126" y="9" font-size="11.5" fill="#93a1b8">Сборка и правила — CONTRIBUTING.md · Структура кода — CONTRIBUTING.md</text></g>
+    <g transform="translate(28,96)"><use href="#barshort"/><text x="82" y="9" font-size="11.5" fill="#93a1b8">Чтение иероглифов — doc/reading.md · Консоль — doc/cli.md · Движки — doc/engines.md</text></g>
+    <g transform="translate(28,114)"><use href="#bar"/><text x="126" y="9" font-size="11.5" fill="#93a1b8">Тесты: python lab/readme_check.py сверяет README с кодом — падает при расхождении</text></g>
+  </g>
+
+  <!-- ============ B15 лицензия ============ -->
+  <g transform="translate(280,3340)">
+    <rect x="0" y="0" width="1080" height="125" rx="16" fill="#0c1322" stroke="#1f4b7a" stroke-width="2"/>
+    <rect x="0" y="0" width="6" height="125" rx="3" fill="#7c879b"/>
+    <text x="28" y="36" font-size="24" font-weight="700" fill="#ffffff">Лицензия · Участие · Благодарности</text>
+    <text x="28" y="60" font-size="15" fill="#97A1B3">три короткие колонки, каждая — 3–4 строки</text>
+    <g transform="translate(1228,18)"><use href="#chip-text"/></g>
+    <rect x="28" y="78" width="330" height="34" rx="8" fill="#0e1729"/>
+    <text x="40" y="99" font-size="11.5" fill="#93a1b8">AGPL-3.0 — изменения публикуются</text>
+    <rect x="374" y="78" width="330" height="34" rx="8" fill="#0e1729"/>
+    <text x="386" y="99" font-size="11.5" fill="#93a1b8">Issues и pull request’ы — .github</text>
+    <rect x="720" y="78" width="332" height="34" rx="8" fill="#0e1729"/>
+    <text x="732" y="99" font-size="11.5" fill="#93a1b8">GPT-SoVITS, Haqumei, Sudachi, AnkiConnect</text>
+  </g>
+
+  <!-- ============ полоса «вне README» ============ -->
+  <g transform="translate(280,3485)">
+    <rect x="0" y="0" width="1080" height="190" rx="16" fill="#0c1322" stroke="#1f4b7a" stroke-width="2" stroke-dasharray="8 6"/>
+    <rect x="0" y="0" width="6" height="190" rx="3" fill="#8B9BFF"/>
+    <text x="28" y="36" font-size="22" font-weight="700" fill="#ffffff">Вне README — уходит в отдельные файлы</text>
+    <text x="28" y="60" font-size="14" fill="#97A1B3">README остаётся про запуск и работу; детали реализации живут там, где их ищут</text>
+
+    <g transform="translate(28,76)">
+      <rect x="0" y="0" width="196" height="96" rx="10" fill="#101a2c" stroke="#2b3a55"/>
+      <text x="14" y="24" font-size="13" font-weight="700" fill="#9fd0ff">doc/reading.md</text>
+      <text x="14" y="44" font-size="10.5" fill="#93a1b8">Как текст превращается</text>
+      <text x="14" y="59" font-size="10.5" fill="#93a1b8">в хирагану: шаги kanaize(),</text>
+      <text x="14" y="74" font-size="10.5" fill="#93a1b8">замеры чтения, g2p-ядро</text>
+    </g>
+    <g transform="translate(240,76)">
+      <rect x="0" y="0" width="196" height="96" rx="10" fill="#101a2c" stroke="#2b3a55"/>
+      <text x="14" y="24" font-size="13" font-weight="700" fill="#9fd0ff">doc/cli.md</text>
+      <text x="14" y="44" font-size="10.5" fill="#93a1b8">Консоль: pipeline.bat,</text>
+      <text x="14" y="59" font-size="10.5" fill="#93a1b8">флаги --reading и</text>
+      <text x="14" y="74" font-size="10.5" fill="#93a1b8">--sentence-src, поля карточек</text>
+    </g>
+    <g transform="translate(452,76)">
+      <rect x="0" y="0" width="196" height="96" rx="10" fill="#101a2c" stroke="#2b3a55"/>
+      <text x="14" y="24" font-size="13" font-weight="700" fill="#9fd0ff">doc/engines.md</text>
+      <text x="14" y="44" font-size="10.5" fill="#93a1b8">Установка IndexTTS 2.5,</text>
+      <text x="14" y="59" font-size="10.5" fill="#93a1b8">мост lab/indextts_service.py,</text>
+      <text x="14" y="74" font-size="10.5" fill="#93a1b8">требования CUDA</text>
+    </g>
+    <g transform="translate(664,76)">
+      <rect x="0" y="0" width="196" height="96" rx="10" fill="#101a2c" stroke="#2b3a55"/>
+      <text x="14" y="24" font-size="13" font-weight="700" fill="#9fd0ff">CONTRIBUTING.md</text>
+      <text x="14" y="44" font-size="10.5" fill="#93a1b8">Разработка: сборка exe</text>
+      <text x="14" y="59" font-size="10.5" fill="#93a1b8">и установщика, тесты,</text>
+      <text x="14" y="74" font-size="10.5" fill="#93a1b8">структура репозитория</text>
+    </g>
+    <g transform="translate(876,76)">
+      <rect x="0" y="0" width="176" height="96" rx="10" fill="#101a2c" stroke="#2b3a55"/>
+      <text x="14" y="24" font-size="13" font-weight="700" fill="#9fd0ff">CHANGELOG.md</text>
+      <text x="14" y="44" font-size="10.5" fill="#93a1b8">«Что нового в 1.8»</text>
+      <text x="14" y="59" font-size="10.5" fill="#93a1b8">и дальше — история</text>
+      <text x="14" y="74" font-size="10.5" fill="#93a1b8">версий</text>
+    </g>
+  </g>
+
+  <text x="280" y="3700" font-size="13" fill="#6b7689">README.md и README.en.md держат одинаковый порядок рубрик: lab/readme_check.py сверяет якоря, картинки, команды консоли и число разделов.</text>
+</svg>

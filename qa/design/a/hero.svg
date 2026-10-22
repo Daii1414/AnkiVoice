@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="1500" height="1140" viewBox="0 0 1500 1140"
+     role="img" aria-label="Макет первого экрана README AnkiVoice: шапка, обещание, требования, кнопка скачивания и иллюстрация интерфейса"
+     xml:lang="ru"
+     font-family="Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+
+  <defs>
+    <linearGradient id="heroBg" x1="0" y1="0" x2="0.25" y2="1">
+      <stop offset="0" stop-color="#101a2b"/>
+      <stop offset="0.5" stop-color="#0a0f1a"/>
+      <stop offset="1" stop-color="#0b111c"/>
+    </linearGradient>
+    <linearGradient id="markGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8B9BFF"/>
+      <stop offset="1" stop-color="#6D5CF5"/>
+    </linearGradient>
+    <linearGradient id="btnGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8B9BFF"/>
+      <stop offset="1" stop-color="#6D5CF5"/>
+    </linearGradient>
+    <linearGradient id="waveGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#58a6ff" stop-opacity="0.3"/>
+      <stop offset="0.5" stop-color="#58a6ff" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#4CD797" stop-opacity="0.35"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.16" cy="0.02" r="0.62">
+      <stop offset="0" stop-color="#58a6ff" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#58a6ff" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- знак приложения (логотип) -->
+    <g id="logoMark">
+      <rect x="0" y="0" width="72" height="72" rx="20" fill="url(#markGrad)"/>
+      <path d="M16.8 55.2 L34.8 16.8 L52.8 55.2" fill="none" stroke="#0F1319" stroke-width="7.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M25.8 43.2 H46.2" stroke="#0F1319" stroke-width="6.4" stroke-linecap="round"/>
+    </g>
+
+    <g id="icoWin" fill="currentColor">
+      <rect x="-8" y="-8" width="7" height="7" rx="1.2"/>
+      <rect x="1" y="-8" width="7" height="7" rx="1.2"/>
+      <rect x="-8" y="1" width="7" height="7" rx="1.2"/>
+      <rect x="1" y="1" width="7" height="7" rx="1.2"/>
+    </g>
+    <g id="icoChip" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="-7" y="-7" width="14" height="14" rx="3"/>
+      <rect x="-3" y="-3" width="6" height="6" rx="1.5"/>
+      <path d="M-7 -3 H-11 M-7 3 H-11 M7 -3 H11 M7 3 H11 M-3 -7 V-11 M3 -7 V-11 M-3 7 V11 M3 7 V11"/>
+    </g>
+    <g id="icoShield" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M0 -9 L7.5 -6 V0 C7.5 4.5 4 7.5 0 9 C-4 7.5 -7.5 4.5 -7.5 0 V-6 Z"/>
+      <path d="M-3 0 L-1 2.5 L3.5 -2.5"/>
+    </g>
+    <g id="icoDownload" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M0 -9 V4"/>
+      <path d="M-4.5 0 L0 4.5 L4.5 0"/>
+      <path d="M-7.5 6 V8.5 H7.5 V6"/>
+    </g>
+    <g id="icoChev" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M-4.5 -2 L0 2.5 L4.5 -2"/>
+    </g>
+    <g id="icoArrow" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M-7 0 H7 M2 -4.5 L7 0 L2 4.5"/>
+    </g>
+    <g id="icoPlay" fill="currentColor">
+      <path d="M-6 -8 L8 0 L-6 8 Z"/>
+    </g>
+    <g id="icoCheckCircle">
+      <circle r="9" fill="#58a6ff"/>
+      <path d="M-4 0 L-1 3 L4.5 -3.5" stroke="#0B1020" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </defs>
+
+  <!-- ============ фон страницы ============ -->
+  <rect x="0" y="0" width="1500" height="1140" fill="#0a0f1a"/>
+
+  <!-- ============ шапка макета ============ -->
+  <text x="44" y="32" font-size="14" font-weight="700" letter-spacing="1.6" fill="#5A6675">МАКЕТ ПЕРВОГО ЭКРАНА README · ANKIVOICE</text>
+  <text x="1456" y="32" text-anchor="end" font-size="13" fill="#465162">1500 × 1140 · тёмная тема GitHub · Inter / Segoe UI</text>
+
+  <!-- ============ 1. БАННЕР (картинка doc/hero.svg) ============ -->
+  <rect x="44" y="44" width="1412" height="592" rx="26" fill="none" stroke="#26364d" stroke-width="1.2" stroke-dasharray="7 7"/>
+  <text x="1456" y="36" text-anchor="end" font-size="13" fill="#5A6675">картинка doc/hero.svg — одна картинка, 1500 × 560</text>
+
+  <g>
+    <rect x="60" y="60" width="1380" height="560" rx="18" fill="url(#heroBg)"/>
+    <rect x="60" y="60" width="1380" height="560" rx="18" fill="url(#glow)"/>
+    <rect x="60.75" y="60.75" width="1378.5" height="558.5" rx="17.25" fill="none" stroke="#1E2A3D" stroke-width="1.5"/>
+
+    <!-- логотип + название -->
+    <use href="#logoMark" xlink:href="#logoMark" x="108" y="104"/>
+    <text x="200" y="160" font-size="52" font-weight="700" letter-spacing="-1" fill="#E7ECF5">AnkiVoice</text>
+    <rect x="484" y="118" width="80" height="36" rx="18" fill="#0f1a2c" stroke="#2a3a55" stroke-width="1.2"/>
+    <text x="524" y="142" text-anchor="middle" font-size="16" font-weight="600" fill="#8B9BFF">v1.8</text>
+
+    <!-- обещание -->
+    <text x="108" y="236" font-size="32" font-weight="700" fill="#EAF0FA">Озвучка японских карточек Anki</text>
+    <text x="108" y="270" font-size="22" fill="#A6B2C4">Голосом GPT-SoVITS или IndexTTS 2.5 — целиком на вашем компьютере</text>
+    <text x="108" y="306" font-size="18" fill="#8B97A9">Движок читает иероглифы сам, основное слово — по фуриганы карточки.</text>
+    <text x="108" y="332" font-size="18" fill="#8B97A9">Готовый ogg ложится прямо в поля карточки. Без аккаунтов и телеметрии.</text>
+
+    <!-- чипы: что нужно до установки -->
+    <g>
+      <rect x="108" y="366" width="176" height="46" rx="12" fill="#101927" stroke="#24344d" stroke-width="1.2"/>
+      <use href="#icoWin" xlink:href="#icoWin" x="130" y="389" color="#58a6ff"/>
+      <text x="150" y="395" font-size="16" font-weight="600" fill="#C7D2E4">Windows 10/11</text>
+
+      <rect x="300" y="366" width="214" height="46" rx="12" fill="#101927" stroke="#24344d" stroke-width="1.2"/>
+      <use href="#icoChip" xlink:href="#icoChip" x="322" y="389" color="#58a6ff"/>
+      <text x="342" y="395" font-size="16" font-weight="600" fill="#C7D2E4">GPU NVIDIA ≥ 6 ГБ</text>
+
+      <rect x="530" y="366" width="258" height="46" rx="12" fill="#101927" stroke="#24344d" stroke-width="1.2"/>
+      <use href="#icoShield" xlink:href="#icoShield" x="552" y="389" color="#4CD797"/>
+      <text x="572" y="395" font-size="16" font-weight="600" fill="#C7D2E4">Без облака и телеметрии</text>
+    </g>
+
+    <!-- ответ на вопрос «что нужно до установки» -->
+    <text x="108" y="452" font-size="17" font-weight="600" fill="#58a6ff" text-decoration="underline">Что нужно до установки</text>
+    <text x="296" y="452" font-size="17" fill="#7E8A9C">— движок 6–10 ГБ, модель голоса, AnkiConnect</text>
+    <text x="108" y="486" font-size="15" fill="#64707F">Мастер после установки сам подсказывает, что скачать и куда положить.</text>
+
+    <!-- иллюстрация: окно приложения -->
+    <g>
+      <rect x="860" y="88" width="560" height="520" rx="14" fill="#0c1322" stroke="#22344d" stroke-width="1.4"/>
+      <path d="M860 102 A14 14 0 0 1 874 88 H1406 A14 14 0 0 1 1420 102 V132 H860 Z" fill="#101a2b"/>
+      <line x1="860" y1="132" x2="1420" y2="132" stroke="#1c2a40" stroke-width="1.2"/>
+
+      <g transform="translate(880,100) scale(0.28)"><use href="#logoMark" xlink:href="#logoMark"/></g>
+      <text x="908" y="116" font-size="14" font-weight="600" fill="#DCE4F0">AnkiVoice</text>
+
+      <rect x="1004" y="99" width="122" height="24" rx="12" fill="#0e2019" stroke="#1f4a33" stroke-width="1"/>
+      <circle cx="1017" cy="111" r="4" fill="#4CD797"/>
+      <text x="1028" y="115" font-size="11" fill="#9fe6c6">Anki: подключена</text>
+
+      <rect x="1136" y="99" width="124" height="24" rx="12" fill="#0e2019" stroke="#1f4a33" stroke-width="1"/>
+      <circle cx="1149" cy="111" r="4" fill="#4CD797"/>
+      <text x="1160" y="115" font-size="11" fill="#9fe6c6">Сервер: запущен</text>
+
+      <text x="1400" y="115" text-anchor="end" font-size="12" fill="#6F7B8D">v1.8</text>
+
+      <text x="884" y="160" font-size="11" font-weight="700" letter-spacing="1.5" fill="#6F7B8D">ДВИЖОК СИНТЕЗА</text>
+
+      <rect x="884" y="172" width="262" height="64" rx="10" fill="#0f1726" stroke="#22344d" stroke-width="1.2"/>
+      <text x="902" y="200" font-size="17" font-weight="600" fill="#C7D2E4">GPT-SoVITS</text>
+      <text x="902" y="222" font-size="12" fill="#6F7B8D">свои .ckpt + .pth, голосов много</text>
+
+      <rect x="1160" y="172" width="262" height="64" rx="10" fill="#101c2e" stroke="#58a6ff" stroke-width="1.6"/>
+      <text x="1178" y="200" font-size="17" font-weight="600" fill="#E7ECF5">IndexTTS 2.5</text>
+      <text x="1178" y="222" font-size="12" fill="#8FB8E8">один референс 3–10 с</text>
+      <use href="#icoCheckCircle" xlink:href="#icoCheckCircle" x="1398" y="194"/>
+
+      <text x="884" y="262" font-size="11" font-weight="700" letter-spacing="1.5" fill="#6F7B8D">КОЛОДА</text>
+      <text x="1160" y="262" font-size="11" font-weight="700" letter-spacing="1.5" fill="#6F7B8D">ГОЛОС</text>
+
+      <rect x="884" y="272" width="262" height="38" rx="8" fill="#121b2b" stroke="#22344d" stroke-width="1.2"/>
+      <text x="900" y="296" font-size="14" fill="#C7D2E4">Японский базовый · 100</text>
+      <use href="#icoChev" xlink:href="#icoChev" x="1128" y="291" color="#6F7B8D"/>
+
+      <rect x="1160" y="272" width="262" height="38" rx="8" fill="#121b2b" stroke="#22344d" stroke-width="1.2"/>
+      <text x="1176" y="296" font-size="14" fill="#C7D2E4">Кубота Хитоси</text>
+      <use href="#icoChev" xlink:href="#icoChev" x="1404" y="291" color="#6F7B8D"/>
+
+      <text x="884" y="336" font-size="11" font-weight="700" letter-spacing="1.5" fill="#6F7B8D">ЛИМИТ КАРТОЧЕК</text>
+      <rect x="884" y="346" width="100" height="38" rx="8" fill="#121b2b" stroke="#22344d" stroke-width="1.2"/>
+      <text x="900" y="370" font-size="14" font-weight="600" fill="#E7ECF5">20</text>
+      <text x="998" y="370" font-size="12" fill="#6F7B8D">— это объём работы, а не позиция в колоде</text>
+
+      <rect x="884" y="400" width="500" height="54" rx="12" fill="url(#btnGrad)"/>
+      <use href="#icoPlay" xlink:href="#icoPlay" x="1058" y="427" color="#0B1020"/>
+      <text x="1084" y="434" font-size="19" font-weight="700" fill="#0B1020">Начать озвучку</text>
+
+      <rect x="884" y="474" width="500" height="10" rx="5" fill="#16202f"/>
+      <rect x="884" y="474" width="190" height="10" rx="5" fill="#58a6ff"/>
+      <text x="884" y="504" font-size="12" fill="#9AA6B8">Карточка 24 / 100</text>
+      <text x="1384" y="504" text-anchor="end" font-size="12" fill="#6F7B8D">осталось ≈ 6 мин</text>
+
+      <g transform="translate(884,556)" fill="url(#waveGrad)">
+        <rect x="0"   y="-8"  width="5" height="8"  rx="2"/>
+        <rect x="12"  y="-14" width="5" height="14" rx="2"/>
+        <rect x="24"  y="-22" width="5" height="22" rx="2"/>
+        <rect x="36"  y="-30" width="5" height="30" rx="2"/>
+        <rect x="48"  y="-18" width="5" height="18" rx="2"/>
+        <rect x="60"  y="-26" width="5" height="26" rx="2"/>
+        <rect x="72"  y="-12" width="5" height="12" rx="2"/>
+        <rect x="84"  y="-34" width="5" height="34" rx="2"/>
+        <rect x="96"  y="-20" width="5" height="20" rx="2"/>
+        <rect x="108" y="-10" width="5" height="10" rx="2"/>
+        <rect x="120" y="-24" width="5" height="24" rx="2"/>
+        <rect x="132" y="-38" width="5" height="38" rx="2"/>
+        <rect x="144" y="-16" width="5" height="16" rx="2"/>
+        <rect x="156" y="-28" width="5" height="28" rx="2"/>
+        <rect x="168" y="-12" width="5" height="12" rx="2"/>
+        <rect x="180" y="-22" width="5" height="22" rx="2"/>
+        <rect x="192" y="-30" width="5" height="30" rx="2"/>
+        <rect x="204" y="-8"  width="5" height="8"  rx="2"/>
+        <rect x="216" y="-18" width="5" height="18" rx="2"/>
+        <rect x="228" y="-26" width="5" height="26" rx="2"/>
+        <rect x="240" y="-36" width="5" height="36" rx="2"/>
+        <rect x="252" y="-14" width="5" height="14" rx="2"/>
+        <rect x="264" y="-20" width="5" height="20" rx="2"/>
+        <rect x="276" y="-10" width="5" height="10" rx="2"/>
+        <rect x="288" y="-28" width="5" height="28" rx="2"/>
+        <rect x="300" y="-18" width="5" height="18" rx="2"/>
+        <rect x="312" y="-32" width="5" height="32" rx="2"/>
+        <rect x="324" y="-22" width="5" height="22" rx="2"/>
+        <rect x="336" y="-12" width="5" height="12" rx="2"/>
+        <rect x="348" y="-26" width="5" height="26" rx="2"/>
+        <rect x="360" y="-14" width="5" height="14" rx="2"/>
+        <rect x="372" y="-30" width="5" height="30" rx="2"/>
+        <rect x="384" y="-20" width="5" height="20" rx="2"/>
+        <rect x="396" y="-8"  width="5" height="8"  rx="2"/>
+        <rect x="408" y="-16" width="5" height="16" rx="2"/>
+        <rect x="420" y="-24" width="5" height="24" rx="2"/>
+        <rect x="432" y="-34" width="5" height="34" rx="2"/>
+        <rect x="444" y="-12" width="5" height="12" rx="2"/>
+        <rect x="456" y="-20" width="5" height="20" rx="2"/>
+        <rect x="468" y="-28" width="5" height="28" rx="2"/>
+      </g>
+
+      <rect x="884" y="568" width="500" height="32" rx="8" fill="#0d1a17" stroke="#1f4a33" stroke-width="1"/>
+      <use href="#icoCheckCircle" xlink:href="#icoCheckCircle" x="904" y="584"/>
+      <text x="920" y="588" font-size="12" fill="#9fe6c6">QC v2: тишина, темп, длина, уровень — в норме</text>
+    </g>
+  </g>
+
+  <!-- ============ 2. ЖИВОЙ ТЕКСТ README ============ -->
+  <line x1="60" y1="652" x2="1440" y2="652" stroke="#1b2434" stroke-width="1"/>
+  <text x="1440" y="646" text-anchor="end" font-size="13" fill="#5A6675">живой текст README — ссылки, бейджи и кнопка (картинкой не заменить)</text>
+
+  <!-- бейджи -->
+  <g>
+    <rect x="60" y="672" width="84" height="34" rx="17" fill="#101c2e" stroke="#2a4a7a" stroke-width="1.2"/>
+    <text x="102" y="694" text-anchor="middle" font-size="14" font-weight="600" fill="#8B9BFF">v1.8</text>
+
+    <rect x="156" y="672" width="138" height="34" rx="17" fill="#121a26" stroke="#263449" stroke-width="1.2"/>
+    <text x="225" y="694" text-anchor="middle" font-size="14" fill="#A6B2C4">Windows 10/11</text>
+
+    <rect x="306" y="672" width="116" height="34" rx="17" fill="#121a26" stroke="#263449" stroke-width="1.2"/>
+    <text x="364" y="694" text-anchor="middle" font-size="14" fill="#A6B2C4">AGPL-3.0</text>
+
+    <rect x="434" y="672" width="186" height="34" rx="17" fill="#121a26" stroke="#263449" stroke-width="1.2"/>
+    <text x="527" y="694" text-anchor="middle" font-size="14" fill="#A6B2C4">Офлайн, без облака</text>
+
+    <rect x="632" y="672" width="118" height="34" rx="17" fill="#121a26" stroke="#263449" stroke-width="1.2"/>
+    <text x="691" y="694" text-anchor="middle" font-size="14" fill="#A6B2C4">Бесплатно</text>
+
+    <text x="770" y="694" font-size="13" font-style="italic" fill="#5A6675">CI-бейдж убран вниз — он для разработчиков, а не для нового пользователя</text>
+  </g>
+
+  <!-- кнопки -->
+  <g>
+    <rect x="60" y="726" width="430" height="62" rx="12" fill="url(#btnGrad)"/>
+    <use href="#icoDownload" xlink:href="#icoDownload" x="100" y="753" color="#0B1020"/>
+    <text x="132" y="765" font-size="21" font-weight="700" fill="#0B1020">Скачать AnkiVoice</text>
+    <text x="336" y="765" font-size="15" font-weight="600" fill="#0B1020" fill-opacity="0.78">Windows · 125 МБ</text>
+
+    <rect x="510" y="726" width="310" height="62" rx="12" fill="#101927" stroke="#2b3a52" stroke-width="1.2"/>
+    <text x="534" y="762" font-size="16" font-weight="600" fill="#C7D2E4">Что нужно перед установкой</text>
+    <use href="#icoArrow" xlink:href="#icoArrow" x="782" y="757" color="#8FB8E8"/>
+
+    <text x="846" y="752" font-size="16" fill="#58a6ff">Как это работает</text>
+    <text x="846" y="776" font-size="16" fill="#58a6ff">Быстрый старт: 4 шага</text>
+
+    <text x="60" y="808" font-size="13" fill="#5A6675">Версия не вшита в кнопку: она всегда свежая в бейдже Releases.</text>
+    <text x="510" y="808" font-size="13" fill="#5A6675">движок 6–10 ГБ · модель голоса · AnkiConnect</text>
+  </g>
+
+  <!-- навигация -->
+  <line x1="60" y1="832" x2="1440" y2="832" stroke="#1b2434" stroke-width="1"/>
+  <text x="60" y="860" font-size="16" fill="#8FB8E8">Возможности · Как это работает · Установка · Интерфейс · Чтение иероглифов · Трабл · Разработка</text>
+  <text x="1440" y="860" text-anchor="end" font-size="16" fill="#8FB8E8">Русский | English</text>
+
+  <!-- ============ 3. СЛЕДУЮЩИЙ БЛОК (переносится наверх) ============ -->
+  <rect x="44" y="886" width="1412" height="214" rx="20" fill="none" stroke="#26364d" stroke-width="1.2" stroke-dasharray="7 7"/>
+  <text x="1456" y="878" text-anchor="end" font-size="13" fill="#5A6675">следующий блок: «Как это работает» — переносится сюда, сейчас он прятался под таблицей возможностей</text>
+
+  <g opacity="0.62">
+    <text x="76" y="930" font-size="22" font-weight="700" fill="#E7ECF5">Как это работает</text>
+
+    <rect x="76" y="950" width="420" height="64" rx="12" fill="#0c1322" stroke="#1f4b7a" stroke-width="1.4"/>
+    <text x="96" y="978" font-size="16" font-weight="700" fill="#E7ECF5">1 · Карточка Anki</text>
+    <text x="96" y="1000" font-size="13" fill="#7E8A9C">текст предложения + фуригана слова</text>
+
+    <use href="#icoArrow" xlink:href="#icoArrow" x="516" y="982" color="#58a6ff"/>
+
+    <rect x="536" y="950" width="420" height="64" rx="12" fill="#0c1322" stroke="#1f4b7a" stroke-width="1.4"/>
+    <text x="556" y="978" font-size="16" font-weight="700" fill="#E7ECF5">2 · Движок на своём ПК</text>
+    <text x="556" y="1000" font-size="13" fill="#7E8A9C">GPT-SoVITS или IndexTTS 2.5, 127.0.0.1</text>
+
+    <use href="#icoArrow" xlink:href="#icoArrow" x="976" y="982" color="#58a6ff"/>
+
+    <rect x="996" y="950" width="420" height="64" rx="12" fill="#0c1322" stroke="#1f4b7a" stroke-width="1.4"/>
+    <text x="1016" y="978" font-size="16" font-weight="700" fill="#E7ECF5">3 · ogg в полях карточки</text>
+    <text x="1016" y="1000" font-size="13" fill="#7E8A9C">SentenceAudio / ExpressionAudio, QC v2</text>
+
+    <text x="76" y="1048" font-size="14" fill="#7E8A9C">Всё считается на этом же компьютере — интернет не нужен. Один блок вместо таблицы на 10 строк.</text>
+  </g>
+
+  <!-- ============ подпись макета ============ -->
+  <text x="44" y="1126" font-size="13" fill="#465162">Макет: qa/design/a/hero.svg · qa/design/a/PROPOSAL.md — что и зачем менять в README.md и README.en.md</text>
+</svg>
