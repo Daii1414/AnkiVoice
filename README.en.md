@@ -3,17 +3,12 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Daii1414/AnkiVoice/actions/workflows/checks.yml">
-    <img alt="CI" src="https://github.com/Daii1414/AnkiVoice/actions/workflows/checks.yml/badge.svg">
-  </a>
   <a href="https://github.com/Daii1414/AnkiVoice/releases/latest">
     <img alt="Release" src="https://img.shields.io/github/v/release/Daii1414/AnkiVoice?label=release&color=8B9BFF">
   </a>
   <a href="https://github.com/Daii1414/AnkiVoice/blob/main/LICENSE">
     <img alt="AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-4F46E5.svg">
   </a>
-  <img alt="Windows 10/11" src="https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6?logo=windows&logoColor=white">
-  <img alt="No cloud" src="https://img.shields.io/badge/data-off%20line%2C%20no%20cloud-12A150">
 </p>
 
 <p align="center"><b>Japanese audio for your Anki cards</b><br>
@@ -31,16 +26,12 @@ straight in the Anki fields.</p>
 </p>
 
 <p align="center">
-  <img alt="Windows 10/11" src="https://img.shields.io/badge/Windows%2010%2F11-0078D6?logo=windows&logoColor=white">
-  <img alt="NVIDIA GPU from 6 GB" src="https://img.shields.io/badge/NVIDIA%20GPU%20%E2%89%A5%206%20GB-0078D6">
-  <img alt="Free" src="https://img.shields.io/badge/free-12A150">
-  <img alt="No cloud, no telemetry" src="https://img.shields.io/badge/no%20cloud%2C%20no%20telemetry-12A150">
-  <img alt="AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-4F46E5.svg">
+  <img src="doc/shots/hero.en.png" alt="How AnkiVoice voices an Anki card: a neural speech model reads the kanji, the reading of the term comes from the card furigana, the sound lands in the card field" width="1000">
 </p>
 
 <p align="center">
   <a href="#how-it-works">How it works</a> •
-  <a href="#quick-start">Install</a> •
+  <a href="#your-first-sound">Install</a> •
   <a href="#interface-four-tabs">Interface</a> •
   <a href="#how-kanji-are-read">Reading</a> •
   <a href="#troubleshooting">If it does not work</a> •
@@ -59,7 +50,7 @@ straight in the Anki fields.</p>
 - [What this is and who it is for](#what-this-is-and-who-it-is-for)
 - [How it works](#how-it-works)
 - [What you need before installing](#what-you-need-before-installing)
-- [Your first sound in 60 seconds](#your-first-sound-in-60-seconds)
+- [Your first sound](#your-first-sound)
 - [Interface (four tabs)](#interface-four-tabs)
 - [Pronunciation check](#pronunciation-check)
 - [A second engine: IndexTTS 2.5](#a-second-engine-indextts-25)
@@ -78,6 +69,17 @@ straight in the Anki fields.</p>
 
 ---
 
+## What this is and who it is for
+
+| Who you are | What you get | Read next |
+|---|---|---|
+| I learn Japanese with Anki cards | ready `.ogg` files in the card fields, all local | [Your first sound](#your-first-sound) |
+| I want a specific voice | a 3-10 s reference plus the engine weights | [Which engine to pick](#a-second-engine-indextts-25) |
+| I want the terms read exactly | the reading comes from the card's furigana | [How kanji are read](#how-kanji-are-read) |
+| I am looking for a TTS HTTP API | not this one: it is an Anki app, not a service | — |
+
+![One card before and after: AnkiVoice does not change the card text and adds sound to two fields](doc/shots/before-after.en.png)
+
 ## Features
 
 | | |
@@ -92,9 +94,12 @@ straight in the Anki fields.</p>
 | 🌐 **Two languages** | The whole interface in English and Russian - switch with the EN button in the header. |
 | 🔒 **Fully local** | The page works offline, without a CDN. The only outbound request is the update check. |
 | 🧩 **Transparent** | No telemetry, no accounts. AGPL-3.0 - the sources are open. |
+> **Hear what it sounds like:** [demo clip](doc/gptsovits/gpt-sovits-demo.mp4) —
+> Japanese sentences voiced by a model (the synthesis runs offline on your machine).
+
 ## How it works
 
-![How it works](doc/how-it-works.en.svg)
+![What happens to a card: furigana from the card → the model reads the kanji → sound in the card field](doc/shots/how-it-works.en.png)
 
 AnkiVoice does not copy the engine's code: [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS)
 runs as an ordinary local server, the app sends it text and takes the sound back.
@@ -103,7 +108,7 @@ So the engine's own web interface and any of its voices keep working next to it.
 
 | What | Where to get it | Size | Required | Why |
 |---|---|---|---|---|
-| **AnkiVoice** (the app) | [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) → `AnkiVoice-Setup-1.9.exe` | 125 MB, ~1 GB on disk | yes | the window, the local server, the reading dictionary |
+| **AnkiVoice** (the app) | [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) → `AnkiVoice-Setup-x.y.exe` | 125 MB, ~1 GB on disk | yes | the window, the local server, the reading dictionary |
 | **Anki + AnkiConnect** | Anki → Add-ons → code `2055492159` | ~0 MB | yes | the bridge to your decks and fields |
 | **An engine** (one of two) | [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS/releases) or [IndexTTS 2.5](https://github.com/index-tts/index-tts) | 6-10 GB or ~5 GB | yes, one | speech synthesis |
 | **A voice** | with the engine or from the community | weights + a 3-10 s reference | yes | timbre and speech character |
@@ -125,14 +130,17 @@ Nothing else has to be installed: the reading dictionary and the bundled Python
 are already inside the installer (`pyruntime.zip`, `sudachidict.zip`) and
 unpack themselves.
 
-## Your first sound in 60 seconds
+## Your first sound
+
+The speech engine is a separate download - that is the slow part of the setup (6-10 GB, once). With the engine in place it takes about a minute from picking the deck to the first sound: choose the deck, choose the voice, press "Start dubbing".
 
 ![The setup wizard: engine, folder, AnkiConnect, test phrase](doc/shots/wizard-dark.png)
 
-1. Download **`AnkiVoice-Setup-1.8.exe`** from the
+1. Download the installer **`AnkiVoice-Setup-x.y.exe`** from the
    [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) page — one
-   file with everything inside. Size **125 MB**, SHA256:
-   `385481551c6404ec8927a37d6c234630c87ee71660aa5c689eab9654da0dbc28`
+   file with everything inside, **125 MB**. The checksum is in the release
+   notes; check it with
+   `certutil -hashfile AnkiVoice-Setup-x.y.exe SHA256`.
    (The **Code → Download ZIP** button gives you the sources, not the installer —
    you do not need to unpack and run those by hand.)
 2. Run it: **“Далее” → “Установить” → “Завершить”** (Next → Install → Finish;
@@ -299,13 +307,6 @@ What is missing in the IndexTTS mode:
 * the manual sampling settings (seed, temperature, top_p, top_k) - IndexTTS
   has none, the interface hides them.
 
-## What's new in 1.8
-
-- **The repository root is tidy:** the code lives in `app/`, the heavy archives
-  (the bundled Python and the Sudachi dictionary) in `bundled/`, the lab in
-  `lab/`, the interface checks in `qa/`.
-- **`AnkiVoice.exe` is no longer in the repository** - it is a build artifact.
-
 ## Pronunciation check
 
 GPT-SoVITS sometimes **loses a chunk of a sentence or invents extra**: the
@@ -354,15 +355,6 @@ it, not against one global number.
 What it needs: `faster-whisper` in the GPT-SoVITS python and one downloaded
 model (in the HuggingFace cache). Without them the check simply does not run
 and dubbing goes on as usual. One piece takes about 0.5 s on a GPU.
-## What this is and who it is for
-
-| Who you are | What you get | Read next |
-|---|---|---|
-| I learn Japanese with Anki cards | ready `.ogg` files in the card fields, all local | [Your first sound in 60 seconds](#quick-start) |
-| I want a specific voice | a 3-10 s reference plus the engine weights | [Which engine to pick](#a-second-engine-indextts-25) |
-| I want the terms read exactly | the reading comes from the card's furigana | [How kanji are read](#how-kanji-are-read) |
-| I am looking for a TTS HTTP API | not this one: it is an Anki app, not a service | — |
-
 ## How kanji are read
 
 GPT-SoVITS can read kanji on its own - but on rare terms it picks its own
@@ -445,8 +437,9 @@ source).
 
 Reading is covered by tests: `pipeline.bat selftest` (10 substitution checks
 and 11 reading-mode checks) and the extended battery
-`python kana_stress.py` (63 difficult words). Detailed measurements live in
-[doc/reports/](doc/reports).
+`python app/kana_stress.py` (63 difficult words). Detailed measurements live in
+[doc/reports/](doc/reports); every number quoted on this page is collected in
+[doc/reports/MEASUREMENTS.en.md](doc/reports/MEASUREMENTS.en.md).
 
 ## Card fields
 
@@ -562,7 +555,7 @@ set ENGINE=C:\Path\To\GPT-SoVITS
 ISCC.exe AnkiVoice.iss
 ```
 
-→ produces `dist\AnkiVoice-Setup-1.8.exe`.
+→ produces `dist\AnkiVoice-Setup-x.y.exe`.
 
 **tests** (Python 3.12+, no GPU and no network needed):
 
@@ -628,6 +621,12 @@ Not tracked by git: `gptsovits_path.txt`, `pyruntime/` (unpacked from the zip),
 * Development rules, build, commit style — in
   [CONTRIBUTING.md](CONTRIBUTING.md).
 * Vulnerabilities — follow the instructions in [SECURITY.md](SECURITY.md).
+
+<p align="center">
+  <a href="https://github.com/Daii1414/AnkiVoice/actions/workflows/checks.yml">
+    <img alt="CI" src="https://github.com/Daii1414/AnkiVoice/actions/workflows/checks.yml/badge.svg">
+  </a>
+</p>
 
 ## License
 

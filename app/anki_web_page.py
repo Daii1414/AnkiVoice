@@ -393,7 +393,6 @@ select{cursor:pointer}
   <div class="topbar">
     <div class="brand"><span class="logo">A</span> <span class="brandname">AnkiVoice</span></div>
     <div class="chips">
-      <span class="chip" id="chipVer">v…</span>
       <span class="chip" id="chipAnki"><span class="dot"></span>Anki: …</span>
       <span class="chip" id="chipTts"><span class="dot"></span>Сервер: …</span>
       <span class="chip" id="chipRun" style="display:none"><span class="dot"></span>Выполняется</span>
@@ -487,11 +486,13 @@ select{cursor:pointer}
             <input type="checkbox" id="force"> Пересобрать всё заново
           </label>
           <label class="switch" style="align-self:center;padding-bottom:12px"
-                 title="Распознаёт каждую озвученную карточку и сверяет с текстом. Это в 10 раз дольше: первый звук с IndexTTS — минуты вместо секунд">
-            <input type="checkbox" id="verifyPron"> Проверять произношение
+                 title="Распознаёт каждую озвученную карточку и сверяет с текстом. Озвучка идёт примерно в 10 раз дольше: первая карточка — минуты вместо секунд">
+            <input type="checkbox" id="verifyPron"> Проверять произношение (в 10 раз дольше)
           </label>
         </div>
         <div class="hint" id="pronHint">—</div>
+        <div class="hint">С этой проверкой первая карточка идёт минуты вместо секунд.
+          Приложение не зависает — журнал и полоса прогресса продолжают обновляться.</div>
       </div>
 
       <div class="card">
@@ -728,7 +729,6 @@ select{cursor:pointer}
       <div class="card">
         <div class="log-head">
           <h2>Обновление</h2>
-          <span class="hint" id="curVersion" style="margin:0"></span>
         </div>
         <div class="row">
           <button class="btn" id="btnUpdate" title="Сходит в сеть на GitHub и покажет changelog">Проверить обновления</button>
@@ -752,6 +752,7 @@ select{cursor:pointer}
         <table class="tbl">
           <tbody>
             <tr><td class="k">Программа</td><td class="v" id="pCode">—</td></tr>
+            <tr><td class="k">Версия</td><td class="v" id="pVersion">—</td></tr>
             <tr><td class="k">Конфиг</td><td class="v" id="pCfg">—</td></tr>
             <tr><td class="k">Медиа Anki (куда падает звук)</td><td class="v" id="pMedia">—</td></tr>
             <tr><td class="k">Журнал и отчёт о сбоях</td><td class="v" id="pLog">—</td></tr>
@@ -883,8 +884,9 @@ function translateDom(root){
       if(tr) el.placeholder = tr; });
   }
 }
-const AV_DATA_SEL = "option, script, style, #pCode, #pCfg, #sideFoot, #gptpath, " +
-  "#deck, #deck2, #voice, #vlist, #veName, #v_ref, #v_prompt, #auxList, #a_disp, " +
+const AV_DATA_SEL = "option, script, style, #pCode, #pCfg, #pVersion, #sideFoot, " +
+  "#gptpath, #deck, #deck2, #voice, #vlist, #veName, #v_ref, #v_prompt, #auxList, " +
+  "#a_disp, " +
   "#a_ref, #a_gpt, #a_sov, #a_txt, #wzPath, #wzText, #testFile, #mPath, #mTitle, " +
   "#voiceHint, #fieldsSaved, #deckHint, #doctor, #updateBox, #log, #progText";
 function reportUntranslated(){
@@ -1015,8 +1017,9 @@ async function loadState(){
   }
   const c = ST.cfg || {};
   if(c.theme) document.documentElement.dataset.theme = c.theme;
-  $("chipVer").textContent = "v" + (ST.version || "?");
-  $("curVersion").textContent = "Установлено v" + (ST.version || "?");
+  // Версию видно в настройках («Где лежат файлы»). В шапке её нет:
+  // номер меняется в каждом релизе, а плашка там только отвлекает.
+  $("pVersion").textContent = ST.version || "—";
 
   // статусы
   chip($("chipAnki"), ST.anki, "Anki", ST.anki ? "подключена" : "не подключена");
@@ -1067,7 +1070,7 @@ async function loadState(){
   const pr = (ST && ST.pron) || {};
   if($("pronHint")){
     $("pronHint").innerHTML = pr.ok
-      ? "Доступна: <b>" + esc(pr.msg || "") + "</b>. Каждый кусок распознаём и сверяем с текстом — мусор переделаем сами. Внимание: проверка замедляет озвучку примерно в 10 раз."
+      ? "Доступна: <b>" + esc(pr.msg || "") + "</b>. Каждый кусок звука распознаётся и сверяется с текстом — сомнительные карточки помечаются, а решение принимаешь ты."
       : "Недоступна: " + esc(pr.msg || "нет данных") +
         ". Нужна faster-whisper в питоне движка и скачанная модель (~1,5 ГБ) " +
         "в кэше HuggingFace — качать заранее, из приложения нечем. Без неё " +
@@ -1266,10 +1269,13 @@ function renderVoiceList(){
   const list = voiceEntries();
   $("vlist").innerHTML = list.map(v=>{
     const disp = v.display || v.name;
+    // ключ голоса (narrator, madara) — внутреннее имя: в карточке его нет,
+    // человек видит имя, под которым голос записан в voices.json
     return '<div class="vcard" data-n="'+esc(v.name)+'">'+
       '<div class="nm">'+esc(disp)+'</div>'+
-      '<div class="st '+(v.ok?"ok":"no")+'">'+(v.ok?"✓ файлы на месте":"✗ нет gpt/sovits/ref")+'</div>'+
-      '<div class="st">'+esc(v.name)+'</div></div>';
+      '<div class="st '+(v.ok?"ok":"no")+'">'+
+        (v.ok ? "✓ файлы на месте" : "✗ не хватает весов или референса")+
+      '</div></div>';
   }).join("") || '<div class="empty">Голосов нет — нажми «Добавить голос».</div>';
   document.querySelectorAll(".vcard").forEach(c=>{
     c.onclick = ()=>selectVoice(c.dataset.n);
@@ -1293,7 +1299,7 @@ function fillVoiceSelect(prefer){
   markSelected(sel.value);
   const selV = list.find(v=>v.name===sel.value);
   $("voiceHint").innerHTML = selV
-    ? (selV.ok ? "Файлы весов на месте." : '<span style="color:var(--err)">У голоса не найдены файлы gpt/sovits/ref.</span>')
+    ? (selV.ok ? "Файлы весов на месте." : '<span style="color:var(--err)">Не хватает весов (.ckpt и .pth) или референса.</span>')
     : "";
   $("testFile").textContent = "test_" + (sel.value || "…") + ".ogg";
 }
@@ -1315,7 +1321,7 @@ function openVoiceEditor(name){
   if(!v){ $("voiceEdit").style.display="none"; return; }
   EDIT = name;
   $("voiceEdit").style.display = "";
-  $("veName").textContent = (v.display || name) + "  ·  " + name;
+  $("veName").textContent = v.display || name;
   $("v_ref").value = v.ref || "";
   $("v_prompt").value = v.prompt_text || "";
   $("v_lang").value = v.prompt_lang || "ja";

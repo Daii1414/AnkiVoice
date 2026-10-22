@@ -85,6 +85,18 @@ def main():
             else:
                 ok("%s: якорь #%s есть" % (name, a))
 
+    # ---- 3a. все внутренние ссылки (не только оглавление) ведут куда-то ----
+    # Раньше проверялись только ссылки из оглавления, поэтому мёртвая ссылка
+    # в шапке или в таблице проходила CI молча.
+    for doc, name in ((ru, "README.md"), (en, "README.en.md")):
+        have = anchors(doc)
+        for m in re.finditer(r"\]\(#([^)]+)\)", doc):
+            a = m.group(1).strip()
+            if a and a not in have:
+                fail("%s: ссылка #%s не ведёт ни на один заголовок" % (name, a))
+            else:
+                ok("%s: ссылка #%s есть" % (name, a))
+
     # ---- 4. команды консоли существуют ----
     pipeline = read("app/voice_pipeline.py")
     cmds = set(re.findall(r'add_parser\("([^"]+)"', pipeline))

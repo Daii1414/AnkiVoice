@@ -24,6 +24,7 @@ I18N_EN = {
     "Anki: …": "Anki: …",
     "Сервер: …": "Server: …",
     "Программа": "Program",
+    "Версия": "Version",
     "Конфиг": "Config",
 
     # --- вкладка «Озвучка» ---
@@ -42,6 +43,11 @@ I18N_EN = {
     "0 = все": "0 = all",
     "Пересобрать всё заново": "Rebuild everything",
     "Проверять произношение": "Check pronunciation",
+    "Проверять произношение (в 10 раз дольше)": "Check pronunciation (10× longer)",
+    "С этой проверкой первая карточка идёт минуты вместо секунд. "
+    "Приложение не зависает — журнал и полоса прогресса продолжают обновляться.":
+        "With this check the first card takes minutes instead of seconds. "
+        "The app does not freeze — the log and the progress bar keep updating.",
     "▶ Начать озвучку": "▶ Start dubbing",
     "■ Остановить": "■ Stop",
     "Проверить колоду": "Check deck",

@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="716" viewBox="0 0 1400 716"
+     role="img" aria-label="Блок «Одна карточка — до и после»: слева карточка Anki без звука, справа та же карточка с озвучкой в полях SentenceAudio и ExpressionAudio"
+     xml:lang="ru"
+     font-family="Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+
+  <defs>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#101a2b" stop-opacity="0.6"/>
+      <stop offset="0.35" stop-color="#0a0f1a" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="waveGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4CD797" stop-opacity="0.45"/>
+      <stop offset="0.5" stop-color="#4CD797" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#58a6ff" stop-opacity="0.4"/>
+    </linearGradient>
+    <g id="icoMute" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M-8 -3 H-4 L1 -7 V7 L-4 3 H-8 Z"/>
+      <path d="M4 -4 L9 4 M9 -4 L4 4"/>
+    </g>
+    <g id="icoPlay" fill="currentColor">
+      <path d="M-6 -8 L8 0 L-6 8 Z"/>
+    </g>
+    <g id="icoCheck" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M-6 0 L-2 4 L6 -4"/>
+    </g>
+  </defs>
+
+  <rect width="1400" height="740" fill="#0a0f1a"/>
+  <rect width="1400" height="740" fill="url(#sheen)"/>
+
+  <!-- заголовок блока -->
+  <text x="56" y="76" font-size="38" font-weight="800" fill="#ffffff">Одна карточка — до и после</text>
+  <rect x="58" y="94" width="82" height="7" fill="#58a6ff"/>
+  <text x="160" y="100" font-size="17" fill="#97A1B3">Приложение не трогает текст карточки. Оно добавляет звук — в два поля.</text>
+
+  <!-- ================= ЛЕВО: без озвучки ================= -->
+  <g>
+    <rect x="56" y="130" width="560" height="440" rx="18" fill="#0c1322" stroke="#1f2c42" stroke-width="1.6"/>
+    <text x="84" y="170" font-size="21" font-weight="700" fill="#8492a6">Без AnkiVoice</text>
+    <line x1="84" y1="188" x2="588" y2="188" stroke="#1b2740" stroke-width="1"/>
+
+    <rect x="84" y="206" width="504" height="152" rx="12" fill="#0d1526" stroke="#24344d" stroke-width="1.2"/>
+    <text x="104" y="234" font-size="12" fill="#6F7B8D">Лицевая сторона карточки</text>
+    <text x="104" y="266" font-size="13" fill="#7cb8ff">てんぐん</text>
+    <line x1="104" y1="272" x2="164" y2="272" stroke="#58a6ff" stroke-width="1" stroke-opacity="0.5"/>
+    <text x="104" y="308" font-size="26" fill="#E7ECF5">点群データは凝固する</text>
+    <text x="104" y="342" font-size="13" fill="#6F7B8D">Expression · Sentence</text>
+
+    <rect x="84" y="378" width="504" height="52" rx="10" fill="#101927" stroke="#24344d" stroke-width="1.1"/>
+    <text x="104" y="410" font-size="15" fill="#97A1B3">SentenceAudio</text>
+    <text x="568" y="410" text-anchor="end" font-size="14" fill="#5B6779">поле пустое</text>
+
+    <rect x="84" y="440" width="504" height="52" rx="10" fill="#101927" stroke="#24344d" stroke-width="1.1"/>
+    <text x="104" y="472" font-size="15" fill="#97A1B3">ExpressionAudio</text>
+    <text x="568" y="472" text-anchor="end" font-size="14" fill="#5B6779">поле пустое</text>
+
+    <text x="84" y="534" font-size="14" fill="#6F7B8D">Карточка молчит. Иероглифы читаются глазами, а не ухом.</text>
+  </g>
+
+  <!-- ================= стрелка ================= -->
+  <g>
+    <text x="700" y="286" text-anchor="middle" font-size="15" font-weight="700" fill="#58a6ff">нажал</text>
+    <text x="700" y="308" text-anchor="middle" font-size="13" fill="#9fd0ff">«Начать озвучку»</text>
+    <path d="M656 344 H744" stroke="#58a6ff" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+    <path d="M736 337 L746 344 L736 351" fill="none" stroke="#58a6ff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="700" y="386" text-anchor="middle" font-size="12" fill="#6F7B8D">всё локально</text>
+  </g>
+
+  <!-- ================= ПРАВО: после ================= -->
+  <g>
+    <rect x="784" y="130" width="560" height="440" rx="18" fill="#0c1322" stroke="#1f4b7a" stroke-width="1.8"/>
+    <text x="812" y="170" font-size="21" font-weight="700" fill="#EAF0FA">После AnkiVoice</text>
+    <line x1="812" y1="188" x2="1316" y2="188" stroke="#1f4b7a" stroke-width="1"/>
+
+    <rect x="812" y="206" width="504" height="152" rx="12" fill="#0d1526" stroke="#24344d" stroke-width="1.2"/>
+    <text x="832" y="234" font-size="12" fill="#6F7B8D">Лицевая сторона карточки — та же самая</text>
+    <text x="832" y="266" font-size="13" fill="#7cb8ff">てんぐん</text>
+    <line x1="832" y1="272" x2="892" y2="272" stroke="#58a6ff" stroke-width="1" stroke-opacity="0.5"/>
+    <text x="832" y="308" font-size="26" fill="#E7ECF5">点群データは凝固する</text>
+    <text x="832" y="342" font-size="13" fill="#6F7B8D">Expression · Sentence</text>
+
+    <rect x="812" y="378" width="504" height="52" rx="10" fill="#0d1a17" stroke="#1f4a33" stroke-width="1.1"/>
+    <text x="832" y="410" font-size="15" fill="#9fe6c6">SentenceAudio</text>
+    <use href="#icoPlay" x="1128" y="404" color="#4CD797"/>
+    <text x="1148" y="410" font-family="Consolas, 'JetBrains Mono', monospace" font-size="13" fill="#4CD797">tts_8f2c91.ogg</text>
+    <g fill="url(#waveGrad)">
+      <rect x="1258" y="398" width="4" height="12" rx="2"/>
+      <rect x="1267" y="392" width="4" height="18" rx="2"/>
+      <rect x="1276" y="396" width="4" height="14" rx="2"/>
+      <rect x="1285" y="388" width="4" height="22" rx="2"/>
+      <rect x="1294" y="394" width="4" height="16" rx="2"/>
+      <rect x="1303" y="390" width="4" height="20" rx="2"/>
+    </g>
+
+    <rect x="812" y="440" width="504" height="52" rx="10" fill="#0d1a17" stroke="#1f4a33" stroke-width="1.1"/>
+    <text x="832" y="472" font-size="15" fill="#9fe6c6">ExpressionAudio</text>
+    <use href="#icoPlay" x="1128" y="466" color="#4CD797"/>
+    <text x="1148" y="472" font-family="Consolas, 'JetBrains Mono', monospace" font-size="13" fill="#4CD797">tts_33ba07.ogg</text>
+    <g fill="url(#waveGrad)">
+      <rect x="1258" y="464" width="4" height="8"  rx="2"/>
+      <rect x="1267" y="458" width="4" height="14" rx="2"/>
+      <rect x="1276" y="462" width="4" height="10" rx="2"/>
+      <rect x="1285" y="456" width="4" height="16" rx="2"/>
+      <rect x="1294" y="460" width="4" height="12" rx="2"/>
+      <rect x="1303" y="458" width="4" height="14" rx="2"/>
+    </g>
+
+    <text x="812" y="534" font-size="14" fill="#8FB8E8">Тот же текст, тот же термин, тот же голос — плюс звук.</text>
+  </g>
+
+  <!-- ================= честные сноски ================= -->
+  <g>
+    <rect x="56" y="598" width="1288" height="104" rx="16" fill="#0c1322" stroke="#1f2c42" stroke-width="1.4"/>
+    <line x1="480" y1="620" x2="480" y2="680" stroke="#1b2740" stroke-width="1"/>
+    <line x1="900" y1="620" x2="900" y2="680" stroke="#1b2740" stroke-width="1"/>
+
+    <use href="#icoCheck" x="86" y="634" color="#58a6ff"/>
+    <text x="106" y="640" font-size="16" font-weight="600" fill="#E7ECF5">Текст карточки не меняется</text>
+    <text x="106" y="666" font-size="14" fill="#8492a6">Приложение пишет только в поля звука.</text>
+    <text x="106" y="686" font-size="14" fill="#8492a6">Разметка, теги и карточки — без изменений.</text>
+
+    <use href="#icoCheck" x="510" y="634" color="#58a6ff"/>
+    <text x="530" y="640" font-size="16" font-weight="600" fill="#E7ECF5">Отменить озвучку нельзя</text>
+    <text x="530" y="666" font-size="14" fill="#8492a6">Старый .ogg остаётся в папке медиа Anki,</text>
+    <text x="530" y="686" font-size="14" fill="#8492a6">но ссылка на него в карточке теряется.</text>
+
+    <use href="#icoCheck" x="930" y="634" color="#58a6ff"/>
+    <text x="950" y="640" font-size="16" font-weight="600" fill="#E7ECF5">Лимит — это объём работы</text>
+    <text x="950" y="666" font-size="14" fill="#8492a6">«Озвучить 20 карточек» — это 20 карточек</text>
+    <text x="950" y="686" font-size="14" fill="#8492a6">без звука, а не первые 20 в колоде.</text>
+  </g>
+</svg>

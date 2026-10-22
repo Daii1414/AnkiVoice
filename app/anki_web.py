@@ -117,6 +117,23 @@ CURRENT = None          # type: Run | None
 LAST_RUN = None         # последний завершённый — чтобы лог не пропадал
 
 
+def _mode_ru(mode):
+    """Режим чтения словами: в журнале не должно быть ключей конфига."""
+    return {"both": "слово + предложение", "sentence": "только предложение",
+            "expression": "только слово"}.get(mode, mode)
+
+
+def _voice_ru(name):
+    """Имя голоса для журнала — то же, что человек видит в списке."""
+    if not name:
+        return "по умолчанию"
+    try:
+        v = read_voices_file().get("voices", {}).get(name) or {}
+    except Exception:
+        v = {}
+    return v.get("display") or name
+
+
 def _run_headline(args):
     """Первая строка журнала — по-человечески, а не флагами командной строки."""
     if not args:
@@ -126,11 +143,11 @@ def _run_headline(args):
             return args[args.index(flag) + 1] if flag in args else ""
 
         deck = val("--deck")
-        voice = val("--voice")
-        mode = val("--mode") or "both"
+        voice = _voice_ru(val("--voice"))
+        mode = _mode_ru(val("--mode") or "both")
         limit = val("--limit")
         what = ("лимит %s карточек" % limit) if limit else "вся колода"
-        return ("Начинаю озвучку: колода «%s», голос «%s», режим %s, %s."
+        return ("Начинаю озвучку: колода «%s», голос «%s», режим «%s», %s."
                 % (deck, voice, mode, what))
     return "» " + " ".join(args)
 

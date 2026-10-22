@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="812" viewBox="0 0 1400 812"
+     role="img" aria-label="Блок «What happens to a card»: три шага — карточка с фуриганой, движок читает иероглифы сам, звук ложится в поле карточки"
+     xml:lang="ru"
+     font-family="Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+
+  <defs>
+    <linearGradient id="sheen2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#101a2b" stop-opacity="0.6"/>
+      <stop offset="0.35" stop-color="#0a0f1a" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="waveGrad2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#58a6ff" stop-opacity="0.35"/>
+      <stop offset="0.5" stop-color="#58a6ff" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#4CD797" stop-opacity="0.45"/>
+    </linearGradient>
+    <g id="num1">
+      <circle r="20" fill="#12203a" stroke="#58a6ff" stroke-width="2"/>
+      <text y="7" text-anchor="middle" font-size="19" font-weight="700" fill="#9fd0ff">1</text>
+    </g>
+    <g id="num2">
+      <circle r="20" fill="#12203a" stroke="#58a6ff" stroke-width="2"/>
+      <text y="7" text-anchor="middle" font-size="19" font-weight="700" fill="#9fd0ff">2</text>
+    </g>
+    <g id="num3">
+      <circle r="20" fill="#12203a" stroke="#58a6ff" stroke-width="2"/>
+      <text y="7" text-anchor="middle" font-size="19" font-weight="700" fill="#9fd0ff">3</text>
+    </g>
+    <g id="icoCheck" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M-6 0 L-2 4 L6 -4"/>
+    </g>
+  </defs>
+
+  <rect width="1400" height="820" fill="#0a0f1a"/>
+  <rect width="1400" height="820" fill="url(#sheen2)"/>
+
+  <text x="56" y="76" font-size="38" font-weight="800" fill="#ffffff">What happens to a card</text>
+  <rect x="58" y="94" width="82" height="7" fill="#58a6ff"/>
+  <text x="160" y="100" font-size="17" fill="#97A1B3">The three steps the app runs when you press “Start dubbing”.</text>
+
+  <!-- =============== ШАГ 1 =============== -->
+  <g>
+    <rect x="56" y="140" width="416" height="500" rx="18" fill="#0c1322" stroke="#1f2c42" stroke-width="1.6"/>
+    <use href="#num1" x="96" y="180"/>
+    <text x="132" y="190" font-size="24" font-weight="700" fill="#EAF0FA">The card</text>
+
+    <rect x="80" y="216" width="368" height="150" rx="12" fill="#0d1526" stroke="#24344d" stroke-width="1.2"/>
+    <text x="100" y="242" font-size="12" fill="#6F7B8D">Front of the card</text>
+    <text x="100" y="276" font-size="13" fill="#7cb8ff">てんぐん</text>
+    <line x1="100" y1="282" x2="148" y2="282" stroke="#58a6ff" stroke-width="1" stroke-opacity="0.5"/>
+    <text x="100" y="320" font-size="24" fill="#E7ECF5">点群データは凝固する</text>
+    <rect x="100" y="330" width="164" height="28" rx="8" fill="#12203a" stroke="#58a6ff" stroke-width="1.1"/>
+    <text x="112" y="349" font-size="12" font-weight="600" fill="#9fd0ff">furigana: てんぐん</text>
+
+    <g font-size="15.5" fill="#C7D2E4">
+      <text x="80" y="404">Two fields are read from the deck:</text>
+      <text x="80" y="430">the sentence and the main term.</text>
+      <text x="80" y="456">The furigana comes with the term —</text>
+      <text x="80" y="482">when the card has one.</text>
+    </g>
+    <text x="80" y="530" font-size="13" fill="#6F7B8D">An empty furigana field means “read it yourself”.</text>
+    <text x="80" y="552" font-size="13" fill="#6F7B8D">Fields are set once per deck.</text>
+  </g>
+
+  <!-- =============== ШАГ 2 =============== -->
+  <g>
+    <rect x="492" y="140" width="416" height="500" rx="18" fill="#0c1322" stroke="#1f4b7a" stroke-width="1.8"/>
+    <use href="#num2" x="532" y="180"/>
+    <text x="568" y="190" font-size="24" font-weight="700" fill="#EAF0FA">The engine reads</text>
+
+    <rect x="516" y="216" width="368" height="150" rx="12" fill="#0c1a2e" stroke="#58a6ff" stroke-width="1.4"/>
+    <text x="536" y="242" font-size="12" fill="#7C879B">Engine input:</text>
+    <text x="536" y="282" font-family="Consolas, 'JetBrains Mono', monospace" font-size="16" fill="#9fd0ff">てんぐんデータは凝固する</text>
+    <text x="536" y="314" font-size="12" fill="#97A1B3">the term is replaced by its furigana reading,</text>
+    <text x="536" y="336" font-size="12" fill="#97A1B3">the rest stays kanji, in context</text>
+
+    <g transform="translate(826,268)" stroke="#58a6ff" fill="none">
+      <path d="M-30 -26 L0 -10 M-30 0 L0 -10 M-30 26 L0 10 M0 -10 L26 0 M0 10 L26 0"
+            stroke-width="1.4" stroke-opacity="0.5"/>
+      <circle cx="-30" cy="-26" r="4.6" fill="#58a6ff" stroke="none"/>
+      <circle cx="-30" cy="0" r="4.6" fill="#58a6ff" stroke="none"/>
+      <circle cx="-30" cy="26" r="4.6" fill="#58a6ff" stroke="none"/>
+      <circle cx="0" cy="-10" r="4.6" fill="#7cb8ff" stroke="none"/>
+      <circle cx="0" cy="10" r="4.6" fill="#7cb8ff" stroke="none"/>
+      <circle cx="26" cy="0" r="5.6" fill="#4CD797" stroke="none"/>
+    </g>
+
+    <g font-size="15.5" fill="#C7D2E4">
+      <text x="516" y="404">The engine gets the kanji sentence,</text>
+      <text x="516" y="430">whole: the model reads the kanji itself,</text>
+      <text x="516" y="456">in context — the sound is connected, not a set of</text>
+      <text x="516" y="482">separate words.</text>
+    </g>
+    <text x="516" y="530" font-size="13" fill="#6F7B8D">GPT-SoVITS or IndexTTS 2.5 — on your GPU,</text>
+    <text x="516" y="552" font-size="13" fill="#6F7B8D">over 127.0.0.1, no internet.</text>
+  </g>
+
+  <!-- =============== ШАГ 3 =============== -->
+  <g>
+    <rect x="928" y="140" width="416" height="500" rx="18" fill="#0c1322" stroke="#1f2c42" stroke-width="1.6"/>
+    <use href="#num3" x="968" y="180"/>
+    <text x="1004" y="190" font-size="24" font-weight="700" fill="#EAF0FA">Sound in the field</text>
+
+    <rect x="952" y="216" width="368" height="150" rx="12" fill="#0c1322" stroke="#1f4b7a" stroke-width="1.4"/>
+    <text x="972" y="242" font-size="12" fill="#6F7B8D">sound field</text>
+    <text x="972" y="272" font-family="Consolas, 'JetBrains Mono', monospace" font-size="15" fill="#4CD797">tts_8f2c91.ogg</text>
+    <rect x="1218" y="224" width="86" height="28" rx="14" fill="#0e2019" stroke="#1f4a33" stroke-width="1.1"/>
+    <use href="#icoCheck" x="1238" y="238" color="#4CD797"/>
+    <text x="1252" y="243" font-size="12" font-weight="600" fill="#9fe6c6">voiced</text>
+
+    <g fill="url(#waveGrad2)">
+      <rect x="972" y="330" width="4" height="12" rx="2"/>
+      <rect x="981" y="320" width="4" height="22" rx="2"/>
+      <rect x="990" y="326" width="4" height="16" rx="2"/>
+      <rect x="999" y="312" width="4" height="30" rx="2"/>
+      <rect x="1008" y="322" width="4" height="20" rx="2"/>
+      <rect x="1017" y="318" width="4" height="24" rx="2"/>
+      <rect x="1026" y="328" width="4" height="14" rx="2"/>
+      <rect x="1035" y="314" width="4" height="28" rx="2"/>
+      <rect x="1044" y="324" width="4" height="18" rx="2"/>
+      <rect x="1053" y="310" width="4" height="32" rx="2"/>
+      <rect x="1062" y="320" width="4" height="22" rx="2"/>
+      <rect x="1071" y="328" width="4" height="14" rx="2"/>
+      <rect x="1080" y="316" width="4" height="26" rx="2"/>
+      <rect x="1089" y="322" width="4" height="20" rx="2"/>
+      <rect x="1098" y="312" width="4" height="30" rx="2"/>
+      <rect x="1107" y="326" width="4" height="16" rx="2"/>
+      <rect x="1116" y="320" width="4" height="22" rx="2"/>
+      <rect x="1125" y="330" width="4" height="12" rx="2"/>
+      <rect x="1134" y="318" width="4" height="24" rx="2"/>
+      <rect x="1143" y="324" width="4" height="18" rx="2"/>
+      <rect x="1152" y="314" width="4" height="28" rx="2"/>
+      <rect x="1161" y="322" width="4" height="20" rx="2"/>
+      <rect x="1170" y="328" width="4" height="14" rx="2"/>
+      <rect x="1179" y="316" width="4" height="26" rx="2"/>
+      <rect x="1188" y="320" width="4" height="22" rx="2"/>
+      <rect x="1197" y="326" width="4" height="16" rx="2"/>
+      <rect x="1206" y="312" width="4" height="30" rx="2"/>
+      <rect x="1215" y="324" width="4" height="18" rx="2"/>
+      <rect x="1224" y="318" width="4" height="24" rx="2"/>
+      <rect x="1233" y="330" width="4" height="12" rx="2"/>
+      <rect x="1242" y="322" width="4" height="20" rx="2"/>
+      <rect x="1251" y="316" width="4" height="26" rx="2"/>
+      <rect x="1260" y="326" width="4" height="16" rx="2"/>
+      <rect x="1269" y="320" width="4" height="22" rx="2"/>
+      <rect x="1278" y="328" width="4" height="14" rx="2"/>
+      <rect x="1287" y="314" width="4" height="28" rx="2"/>
+      <rect x="1296" y="324" width="4" height="18" rx="2"/>
+    </g>
+
+    <g font-size="15.5" fill="#C7D2E4">
+      <text x="952" y="404">The result is an .ogg in the sound field.</text>
+      <text x="952" y="430">The file is checked by several</text>
+      <text x="952" y="456">independent signals, and a bad take is</text>
+      <text x="952" y="482">redone by the engine.</text>
+    </g>
+    <text x="952" y="530" font-size="13" fill="#6F7B8D">If that fails — the card stays</text>
+    <text x="952" y="552" font-size="13" fill="#6F7B8D">unvoiced and lands in the report.</text>
+  </g>
+
+  <!-- =============== подвал: самопроверка =============== -->
+  <g>
+    <rect x="56" y="664" width="1288" height="120" rx="16" fill="#0c1322" stroke="#1f2c42" stroke-width="1.4"/>
+    <rect x="56" y="664" width="6" height="120" rx="3" fill="#58a6ff"/>
+    <text x="92" y="700" font-size="21" font-weight="700" fill="#EAF0FA">And if it still sounds wrong?</text>
+    <text x="92" y="732" font-size="15" fill="#C7D2E4">A pronunciation check can be turned on separately: the app listens to its own sound</text>
+    <text x="92" y="754" font-size="15" fill="#C7D2E4">and compares it with the text — showing where the phrase drifted. It is advice, not a verdict:</text>
+    <text x="92" y="776" font-size="15" fill="#C7D2E4">on 27 marked cards there were 2 confirmed defects and 25 false alarms.</text>
+  </g>
+</svg>
