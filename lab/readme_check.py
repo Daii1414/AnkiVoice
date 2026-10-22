@@ -39,6 +39,9 @@ def main():
             rel = m.group(1).strip()
             if rel in (".github", "lab"):
                 continue
+            if rel == "AnkiVoice.exe":
+                # собирается скриптом, в репозитории его нет
+                continue
             if rel.startswith("lab/"):
                 target = os.path.join(ROOT, rel)
                 if not os.path.exists(target):
@@ -83,9 +86,9 @@ def main():
                 ok("%s: якорь #%s есть" % (name, a))
 
     # ---- 4. команды консоли существуют ----
-    pipeline = read("voice_pipeline.py")
+    pipeline = read("app/voice_pipeline.py")
     cmds = set(re.findall(r'add_parser\("([^"]+)"', pipeline))
-    gui = read("anki_gui.py")
+    gui = read("app/anki_gui.py")
     gui_cmds = set(re.findall(r'add_parser\("([^"]+)"', gui))
     for doc, name in ((ru, "README.md"), (en, "README.en.md")):
         for m in re.finditer(r"pipeline\.bat\s+([a-z][a-z-]+)", doc):
@@ -122,7 +125,7 @@ def main():
         fail("в README нет упоминания про 10 модулей установщика")
 
     # ---- 7. режимы чтения: авто (по полю с фуриганой) и только кандзи ----
-    page = read("anki_web_page.py")
+    page = read("app/anki_web_page.py")
     if '<option value="">' not in page:
         fail("в интерфейсе нет режима «авто» (пустое значение)")
     else:
@@ -131,7 +134,7 @@ def main():
         fail("в интерфейсе нет режима «только кандзи» (asis)")
     else:
         ok("в интерфейсе есть режим «только кандзи»")
-    pipe = read("voice_pipeline.py")
+    pipe = read("app/voice_pipeline.py")
     if "def reading_mode(" not in pipe:
         fail("в voice_pipeline.py нет reading_mode() — режим не выбирается по карточке")
     else:

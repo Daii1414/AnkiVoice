@@ -28,6 +28,7 @@ CODE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(CODE)          # корень репозитория: там лежит voice_pipeline.py
 sys.path.insert(0, CODE)
 sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.join(ROOT, "app"))
 PY = sys.executable
 ENV = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8",
            GPT_SOVITS_ROOT=os.environ.get("GPT_SOVITS_ROOT", ""))
@@ -129,7 +130,7 @@ check("битый путь движка -> ошибка перечисляет �
       r.stdout.strip()[:100])
 
 # 10. check --fast
-r = subprocess.run([PY, os.path.join(ROOT, "voice_pipeline.py"), "check",
+r = subprocess.run([PY, os.path.join(ROOT, "app", "voice_pipeline.py"), "check",
                     "--deck", "Тест100", "--fast"],
                    env=ENV, capture_output=True, text=True, timeout=300)
 first = (r.stdout or "").strip().splitlines()[0] if r.stdout.strip() else ""

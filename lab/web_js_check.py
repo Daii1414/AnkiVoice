@@ -11,6 +11,7 @@ import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app"))
 from anki_web_page import HTML  # noqa: E402
 
 m = re.search(r"<script>(.*?)</script>", HTML, re.S)

@@ -14,6 +14,7 @@ import traceback
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.join(ROOT, "app"))
 LAB = os.path.join(ROOT, "lab")
 if LAB not in sys.path:
     sys.path.insert(0, LAB)
@@ -665,17 +666,17 @@ def test_qa_first_users_fixes():
     # 7. адаптив для узкого окна
     check("@media (max-width:780px)" in html, "есть адаптив для узкого окна")
     # 8. ошибки без внутренних имён
-    src = io.open(os.path.join(ROOT, "anki_web.py"), encoding="utf-8").read()
+    src = io.open(os.path.join(ROOT, "app", "anki_web.py"), encoding="utf-8").read()
     check("Неизвестная операция. Обнови приложение." in src,
           "внутренние имена операций не показываем")
-    src = io.open(os.path.join(ROOT, "anki_web.py"), encoding="utf-8").read()
+    src = io.open(os.path.join(ROOT, "app", "anki_web.py"), encoding="utf-8").read()
     check('kind == "qc-deck"' in src, "веб-API знает операцию qc-deck")
     check('kind == "verdicts"' in src, "веб-API знает операцию verdicts")
     check("check_path" in src, "кнопка «Проверить» ничего не пишет в конфиг")
     check("Лимит карточек должен быть целым числом" in src,
           "сервер не пропускает мусор в лимите")
 
-    pipe = io.open(os.path.join(ROOT, "voice_pipeline.py"), encoding="utf-8").read()
+    pipe = io.open(os.path.join(ROOT, "app", "voice_pipeline.py"), encoding="utf-8").read()
     check("def _ensure_indextts_service" in pipe,
           "IndexTTS поднимает свой сервис, а не GPT-SoVITS")
     check("ids = ids[:args.limit]" in pipe,
@@ -684,7 +685,7 @@ def test_qa_first_users_fixes():
           "файл голоса ищется в папках обоих движков")
 
     # 2. второй круг разбора: конфиг не должен теряться при двух записих
-    gui = io.open(os.path.join(ROOT, "anki_gui.py"), encoding="utf-8").read()
+    gui = io.open(os.path.join(ROOT, "app", "anki_gui.py"), encoding="utf-8").read()
     check("os.replace(tmp, CONFIG_FILE)" in gui,
           "конфиг пишется через временный файл (две записи не убивают его)")
     check("CONFIG_LOCK" in gui, "запись конфига под замком")

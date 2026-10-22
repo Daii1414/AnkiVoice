@@ -10,7 +10,7 @@
 ; а в Program Files обычный пользователь писать не может.
 
 #define MyAppName "AnkiVoice"
-#define MyAppVersion "1.7"
+#define MyAppVersion "1.8"
 #define MyAppPublisher "Daii1414"
 #define MyAppURL "https://github.com/Daii1414/AnkiVoice"
 ; Исходники берём из каталога этого скрипта ({src}) — сборка одинаково
@@ -28,7 +28,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=dist
-OutputBaseFilename=AnkiVoice-Setup-1.7
+OutputBaseFilename=AnkiVoice-Setup-1.8
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
@@ -55,11 +55,11 @@ Source: "CHANGELOG.md";         DestDir: "{app}"; Flags: ignoreversion
 Source: "PROJECT.md";           DestDir: "{app}"; Flags: ignoreversion
 Source: "LICENSE";              DestDir: "{app}"; Flags: ignoreversion
 ; пайплайн (exe только запускает его — живёт на диске, обновляется git pull)
-Source: "voice_pipeline.py";    DestDir: "{app}"; Flags: ignoreversion
-Source: "anki_gui.py";          DestDir: "{app}"; Flags: ignoreversion
-Source: "sudachi_g2p.py";       DestDir: "{app}"; Flags: ignoreversion
-Source: "g2p_core.py";          DestDir: "{app}"; Flags: ignoreversion
-Source: "kana_stress.py";       DestDir: "{app}"; Flags: ignoreversion
+Source: "app\voice_pipeline.py";  DestDir: "{app}\app"; Flags: ignoreversion
+Source: "app\anki_gui.py";        DestDir: "{app}\app"; Flags: ignoreversion
+Source: "app\sudachi_g2p.py";     DestDir: "{app}\app"; Flags: ignoreversion
+Source: "app\g2p_core.py";        DestDir: "{app}\app"; Flags: ignoreversion
+Source: "app\kana_stress.py";     DestDir: "{app}\app"; Flags: ignoreversion
 ; модули системы чтения и QC v2 — без них в установленном приложении
 ; молча отключаются подстановка чтения из фуриганы, доменный словарь
 ; и многосигнальная проверка качества звука
@@ -74,10 +74,10 @@ Source: "lab\align_ja.py";         DestDir: "{app}\lab"; Flags: ignoreversion
   Source: "lab\indextts_fast.py";     DestDir: "{app}\lab"; Flags: ignoreversion
   Source: "lab\indextts_norm.py";     DestDir: "{app}\lab"; Flags: ignoreversion
 ; голоса и словарь чтения
-Source: "voices.json";          DestDir: "{app}"; Flags: ignoreversion
+Source: "app\voices.json";        DestDir: "{app}\app"; Flags: ignoreversion
 ; встроенный Python и словарь Sudachi (распакуются при первом запуске)
-Source: "pyruntime.zip";        DestDir: "{app}"; Flags: ignoreversion
-Source: "sudachidict.zip";      DestDir: "{app}"; Flags: ignoreversion
+Source: "bundled\pyruntime.zip";   DestDir: "{app}\bundled"; Flags: ignoreversion
+Source: "bundled\sudachidict.zip"; DestDir: "{app}\bundled"; Flags: ignoreversion
 
 [Icons]
 Name: "{userstartmenu}\{#MyAppName}"; Filename: "{app}\AnkiVoice.exe"

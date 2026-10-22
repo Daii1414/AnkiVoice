@@ -29,7 +29,9 @@ def ensure_dictionary():
     dic = os.path.join(res_dir, "system.dic")
     if os.path.isfile(dic) and os.path.getsize(dic) > 100 * 1024 * 1024:
         return
-    z = os.path.join(CODE, "sudachidict.zip")
+    z = os.path.join(os.path.dirname(CODE), "bundled", "sudachidict.zip")
+    if not os.path.isfile(z):
+        z = os.path.join(CODE, "sudachidict.zip")
     if not os.path.isfile(z):
         raise SystemExit("Нет словаря Sudachi: нет ни %s, ни sudachidict.zip рядом "
                          "со скриптом." % dic)

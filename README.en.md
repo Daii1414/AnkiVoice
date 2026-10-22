@@ -110,7 +110,7 @@ installer itself is 125 MB) plus room for the engine and its weights.
 
 ## Quick start
 
-1. Download **`AnkiVoice-Setup-1.7.exe`** from the
+1. Download **`AnkiVoice-Setup-1.8.exe`** from the
    [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) page — one
    file with everything inside. Size **125 MB**, SHA256:
    `385481551c6404ec8927a37d6c234630c87ee71660aa5c689eab9654da0dbc28`
@@ -273,6 +273,13 @@ What is missing in the IndexTTS mode:
   check remains and the recognition is off;
 * the manual sampling settings (seed, temperature, top_p, top_k) - IndexTTS
   has none, the interface hides them.
+
+## What's new in 1.8
+
+- **The repository root is tidy:** the code lives in `app/`, the heavy archives
+  (the bundled Python and the Sudachi dictionary) in `bundled/`, the lab in
+  `lab/`, the interface checks in `qa/`.
+- **`AnkiVoice.exe` is no longer in the repository** - it is a build artifact.
 
 ## Pronunciation check
 
@@ -460,7 +467,7 @@ git clone https://github.com/Daii1414/AnkiVoice.git
 cd AnkiVoice
 ```
 
-A rebuild is needed only after editing `anki_gui.py`, `anki_web.py` or
+A rebuild is needed only after editing `app/anki_gui.py`, `app/anki_web.py` or
 `anki_web_page.py` — `voice_pipeline.py` runs from disk and takes effect
 immediately.
 
@@ -470,7 +477,7 @@ immediately.
 set ENGINE=C:\Path\To\GPT-SoVITS
 %ENGINE%\runtime\python.exe -m pip install pyinstaller
 %ENGINE%\runtime\python.exe -m PyInstaller --noconfirm --onefile --windowed ^
-    --name AnkiVoice --distpath . --workpath %TEMP%\pyi_build --specpath %TEMP% anki_gui.py
+    --name AnkiVoice --distpath . --workpath %TEMP%\pyi_build --specpath %TEMP% app\anki_gui.py
 ```
 
 **installer** (Inno Setup 6, run it from the repository root):
@@ -515,20 +522,20 @@ windows-latest.
 |---|---|
 | `AnkiVoice.exe` | The app with the interface (double-click) |
 | `AnkiVoice.iss` | Installer build script (Inno Setup 6) |
-| `voice_pipeline.py` | All logic: synthesis, kanji reading, substitution, CLI |
-| `anki_gui.py` | Exe entry point: web UI by default, `--classic` for the old window |
-| `anki_web.py` | Local HTTP server for the UI (127.0.0.1 only) |
-| `anki_web_page.py` | HTML/CSS/JS for the page (offline, no CDN) |
+| `app/voice_pipeline.py` | All logic: synthesis, kanji reading, substitution, CLI |
+| `app/anki_gui.py` | Exe entry point: web UI by default, `--classic` for the old window |
+| `app/anki_web.py` | Local HTTP server for the UI (127.0.0.1 only) |
+| `app/anki_web_page.py` | HTML/CSS/JS for the page (offline, no CDN) |
 | `pipeline.bat` | Console entry point |
-| `sudachi_g2p.py` | Fallback “reader” helper: SudachiPy 0.7 + UniDic dictionary |
-| `g2p_core.py` | Haqumei reading core: word in sentence context, pron form |
-| `kana_stress.py` | A battery of 63 difficult words for reading checks |
-| `i18n_en.py` | Dictionary of the English interface (RU/EN) |
+| `app/sudachi_g2p.py` | Fallback “reader” helper: SudachiPy 0.7 + UniDic dictionary |
+| `app/g2p_core.py` | Haqumei reading core: word in sentence context, pron form |
+| `app/kana_stress.py` | A battery of 63 difficult words for reading checks |
+| `app/i18n_en.py` | Dictionary of the English interface (RU/EN) |
 | `lab/pron_check.py` | Pronunciation check: recognition, coverage, quarantine, locating the divergence |
 | `lab/align_ja.py` | Experimental acoustic alignment with a Japanese CTC model (off by default) |
-| `pyruntime.zip` | Bundled Python + Haqumei 0.12.2 + SudachiPy 0.7 (~44 MB, unpacks itself) |
-| `sudachidict.zip` | Sudachi core dictionary 20261015 (~73 MB, unpacked by the helper) |
-| `voices.json` | Voice registry: weights, references, prompt, sampling |
+| `bundled/pyruntime.zip` | Bundled Python + Haqumei 0.12.2 + SudachiPy 0.7 (~44 MB, unpacks itself) |
+| `bundled/sudachidict.zip` | Sudachi core dictionary 20261015 (~73 MB, unpacked by the helper) |
+| `app/voices.json` | Voice registry: weights, references, prompt, sampling |
 | `lab/` | Reading system, QC v2 modules and the IndexTTS service (10 files ship with the installer) + tests and dev tools |
 | `doc/` | UI screenshots, logo, engine media, measurement reports |
 | `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md` | History, development rules, security policy |

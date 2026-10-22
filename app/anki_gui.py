@@ -37,7 +37,7 @@ import traceback
 import urllib.request
 
 APP_NAME = "AnkiVoice"
-APP_VERSION = "1.7"
+APP_VERSION = "1.8"
 LEGACY_APP_NAME = "AnkiTTS"   # старое имя (до переименования) — конфиг переносим
 ANKI_CONNECT = "http://127.0.0.1:8765"
 TTS_HOST, TTS_PORT = "127.0.0.1", 9880
@@ -72,14 +72,36 @@ def appdata_dir():
 
 
 def code_dir():
-    """Папка самого инструмента (рядом лежат voice_pipeline.py, voices.json).
+    """Папка с модулями приложения (рядом лежат voice_pipeline.py, voices.json).
 
-    У замороженного exe __file__ указывает во временную папку распаковки,
-    поэтому для frozen-сборки берём папку реального exe.
+    У замороженного exe модули лежат в подпапке app\\, у разработчика — в той
+    же, где этот файл. Ищем папку, в которой есть voice_pipeline.py.
     """
-    if getattr(sys, "frozen", False):
-        return os.path.dirname(os.path.abspath(sys.executable))
-    return os.path.dirname(os.path.abspath(__file__))
+    here = (os.path.dirname(os.path.abspath(sys.executable))
+            if getattr(sys, "frozen", False)
+            else os.path.dirname(os.path.abspath(__file__)))
+    for p in (os.path.join(here, "app"), here):
+        if os.path.isfile(os.path.join(p, "voice_pipeline.py")):
+            return p
+    return here
+
+
+def repo_root():
+    """Корень приложения: на уровень выше папки с модулями.
+
+    Там лежат lab/ и bundled/ — и в репозитории, и в установленном виде.
+    """
+    return os.path.dirname(code_dir())
+
+
+def bundled(name):
+    """Файл из bundled/ (встроенный Python, словарь Sudachi)."""
+    root = repo_root()
+    for p in (os.path.join(root, "bundled", name),
+              os.path.join(code_dir(), name)):
+        if os.path.isfile(p):
+            return p
+    return os.path.join(root, "bundled", name)
 
 
 CONFIG_FILE = os.path.join(appdata_dir(), "config.json")
@@ -458,7 +480,7 @@ def pipeline_cmd(gpt_path, args, on_line=None, on_done=None):
     if gpt_path and os.path.isfile(os.path.join(gpt_path, "runtime", "python.exe")):
         python = os.path.join(gpt_path, "runtime", "python.exe")
     else:
-        python = os.path.join(code_dir(), "pyruntime", "python.exe")
+        python = os.path.join(repo_root(), "pyruntime", "python.exe")
     script = os.path.join(code_dir(), "voice_pipeline.py")
     env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
     if gpt_path:
@@ -559,12 +581,12 @@ def _payload_problem():
     missing = [f for f in ("voice_pipeline.py", "sudachi_g2p.py", "voices.json")
                if not os.path.isfile(os.path.join(d, f))]
     if not (os.path.isfile(os.path.join(d, "pyruntime", "python.exe"))
-            or os.path.isfile(os.path.join(d, "pyruntime.zip"))):
+            or os.path.isfile(bundled("pyruntime.zip"))):
         missing.append("pyruntime.zip")
-    _dic = os.path.join(d, "pyruntime", "Lib", "site-packages",
+    _dic = os.path.join(repo_root(), "pyruntime", "Lib", "site-packages",
                         "sudachidict_core", "resources", "system.dic")
     if not (os.path.isfile(_dic)
-            or os.path.isfile(os.path.join(d, "sudachidict.zip"))):
+            or os.path.isfile(bundled("sudachidict.zip"))):
         missing.append("sudachidict.zip")
     if not missing:
         return None

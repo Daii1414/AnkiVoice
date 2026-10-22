@@ -109,7 +109,7 @@ AnkiVoice не копирует код движка: [GPT-SoVITS](https://github
 
 ## Быстрый старт
 
-1. Скачай **`AnkiVoice-Setup-1.7.exe`** со страницы
+1. Скачай **`AnkiVoice-Setup-1.8.exe`** со страницы
    [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) — один файл,
    внутри всё. Размер **125 МБ**, SHA256:
    `385481551c6404ec8927a37d6c234630c87ee71660aa5c689eab9654da0dbc28`
@@ -270,6 +270,13 @@ AnkiVoice поднимает рядом с собой небольшой сер�
   остаётся акустическая проверка, а распознавание отключается;
 * ручных настроек сэмплирования (seed, temperature, top_p, top_k) — у
   IndexTTS их нет, интерфейс их прячет.
+
+## Что нового в 1.8
+
+- **Корень репозитория разобран по папкам:** код — в `app/`, тяжёлые архивы
+  (встроенный Python и словарь Sudachi) — в `bundled/`, лаборатория — в `lab/`,
+  проверки интерфейса — в `qa/`.
+- **`AnkiVoice.exe` больше не в репозитории** — это артефакт сборки.
 
 ## Проверка произношения
 
@@ -462,7 +469,7 @@ cd AnkiVoice
 set ENGINE=C:\Путь\К\GPT-SoVITS
 %ENGINE%\runtime\python.exe -m pip install pyinstaller
 %ENGINE%\runtime\python.exe -m PyInstaller --noconfirm --onefile --windowed ^
-    --name AnkiVoice --distpath . --workpath %TEMP%\pyi_build --specpath %TEMP% anki_gui.py
+    --name AnkiVoice --distpath . --workpath %TEMP%\pyi_build --specpath %TEMP% app\anki_gui.py
 ```
 
 **установщик** (Inno Setup 6, запускать из корня репозитория):
@@ -505,20 +512,20 @@ windows-latest.
 |---|---|
 | `AnkiVoice.exe` | Программа с интерфейсом (двойной клик) |
 | `AnkiVoice.iss` | Скрипт сборки установщика (Inno Setup 6) |
-| `voice_pipeline.py` | Вся логика: синтез, чтение иероглифов, подстановка, CLI |
-| `anki_gui.py` | Точка входа exe: веб-интерфейс по умолчанию, `--classic` — старое окно |
-| `anki_web.py` | Локальный HTTP-сервер интерфейса (только 127.0.0.1) |
-| `anki_web_page.py` | HTML/CSS/JS страницы (офлайн, без CDN) |
+| `app/voice_pipeline.py` | Вся логика: синтез, чтение иероглифов, подстановка, CLI |
+| `app/anki_gui.py` | Точка входа exe: веб-интерфейс по умолчанию, `--classic` — старое окно |
+| `app/anki_web.py` | Локальный HTTP-сервер интерфейса (только 127.0.0.1) |
+| `app/anki_web_page.py` | HTML/CSS/JS страницы (офлайн, без CDN) |
 | `pipeline.bat` | Консольная точка входа |
-| `sudachi_g2p.py` | Запасной помощник-«читатель»: SudachiPy 0.7 + словарь UniDic |
-| `g2p_core.py` | Ядро чтения Haqumei: слово в контексте предложения, форма pron |
-| `kana_stress.py` | Батарея из 63 сложных слов для проверки чтения |
-| `i18n_en.py` | Словарь английского интерфейса (RU/EN) |
+| `app/sudachi_g2p.py` | Запасной помощник-«читатель»: SudachiPy 0.7 + словарь UniDic |
+| `app/g2p_core.py` | Ядро чтения Haqumei: слово в контексте предложения, форма pron |
+| `app/kana_stress.py` | Батарея из 63 сложных слов для проверки чтения |
+| `app/i18n_en.py` | Словарь английского интерфейса (RU/EN) |
 | `lab/pron_check.py` | Проверка произношения: распознавание, покрытие, карантин, локализация расхождения |
 | `lab/align_ja.py` | Экспериментальное акустическое выравнивание по японской CTC-модели (выключается переменной) |
-| `pyruntime.zip` | Встроенный Python + Haqumei 0.12.2 + SudachiPy 0.7 (~44 МБ, разворачивается сам) |
-| `sudachidict.zip` | Словарь Sudachi core 20261015 (~73 МБ, распаковывает помощник) |
-| `voices.json` | Реестр голосов: веса, референсы, промпт, sampling |
+| `bundled/pyruntime.zip` | Встроенный Python + Haqumei 0.12.2 + SudachiPy 0.7 (~44 МБ, разворачивается сам) |
+| `bundled/sudachidict.zip` | Словарь Sudachi core 20261015 (~73 МБ, распаковывает помощник) |
+| `app/voices.json` | Реестр голосов: веса, референсы, промпт, sampling |
 | `lab/` | Модули системы чтения, QC v2 и сервис IndexTTS (10 модулей едут в установщик) + тесты и dev-инструменты |
 | `doc/` | Скриншоты интерфейса, логотип, медиа движка, отчёты по замерам |
 | `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md` | История, правила разработки, политика безопасности |

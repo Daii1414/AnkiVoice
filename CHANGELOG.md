@@ -3,6 +3,19 @@
 Все значимые изменения AnkiVoice. Формат — [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 версии — [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [1.8.0] — 2026-10-22
+
+Установщик: `AnkiVoice-Setup-1.8.exe` · релиз: <https://github.com/Daii1414/AnkiVoice/releases/tag/v1.8>
+
+### Изменено
+
+- **Корень репозитория разобран по папкам.** Код приложения — в `app/`,
+  тяжёлые архивы (встроенный Python и словарь Sudachi) — в `bundled/`, отчёты и
+  скриншоты — в `doc/`, лаборатория — в `lab/`, проверки интерфейса — в `qa/`.
+  Пути приложение ищет одинаково и в репозитории, и в установленном виде.
+- **`AnkiVoice.exe` больше не лежит в репозитории** — это артефакт сборки
+  (8,6 МБ), он собирается скриптом и в git не нужен.
+
 ## [1.7.0] — 2026-10-22
 
 Установщик: `AnkiVoice-Setup-1.7.exe` · релиз: <https://github.com/Daii1414/AnkiVoice/releases/tag/v1.7>

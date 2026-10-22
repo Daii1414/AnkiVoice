@@ -32,7 +32,7 @@ jobs:
           python -m pip install numpy==2.4.6 haqumei==0.12.2
 
       - name: Compile Python
-        run: python -m compileall -q anki_gui.py anki_web.py anki_web_page.py voice_pipeline.py sudachi_g2p.py g2p_core.py kana_stress.py lab
+        run: python -m compileall -q app lab
 
       - name: Unit and integration checks
         run: |

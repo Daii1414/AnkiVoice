@@ -1,10 +1,11 @@
-﻿# --- Python ---
+# --- Python ---
 __pycache__/
 *.py[cod]
 
 # --- Сборка exe (артефакты PyInstaller) ---
 build/
 *.spec
+AnkiVoice.exe
 
 # --- Локальные настройки: путь к движку GPT-SoVITS у каждого свой ---
 gptsovits_path.txt

@@ -19,6 +19,9 @@ set PYTHONIOENCODING=utf-8
 
 rem --- locate the GPT-SoVITS engine ---
 if defined GPT_SOVITS_ROOT set "ENGINE=%GPT_SOVITS_ROOT%"
+if not defined ENGINE if exist "%~dp0app\gptsovits_path.txt" (
+    for /f "usebackq delims=" %%i in ("%~dp0app\gptsovits_path.txt") do if not defined ENGINE set "ENGINE=%%i"
+)
 if not defined ENGINE if exist "%~dp0gptsovits_path.txt" (
     for /f "usebackq delims=" %%i in ("%~dp0gptsovits_path.txt") do if not defined ENGINE set "ENGINE=%%i"
 )
@@ -40,10 +43,14 @@ if not exist "%ENGINE%\runtime\python.exe" (
 rem pass the resolved engine to the child so it resolves identically
 set "GPT_SOVITS_ROOT=%ENGINE%"
 
+rem --- the pipeline lives in app\ (in the installed app — next to this file) ---
+set "PIPELINE=%~dp0voice_pipeline.py"
+if not exist "%PIPELINE%" set "PIPELINE=%~dp0app\voice_pipeline.py"
+
 if "%~1"=="" (
-    "%ENGINE%\runtime\python.exe" -u "%~dp0voice_pipeline.py"
+    "%ENGINE%\runtime\python.exe" -u "%PIPELINE%"
 ) else (
-    "%ENGINE%\runtime\python.exe" -u "%~dp0voice_pipeline.py" %*
+    "%ENGINE%\runtime\python.exe" -u "%PIPELINE%" %*
 )
 
 echo.

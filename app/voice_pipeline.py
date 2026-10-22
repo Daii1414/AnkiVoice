@@ -76,7 +76,7 @@ def _ensure_reading_modules():
     global _READING_MODULES
     if _READING_MODULES is not None:
         return _READING_MODULES
-    lab_path = os.path.join(CODE, "lab")
+    lab_path = lab_dir()
     if lab_path not in sys.path:
         sys.path.insert(0, lab_path)
     try:
@@ -110,10 +110,33 @@ def _ensure_reading_modules():
 
 # ------------------------------------------------------------------ константы
 # CODE  — папка самого инструмента (этот скрипт, voices.json).
+# ROOT  — корень репозитория (на уровень выше): там lab/ и bundled/.
 # ENGINE — папка установленного GPT-SoVITS (runtime\python.exe, api_v2.py, веса).
 CODE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(CODE)
 VOICES_FILE = os.path.join(CODE, "voices.json")
 ENGINE_LOCAL_FILE = os.path.join(CODE, "gptsovits_path.txt")
+
+
+def lab_dir():
+    """Папка модулей lab/ — рядом с кодом или на уровень выше (в репозитории)."""
+    for p in (os.path.join(CODE, "lab"), os.path.join(ROOT, "lab")):
+        if os.path.isdir(p):
+            return p
+    return os.path.join(CODE, "lab")
+
+
+def bundled(name):
+    """Файл из bundled/ (встроенный Python, словарь Sudachi).
+
+    В репозитории они лежат в bundled/, в установленном приложении — рядом
+    с кодом. Ищем в обоих местах.
+    """
+    for p in (os.path.join(CODE, name), os.path.join(ROOT, "bundled", name)):
+        if os.path.isfile(p):
+            return p
+    return os.path.join(CODE, name)
+
 
 ENGINE = None             # заполняется resolve_engine() ниже
 PYTHON = None             # ENGINE\runtime\python.exe
@@ -862,10 +885,10 @@ _KEEP_KATA = ("コンニチハ", "コンバンハ")
 # поэтому разбор идёт в СВОЁМ встроенном Python (папка pyruntime рядом со
 # скриптом): долгоживущий помощник sudachi_g2p.py отвечает на JSON-строки.
 # Пользователю ставить ничего не нужно — всё лежит в репозитории.
-PYRUNTIME_DIR = os.path.join(CODE, "pyruntime")
+PYRUNTIME_DIR = os.path.join(ROOT, "pyruntime")
 PYRUNTIME_PY = os.path.join(PYRUNTIME_DIR, "python.exe")
 SUDACHI_HELPER = os.path.join(CODE, "sudachi_g2p.py")
-PYRUNTIME_ZIP = os.path.join(CODE, "pyruntime.zip")
+PYRUNTIME_ZIP = bundled("pyruntime.zip")
 
 _SUDACHI_PROC = None      # None — ещё не пробовали, False — недоступно
 _sudachi_warned = False
@@ -1790,7 +1813,7 @@ def _qc_v2_module():
     if _QC_V2["state"] != "unset":
         return _QC_V2.get("mod")
     try:
-        lab = os.path.join(CODE, "lab")
+        lab = lab_dir()
         if lab not in sys.path:
             sys.path.append(lab)
         import quality_v2 as q2
@@ -1827,7 +1850,7 @@ def _check_audio(blob, ext, text):
 
 # Куда складывать отбракованный звук (чтобы можно было послушать и
 # проверить: правильно ли детектор отклонил). Отключается AV_QC_KEEP=0.
-QC_REJECT_DIR = os.path.join(CODE, "lab", "rejected")
+QC_REJECT_DIR = os.path.join(lab_dir(), "rejected")
 
 
 def keep_rejected(blob, ext, text, sigs, attempt, meta=None):
@@ -2062,7 +2085,7 @@ def _pron_verifier(force=False, asr_model=None):
         if not want:
             return None
         try:
-            lab = os.path.join(CODE, "lab")
+            lab = lab_dir()
             if lab not in sys.path:
                 sys.path.insert(0, lab)
             import pron_check
@@ -2717,7 +2740,7 @@ def _start_indextts_service(wait=240):
     cfg = os.path.join(model_dir, "config.yaml")
     if not os.path.isfile(cfg):
         raise SystemExit("Нет весов IndexTTS: %s" % cfg)
-    script = os.path.join(CODE, "lab", "indextts_service.py")
+    script = os.path.join(lab_dir(), "indextts_service.py")
     if not os.path.isfile(script):
         raise SystemExit("Нет сервиса: %s" % script)
     url = indextts_url()

@@ -12,7 +12,7 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SKIP_DIRS = {".git", "__pycache__", "pyruntime", ".venv", "dist", "build", "lab\\pylibs"}
+SKIP_DIRS = {".git", "__pycache__", "pyruntime", ".venv", "dist", "build", "lab\\pylibs", "app\\__pycache__"}
 
 
 def spec_count(fmt):

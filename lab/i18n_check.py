@@ -32,7 +32,7 @@ def ok(msg):
 
 
 def page_html():
-    src = io.open(os.path.join(ROOT, "anki_web_page.py"), encoding="utf-8").read()
+    src = io.open(os.path.join(ROOT, "app", "anki_web_page.py"), encoding="utf-8").read()
     i = src.index('HTML = r"""') + len('HTML = r"""')
     j = src.index('"""', i)
     return src[i:j]
@@ -83,6 +83,7 @@ def translated(text, i18n, prefix_keys):
 
 def main():
     sys.path.insert(0, ROOT)
+    sys.path.insert(0, os.path.join(ROOT, "app"))
     from i18n_en import I18N_EN
 
     html = page_html()
