@@ -16,26 +16,38 @@
   <img alt="No cloud" src="https://img.shields.io/badge/data-off%20line%2C%20no%20cloud-12A150">
 </p>
 
-<p align="center"><b>Local Japanese audio for Anki decks, voiced by GPT-SoVITS or IndexTTS 2.5.</b><br>
-The engine reads the kanji itself - connected, in the context of the sentence -
-while the reading of the main term comes from the card's furigana. Finished
-ogg files land straight in Anki fields. <b>Free, no accounts, no telemetry.</b>
-The internet is only needed to download it.</p>
+<p align="center"><b>Japanese audio for your Anki cards</b><br>
+A GPT-SoVITS or IndexTTS 2.5 voice - entirely on your own computer. The engine
+reads the kanji itself, connected, in the context of the sentence, while the
+reading of the main term comes from the card's furigana. Finished .ogg files land
+straight in the Anki fields.</p>
 
 <p align="center">
   <a href="https://github.com/Daii1414/AnkiVoice/releases/latest">
     <img alt="Download AnkiVoice 1.8 for Windows" src="https://img.shields.io/badge/%E2%96%A8%20Download%20AnkiVoice%201.8%20%E2%80%94%20125%20MB-4F46E5">
   </a>
+  &nbsp;&nbsp;
+  <a href="#what-you-need-before-installing">What you need before installing →</a>
 </p>
 
 <p align="center">
-  <a href="#features">Features</a> •
+  <img alt="Windows 10/11" src="https://img.shields.io/badge/Windows%2010%2F11-0078D6?logo=windows&logoColor=white">
+  <img alt="NVIDIA GPU from 6 GB" src="https://img.shields.io/badge/NVIDIA%20GPU%20%E2%89%A5%206%20GB-0078D6">
+  <img alt="Free" src="https://img.shields.io/badge/free-12A150">
+  <img alt="No cloud, no telemetry" src="https://img.shields.io/badge/no%20cloud%2C%20no%20telemetry-12A150">
+  <img alt="AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-4F46E5.svg">
+</p>
+
+<p align="center">
+  <a href="#how-it-works">How it works</a> •
   <a href="#quick-start">Install</a> •
   <a href="#interface-four-tabs">Interface</a> •
   <a href="#how-kanji-are-read">Reading</a> •
-  <a href="#development">Development</a> •
-  <a href="#license">License</a>
+  <a href="#troubleshooting">If it does not work</a> •
+  <a href="#development">Development</a>
 </p>
+
+<p align="center"><img src="doc/shots/voice-dark.png" alt="The AnkiVoice interface: engine choice, deck, voice and the Start dubbing button" width="820"></p>
 
 [Русский](README.md) | **English**
 
@@ -45,7 +57,7 @@ The internet is only needed to download it.</p>
 
 - [Features](#features)
 - [How it works](#how-it-works)
-- [Requirements](#requirements)
+- [What you need before installing](#what-you-need-before-installing)
 - [Quick start](#quick-start)
 - [Interface (four tabs)](#interface-four-tabs)
 - [Pronunciation check](#pronunciation-check)
@@ -56,6 +68,7 @@ The internet is only needed to download it.</p>
 - [Console](#console)
 - [Updates](#updates)
 - [Troubleshooting](#troubleshooting)
+- [What gets overwritten, what goes over the network](#what-gets-overwritten-what-goes-over-the-network)
 - [Development](#development)
 - [Repository layout](#repository-layout)
 - [Contributing](#contributing)
@@ -85,28 +98,31 @@ The internet is only needed to download it.</p>
 AnkiVoice does not copy the engine's code: [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS)
 runs as an ordinary local server, the app sends it text and takes the sound back.
 So the engine's own web interface and any of its voices keep working next to it.
-## Requirements
+## What you need before installing
 
-1. **Windows 10/11** and a CUDA GPU (6 GB of VRAM is comfortable) with a recent
-   NVIDIA driver (CUDA 12.8+ is needed for IndexTTS 2.5).
-2. **One of the two engines** - pick it in the wizard on the first run:
-   * **[GPT-SoVITS v2Pro](https://github.com/RVC-Boss/GPT-SoVITS/releases)** -
-     the unpacked Windows package, roughly **6-10 GB** (voice weights are not
-     included);
-   * **[IndexTTS 2.5](https://github.com/index-tts/index-tts)** - `git clone` +
-     `uv sync --extra webui` + the model weights (~5 GB) in `checkpoints`.
-3. **A voice of your own.** For GPT-SoVITS: a `.ckpt` + `.pth` pair and a 3-10 s
-   reference clip; for IndexTTS 2.5: **one reference clip** of 3-10 s (the
-   weights belong to the model). The engine ships its own voices.
-4. **Anki** with **AnkiConnect** enabled (the add-on listens on `127.0.0.1:8765`).
+| What | Where to get it | Size | Required | Why |
+|---|---|---|---|---|
+| **AnkiVoice** (the app) | [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) → `AnkiVoice-Setup-1.9.exe` | 125 MB, ~1 GB on disk | yes | the window, the local server, the reading dictionary |
+| **Anki + AnkiConnect** | Anki → Add-ons → code `2055492159` | ~0 MB | yes | the bridge to your decks and fields |
+| **An engine** (one of two) | [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS/releases) or [IndexTTS 2.5](https://github.com/index-tts/index-tts) | 6-10 GB or ~5 GB | yes, one | speech synthesis |
+| **A voice** | with the engine or from the community | weights + a 3-10 s reference | yes | timbre and speech character |
+| **The recognition model** | HuggingFace cache (`faster-whisper`) | ~1.5 GB | no | the pronunciation check only |
+| **GPU and NVIDIA driver** | NVIDIA driver, CUDA 12.8+ | from 6 GB VRAM | yes | synthesis on the GPU |
+
+The internet is only needed to download - the dubbing itself runs fully offline.
+
+### The app and the engine are two separate installations
+
+| Question | AnkiVoice (the app) | The engine | Hint |
+|---|---|---|---|
+| Where it comes from | GitHub Releases, one file | the engine's own release | the engine is downloaded separately |
+| Size | 125 MB, ~1 GB on disk | 6-10 GB / ~5 GB | five to ten times heavier |
+| What's inside | the UI, the server, the reading dictionary | the model and the voice weights | the engine makes the sound |
+| If it's missing | the app runs, there is no synthesis | dubbing is impossible | install the engine first |
 
 Nothing else has to be installed: the reading dictionary and the bundled Python
 are already inside the installer (`pyruntime.zip`, `sudachidict.zip`) and
 unpack themselves.
-
-The **internet** is only needed to download the installer and the engine - the
-dubbing itself is fully offline. Allow about **1 GB** of disk for the app (the
-installer itself is 125 MB) plus room for the engine and its weights.
 
 ## Quick start
 
@@ -240,7 +256,13 @@ top, as two large cards. The choice is remembered and applies to the whole app.
 | a voice | `.ckpt` + `.pth` files + a reference | **one reference** (3-10 s) |
 | weights | per voice | shared by the model |
 | install | unpacked archive | `git clone` + `uv sync --extra webui` + weights in `checkpoints` |
+| size on disk | 6-10 GB (weights separate) | ~5 GB of model weights |
 | Japanese reading | the engine's g2p | its own Japanese g2p (`ja_g2p`) |
+| pronunciation check | yes (faster-whisper in the environment) | no, acoustic QC only |
+| manual sound settings | seed, temperature, top_p, top_k | none, the UI hides them |
+| who it is for | I want quality and control | I want as little fuss as possible: one reference |
+
+You switch between them with two large cards on the main screen.
 
 Install IndexTTS 2.5:
 
@@ -444,17 +466,43 @@ Diagnostics are available in the exe as well: `AnkiVoice.exe doctor`.
 * **Uninstall**: Start menu → “Удалить AnkiVoice” (settings are kept and are
   picked up again on the next install).
 
+## What gets overwritten, what goes over the network
+
+The boundaries of the app - honestly, without hedging.
+
+| Action | What happens to the card |
+|---|---|
+| Dubbing | a new file is written into the sound field; the old one stays in the media folder, and the link to it is lost |
+| The card text | never changes |
+| The "Брак" deck | creates a new deck with copies of the cards; the originals are not touched |
+| The pronunciation check | writes nothing - it only listens and advises |
+
+| What goes over the network | When |
+|---|---|
+| A request to `api.github.com` | only when you press "Check for updates" |
+| Downloading the installer | from the update button (with a SHA256 check) |
+| Your cards and texts | **never** - everything is computed locally |
+| Telemetry, accounts | **none** |
+
+The internet is needed once: to download the installer and the engine. The
+dubbing itself, the pronunciation check and the update of your cards all run
+fully offline.
+
 ## Troubleshooting
 
-| Message | What to do |
-|---|---|
-| `Не найдена папка GPT-SoVITS` | Set the path: `gptsovits_path.txt`, the `GPT_SOVITS_ROOT` environment variable, or the “Browse…” button in the app |
-| `AnkiConnect недоступен` | Open Anki; if the add-on is missing — Tools → Add-ons → Get Add-ons, code `2055492159`, then restart Anki |
-| `Референс X с — API требует 3–10 с` | Trim the clip to 3–10 seconds |
-| `Не получилось переключить... Перезапуск` | Normal: the pipeline restarts the server and retries |
-| `сервер вернул пустой звук` | Usually VRAM is occupied by other processes (browser, games). Close them or restart the server: `pipeline.bat serve --voice <voice>` |
-| `Пайплайн уже запущен другим процессом` | Wait for the first run to finish (protection against double work) |
-| Windows: “Your PC protected” | The downloaded exe is unsigned: in the SmartScreen window click “More info” → “Run anyway” |
+| Message | Why | What to do |
+|---|---|---|
+| `GPT-SoVITS folder not found` | the path is not set or points nowhere | Set the path: `gptsovits_path.txt`, the `GPT_SOVITS_ROOT` environment variable, or the "Browse…" button in the app |
+| `AnkiConnect unavailable` | Anki is closed or the add-on is missing | Open Anki; Tools → Add-ons → Get Add-ons, code `2055492159`, then restart Anki |
+| The wizard asks for an engine folder | the engine is a separate download | install the engine and point to its folder |
+| Ready voices: 0 of 5 | the weights or the reference are not in the engine folder | "Refresh engine weights" or fix the path |
+| `Reference X s - the API wants 3-10 s` | the clip is out of range | Trim the clip to 3-10 seconds |
+| `Could not switch... Restarting` | not enough video memory | Normal: the pipeline restarts the server and retries |
+| `The server returned an empty sound` | VRAM is occupied by a browser or a game | Close heavy programs or restart the server: `pipeline.bat serve --voice <voice>` |
+| `The pipeline is already running` | another job is in progress | Wait for it to finish (protection against double work) |
+| The first sound takes minutes | the pronunciation check is on | turn off "Check pronunciation" - without it the sound takes seconds |
+| The sound is old, I want it again | the limit only takes cards without sound | "Rebuild everything" - it will ask for confirmation |
+| Windows: "Your PC has been protected" | the exe is not signed | "More info" → "Run anyway" |
 
 Useful: `selftest` prints exactly what it sees (engine, voices, reading
 dictionary, reading modules, QC v2, AnkiConnect, server) — 90% of problems are
