@@ -1607,13 +1607,21 @@ function updateProgress(line, n){
   if(m) PROG_TOTAL = +m[1];
   const st = /^Карточка\s+(\d+)\s+из\s+(\d+)\s+—\s*(.*)$/.exec(line);
   if(st){ PROG_CUR = +st[1]; PROG_STAGE = st[3]; }
-  if(/^OK\s+\[/.test(line)) PROG_OK++;
+  if(/^OK\s+\[(\d+)\]/.test(line)){
+    // считаем КАРТОЧКИ, а не операции: в режиме «слово + предложение» на
+    // карточку приходится два куска, и старая арифметика давала «25 / 24»
+    const okm = /^OK\s+\[(\d+)\]/.exec(line);
+    PROG_DONE.add(okm[1]);
+    PROG_OK = PROG_DONE.size;
+  }
   if(/^FAIL\s+\[/.test(line)) PROG_FAIL++;
   drawProgress(n);
 }
 let PROG_TOTAL=null, PROG_OK=0, PROG_FAIL=0, PROG_CUR=0, PROG_STAGE="", PROG_START=0;
+let PROG_DONE = new Set();
 function resetProgress(){
   PROG_TOTAL=null; PROG_OK=0; PROG_FAIL=0; PROG_CUR=0; PROG_STAGE="";
+  PROG_DONE = new Set();
   PROG_START=Date.now();
 }
 function fmtSec(s){
@@ -1637,7 +1645,7 @@ function drawProgress(n){
     if(PROG_OK > 0 && PROG_TOTAL > PROG_OK){
       const per = elapsed / PROG_OK;
       txt += " · осталось ≈ " + fmtSec(per * (PROG_TOTAL - PROG_OK));
-    }else if(PROG_TOTAL && PROG_CUR){
+    }else if(PROG_TOTAL && PROG_CUR && PROG_OK < PROG_TOTAL){
       const slow = (ST && ST.engine === "indextts")
         ? " · с IndexTTS первая карточка идёт до нескольких минут" : "";
       txt += slow;

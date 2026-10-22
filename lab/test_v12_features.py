@@ -692,6 +692,8 @@ def test_qa_first_users_fixes():
     check('replace("\\x00", "")' in src,
           "из настроек вычищается NUL-байт (он ронял пайплайн)")
     check("askConfirm(" in html, "свой диалог подтверждения вместо confirm()")
+    check("PROG_DONE.add(" in html, "прогресс считает карточки, а не операции")
+    check("PROG_OK = PROG_DONE.size" in html, "счётчик карточек — по уникальным id")
     check("«Пересобрать всё заново» перезапишет звук" in html,
           "пересборка спрашивает подтверждение")
 
