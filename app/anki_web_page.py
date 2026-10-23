@@ -467,6 +467,15 @@ select{cursor:pointer}
         </div>
 
         <div class="spacer"></div>
+        <label class="f">Ансамбль (необязательно)</label>
+        <select id="voices2" multiple size="3"></select>
+        <div class="hint">Зажми Ctrl и выбери 2+ голоса: карточки колоды
+          распределятся между ними случайно, каждая будет озвучена целиком
+          одним голосом, а партии пойдут друг за другом — переключений весов
+          будет по одному на голос, не на карточку. Уже озвученные карточки
+          сохраняют свой прежний голос.</div>
+
+        <div class="spacer"></div>
         <label class="f">Что озвучивать</label>
         <div class="seg" id="segMode">
           <button data-v="both" class="on">слово + предложение</button>
@@ -498,6 +507,10 @@ select{cursor:pointer}
       <div class="card">
         <div class="row">
           <button class="btn primary big" id="btnStart">▶&nbsp; Начать озвучку</button>
+          <button class="btn primary" id="btnNew"
+                  title="Озвучить только карточки без тега av_voiced — те, что добавили после прошлого прогона">✚&nbsp; Озвучить новые</button>
+          <button class="btn" id="btnRetry" style="display:none"
+                  title="Перезапустить операции прошлого прогона, которые закончились ошибкой">⟳&nbsp; Перепробовать</button>
           <button class="btn danger" id="btnStop" disabled>■&nbsp; Остановить</button>
         </div>
         <div class="row" style="margin-top:10px">
@@ -1297,6 +1310,14 @@ function fillVoiceSelect(prefer){
   else if(ST.default_voice && list.some(v=>v.name===ST.default_voice)) sel.value = ST.default_voice;
   if(sel.value) openVoiceEditor(sel.value);
   markSelected(sel.value);
+  // ансамбль: тот же список, выбор нескольких (Ctrl/Shift)
+  const sel2 = $("voices2");
+  if(sel2){
+    const chosen = new Set([...sel2.selectedOptions].map(o=>o.value));
+    sel2.innerHTML = list.map(v=>
+      '<option value="'+esc(v.name)+'">'+esc(v.display || v.name)+"</option>").join("");
+    [...sel2.options].forEach(o=>{ if(chosen.has(o.value)) o.selected = true; });
+  }
   const selV = list.find(v=>v.name===sel.value);
   $("voiceHint").innerHTML = selV
     ? (selV.ok ? "Файлы весов на месте." : '<span style="color:var(--err)">Не хватает весов (.ckpt и .pth) или референса.</span>')
@@ -1407,6 +1428,7 @@ function fieldVal(id, key){
 function collectVoiceArgs(){
   return {
     kind:"voice", voice:$("voice").value, deck:$("deck").value, mode:mode(),
+    voices:[...$("voices2").selectedOptions].map(o=>o.value),
     sentence_src:fieldVal("sent_src","sentence_src"),
     sentence_audio:fieldVal("sent_aud","sentence_audio"),
     word_src:fieldVal("word_src","word_src"),
@@ -1446,6 +1468,16 @@ $("btnStart").onclick = async ()=>{
   saveCfg({mode:mode(), limit:raw, voice:$("voice").value, deck:$("deck").value});
   await runOp(collectVoiceArgs());
 };
+$("btnNew").onclick = async ()=>{
+  if(!$("deck").value) return toast("Сначала выбери колоду","bad");
+  if(!$("voice").value) return toast("Сначала выбери голос","bad");
+  // «новые» лимитом не режем: смысл ровно в том, чтобы добрать добавленное
+  const p = collectVoiceArgs();
+  p.only_new = true;
+  p.limit = "";
+  await runOp(p);
+};
+$("btnRetry").onclick = ()=>runOp({kind:"retry"});
 $("limit").onchange = ()=>{ saveCfg({limit:$("limit").value.trim()}); };
 $("btnCheck").onclick = ()=>{
   if(!$("deck").value) return toast("Сначала выбери колоду","bad");
@@ -1500,6 +1532,9 @@ function beginRunUI(r){
   NOTHING_TO_DO = false;
   STOPPED_BY_USER = false;
   RUNNING = true;
+  // разрешение на системные уведомления спрашиваем один раз, при старте
+  try{ if(window.Notification && Notification.permission === "default")
+        Notification.requestPermission(); }catch(e){}
   $("btnStart").disabled = true;
   $("btnCheck").disabled = true;
   $("btnSelftest").disabled = true;
@@ -1512,6 +1547,30 @@ function beginRunUI(r){
   $("progPct").textContent = "";
   $("voiceBanner") && banner("voiceBanner", null);
   openLog(0);
+}
+function beep(){
+  // короткий сигнал без внешних файлов (страница офлайн)
+  try{
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 880; g.gain.value = 0.07;
+    o.start(); o.stop(ctx.currentTime + 0.25);
+  }catch(e){}
+}
+function notifyDone(st){
+  // системное уведомление, если разрешено; иначе баннер + звук
+  try{
+    const lr = (st && st.last_run) || (ST && ST.last_run) || {};
+    const bad = lr.failed || 0, okn = lr.done || 0;
+    const body = "Готово: " + okn + ", ошибок: " + bad +
+      (bad ? " — можно перепробовать" : "");
+    if(window.Notification && Notification.permission === "granted"){
+      const n = new Notification("AnkiVoice: прогон завершён", {body: body});
+      n.onclick = ()=>{ try{ window.focus(); }catch(e){} };
+    }
+    beep();
+  }catch(e){}
 }
 function endRunUI(s){
   RUNNING = false;
@@ -1554,6 +1613,7 @@ function endRunUI(s){
       "<b>Проверка нашла проблемы.</b> Список карточек — в журнале ниже.");
   }else if(!ok) banner("voiceBanner","bad",
     "<b>Завершилось с ошибкой (код "+(s?s.code:"?")+").</b> Посмотри журнал ниже.");
+  if(!stopped) notifyDone(s);
   else banner("voiceBanner","good", done ? ("<b>Готово.</b> " + done) : "<b>Готово.</b>");
 }
 function showLastRun(s){
@@ -2471,9 +2531,19 @@ $("btnUpdate").onclick = checkUpdates;
   setInterval(async ()=>{
     try{
       const st = await api("/api/state");
-      ST = Object.assign({}, ST, {anki:st.anki, tts:st.tts, run:st.run, last:st.last});
+      ST = Object.assign({}, ST, {anki:st.anki, tts:st.tts, run:st.run, last:st.last,
+                                  last_run:st.last_run});
       chip($("chipAnki"), st.anki, "Anki", st.anki?"подключена":"не подключена");
       chip($("chipTts"),  st.tts,  "Сервер", st.tts?"запущен":"не запущен (поднимется сам)");
+      // кнопка «Перепробовать»: только когда есть что перепробовать
+      const lr = st.last_run || {};
+      const nfail = (lr.failed_ids || []).length;
+      const rb = $("btnRetry");
+      if(rb){
+        rb.style.display = (nfail && !RUNNING) ? "" : "none";
+        if(nfail) rb.title = "Перезапустить операции прошлого прогона, " +
+          "закончившиеся ошибкой: карточек — " + nfail;
+      }
       // если операция кончилась вне нашей сессии (перезалили страницу)
       if(RUNNING && st.run && !st.run.running){
         endRunUI(st.run);

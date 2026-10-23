@@ -336,6 +336,21 @@ def read_voices_file():
         return {"voices": {}}
 
 
+def _read_last_run():
+    """Итог последнего прогона (пишет voice_pipeline в %APPDATA%/AnkiVoice).
+
+    Путь дублируется намеренно: веб-слой не импортирует voice_pipeline
+    (тяжёлый и не нужен ему целиком), а файл — простой JSON.
+    """
+    p = os.path.join(os.environ.get("APPDATA") or "",
+                     "AnkiVoice", "last_run.json")
+    try:
+        with open(p, encoding="utf-8") as f:
+            return json.load(f) or {}
+    except Exception:
+        return {}
+
+
 def write_voices_file(cfg):
     p = os.path.join(ag.code_dir(), "voices.json")
     with open(p, "w", encoding="utf-8") as f:
@@ -1155,6 +1170,7 @@ class Handler(BaseHTTPRequestHandler):
             "run": run.snapshot() if run else None,
             "last": (LAST_RUN.snapshot() if LAST_RUN and not LAST_RUN.running
                      else None),
+            "last_run": _read_last_run(),
             "reading_off": READING_OFF,
         }
 
@@ -1348,6 +1364,14 @@ class Handler(BaseHTTPRequestHandler):
             title = "Проверка произношения «%s»" % deck
         elif kind == "selftest":
             args, title = ["selftest"], "Самопроверка пайплайна"
+        elif kind == "retry":
+            # перезапуск неудавшихся операций прошлого прогона
+            lr = _read_last_run()
+            if not (lr.get("failed_ids") or []):
+                return self._err("Перепробовать нечего: у прошлого прогона "
+                                 "ошибок нет")
+            args, title = ["voice", "--retry"], \
+                "Перепробовать неудашиеся (%d)" % len(lr["failed_ids"])
         elif kind == "scan":
             args, title = ["scan", "--apply", "--json"], "Сканирование весов в движке"
         elif kind == "qc-deck":
@@ -1384,6 +1408,15 @@ class Handler(BaseHTTPRequestHandler):
 
         args = ["voice", "--voice", voice, "--deck", deck,
                 "--mode", (b.get("mode") or "both")]
+        # ансамбль: выбранные дополнительные голоса — карточки распределятся
+        # случайно и озвучатся партиями (по одному переключению весов на голос)
+        voices = [str(v).strip() for v in (b.get("voices") or [])
+                  if str(v).strip() and str(v).strip() != voice]
+        if voices:
+            args += ["--voices", ",".join([voice] + voices)]
+        if b.get("only_new"):
+            # ежедневный сценарий: только карточки без тега av_voiced
+            args.append("--new")
         if b.get("only_suspect"):
             args += ["--tag", "av_suspect"]
         for flag, key, guess_key in (

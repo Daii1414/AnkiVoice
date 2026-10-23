@@ -83,6 +83,8 @@ straight in the Anki fields.</p>
 | 🎧 **Deck dubbing** | Writes `<audio>` with the sentence and the word straight into Anki fields. GPT-SoVITS clones the voice itself. |
 | 📖 **Two reading modes** | The engine reads the kanji itself - connected, in context - while the main term keeps the reading from the card's furigana. No furigana - it reads the kanji itself. |
 | 🧩 **Per-deck settings** | Fields and reading mode belong to a deck: switch decks and its settings come with them. |
+| 🎭 **Voice ensemble** | Pick several voices — cards are split between them at random and voiced in parts: maximum variety, weights switch once per voice, not per card. |
+| ✚ **New cards and retry** | "Voice new cards" takes only the cards added since the last run (the av_voiced tag); "Retry failed" re-runs only the operations that ended in an error. |
 | 🧪 **Quality control** | QC v2 measures several independent signals (silence, speech gaps, duplicate speech, clipping, level, speed) and re-synthesizes rejects on its own. |
 | 🎙 **Pronunciation check** | The app listens to its own audio and compares it with the text, showing where the sentence diverged. Advice, not a verdict - you decide. |
 | 🧙 **First-run wizard** | Five steps: pick the engine, the engine folder, AnkiConnect, server, test phrase. It tells you what to download, where to put it and what to click. |
