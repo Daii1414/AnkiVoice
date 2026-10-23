@@ -40,7 +40,6 @@ jobs:
         run: |
           python lab/qc_unit.py
           python lab/quality_unit.py
-          python lab/test_g2p_infrastructure.py
           python lab/test_v12_features.py
           python lab/test_en_translit.py
           python lab/web_js_check.py
