@@ -90,16 +90,39 @@ Filename: "{app}\AnkiVoice.exe"; Description: "Запустить {#MyAppName}";
   Flags: nowait postinstall skipifsilent
 
 [InstallDelete]
-; при обновлении убираем файлы прежней раскладки (код лежал в корне)
+; при обновлении убираем файлы прежней раскладки (код лежал в корне).
+; voices.json здесь НЕ удаляем: в 1.8 он лежал в корне и был ПОЛЬЗОВАТЕЛЬСКИМ
+; (реестр голосов) — удалять его значит молча терять настройки. Переносит его
+; на новое место CurStepChanged в [Code] ниже.
 Type: files; Name: "{app}\anki_gui.py"
 Type: files; Name: "{app}\anki_web.py"
 Type: files; Name: "{app}\voice_pipeline.py"
 Type: files; Name: "{app}\sudachi_g2p.py"
 Type: files; Name: "{app}\g2p_core.py"
 Type: files; Name: "{app}\kana_stress.py"
-Type: files; Name: "{app}\voices.json"
 Type: files; Name: "{app}\pyruntime.zip"
 Type: files; Name: "{app}\sudachidict.zip"
+
+[Code]
+// Обновление с 1.8: реестр голосов жил в {app}\voices.json, теперь живёт в
+// {app}\app\voices.json. Копируем старый на новое место до установки файлов
+// (ssInstall срабатывает раньше [InstallDelete] и [Files]), только если
+// своего ещё нет — свежий установочный не затираем.
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  OldVoices, NewVoices: String;
+begin
+  if CurStep = ssInstall then
+  begin
+    OldVoices := ExpandConstant('{app}\voices.json');
+    NewVoices := ExpandConstant('{app}\app\voices.json');
+    if FileExists(OldVoices) and not FileExists(NewVoices) then
+    begin
+      ForceDirectories(ExpandConstant('{app}\app'));
+      FileCopy(OldVoices, NewVoices, True);   // True: не перезаписывать
+    end;
+  end;
+end;
 
 [UninstallDelete]
 ; pyruntime и логи создаёт сама программа — установщик о них не знает
