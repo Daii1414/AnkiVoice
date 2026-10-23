@@ -124,13 +124,46 @@ begin
   end;
 end;
 
+// При удалении программы {app}\app вычищается ВРУЧНУЮ: у [UninstallDelete]
+// нет параметра Excludes, а voices.json там — пользовательский реестр
+// голосов, его терять нельзя. Всё прочее удаляется, сам каталог снимается,
+// только если опустел.
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  AppDir: String;
+  FindRec: TFindRec;
+begin
+  if CurUninstallStep <> usUninstall then
+    Exit;
+  AppDir := ExpandConstant('{app}\app');
+  if not DirExists(AppDir) then
+    Exit;
+  if FindFirst(AppDir + '\*', FindRec) then
+  begin
+    try
+      repeat
+        if (FindRec.Name <> '.') and (FindRec.Name <> '..') and
+           (CompareText(FindRec.Name, 'voices.json') <> 0) then
+        begin
+          if DirExists(AppDir + '\' + FindRec.Name) then
+            DelTree(AppDir + '\' + FindRec.Name, True, True, True)
+          else
+            DeleteFile(AppDir + '\' + FindRec.Name);
+        end;
+      until not FindNext(FindRec);
+    finally
+      FindClose(FindRec);
+    end;
+  end;
+  RemoveDir(AppDir);    // сработает, только если внутри остался voices.json
+end;
+
 [UninstallDelete]
 ; pyruntime и логи создаёт сама программа — установщик о ней не знает.
-; voices.json в {app}\app — ПОЛЬЗОВАТЕЛЬСКИЙ реестр голосов: при удалении
-; программы его сохраняем (Excludes), потери настроек быть не должно.
+; {app}\app НЕ в списке: его содержимое (кроме пользовательского
+; voices.json) вычищает CurUninstallStepChanged в [Code].
 Type: filesandordirs; Name: "{app}\pyruntime"
 Type: filesandordirs; Name: "{app}\logs"
 Type: filesandordirs; Name: "{app}\lab"
-Type: filesandordirs; Name: "{app}\app"; Excludes: "voices.json"
 Type: filesandordirs; Name: "{app}\bundled"
 Type: files; Name: "{app}\gptsovits_path.txt"
