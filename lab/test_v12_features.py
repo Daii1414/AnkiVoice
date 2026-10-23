@@ -700,6 +700,53 @@ def test_qa_first_users_fixes():
           "пересборка спрашивает подтверждение")
 
 
+def test_assign_voices():
+    """Ансамбль: детерминизм по seed, покрытие всех голосов, приоритет тегов."""
+    nids = list(range(1, 61))
+    a = vp.assign_voices(nids, ["x", "y"], seed=7)
+    b = vp.assign_voices(nids, ["x", "y"], seed=7)
+    check(a == b, "assign_voices детерминирован при том же seed")
+    check(set(a.values()) <= {"x", "y"}, "только выбранные голоса")
+    check(set(a.values()) == {"x", "y"}, "используются оба голоса")
+    # карточка с прежним голосом сохраняет его, если он в ансамбле
+    c = vp.assign_voices([1, 2], ["x", "y"], seed=7, prior={1: "y"})
+    check(c[1] == "y", "prior сохраняет прежний голос")
+    # prior с голосом вне ансамбля игнорируется
+    d = vp.assign_voices([1], ["x", "y"], seed=7, prior={1: "z"})
+    check(d[1] in ("x", "y"), "чужой prior не протаскивается")
+    # разные seed дают разные раскладки хотя бы на большой выборке
+    many = list(range(500))
+    r1 = vp.assign_voices(many, ["a", "b"], seed=1)
+    r2 = vp.assign_voices(many, ["a", "b"], seed=2)
+    check(sum(r1[i] == r2[i] for i in many) < 500,
+          "разные seed — разные раскладки")
+
+
+def test_last_run_roundtrip():
+    """last_run.json: запись атомарна, чтение возвращает то же, битый файл — {}."""
+    old = vp.LAST_RUN_FILE
+    try:
+        fd, tmp = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        os.remove(tmp)
+        vp.LAST_RUN_FILE = tmp
+        info = {"voice": ["a", "b"], "mode": "both", "done": 3, "failed": 1,
+                "failed_ids": [42], "fields": {"reading": ""},
+                "at": "2026-10-24 00:00:00"}
+        vp._write_last_run(info)
+        check(not os.path.exists(tmp + ".tmp"),
+              "атомарная запись не оставляет .tmp")
+        got = vp.read_last_run()
+        check(got.get("failed_ids") == [42] and got.get("done") == 3,
+              "last_run читается обратно")
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write("{broken")
+        check(vp.read_last_run() == {}, "битый last_run -> пустой итог")
+        os.remove(tmp)
+    finally:
+        vp.LAST_RUN_FILE = old
+
+
 def main():
     tests = [test_version_tuple, test_release_parse, test_download_sha,
              test_busy_download_no_deadlock, test_installer_ships_runtime_modules,
@@ -713,7 +760,8 @@ def main():
              test_indextts_synth_needs_ref,
              test_engine_ui_on_main_screen,
              test_qa_first_users_fixes,
-             test_setup_status]
+             test_setup_status,
+             test_assign_voices, test_last_run_roundtrip]
     failed = 0
     for t in tests:
         try:

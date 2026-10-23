@@ -41,6 +41,7 @@ import hashlib
 import html
 import json
 import os
+import random
 import re
 import shutil
 import unicodedata
@@ -2550,6 +2551,61 @@ def _plural(n, one, few, many):
     return many
 
 
+def _human_dur(sec):
+    """Секунды -> «45 с» / «7 мин»."""
+    sec = int(max(0, sec))
+    if sec < 90:
+        return "%d с" % sec
+    return "%d мин" % round(sec / 60)
+
+
+# ------------------------------------------------- итог последнего прогона
+# last_run.json — мост между прогоном и «Перепробовать неудашиеся» / CLI
+# voice --retry: сюда падают счётчики и список неудавшихся карточек.
+LAST_RUN_FILE = os.path.join(os.environ.get("APPDATA") or "",
+                             "AnkiVoice", "last_run.json")
+
+
+def _write_last_run(info):
+    try:
+        d = os.path.dirname(LAST_RUN_FILE)
+        if d and not os.path.isdir(d):
+            os.makedirs(d, exist_ok=True)
+        tmp = LAST_RUN_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(info, f, ensure_ascii=False, indent=1)
+        os.replace(tmp, LAST_RUN_FILE)
+    except Exception as e:
+        print("  (итог прогона сохранить не удалось: %r)" % (e,))
+
+
+def read_last_run():
+    """Итог последнего прогона или {}."""
+    try:
+        with open(LAST_RUN_FILE, encoding="utf-8") as f:
+            return json.load(f) or {}
+    except Exception:
+        return {}
+
+
+def assign_voices(nids, voice_names, seed=42, prior=None):
+    """Случайно распределить карточки между голосами ансамбля.
+
+    prior: {nid: голос} — карточки, уже озвученные одним из выбранных
+    голосов (тег av_voice::имя), сохраняют его: частая перезвонка части
+    колоды не меняет голос у уже озвученного.
+    Детерминировано при фиксированном seed — тот же набор карточек
+    даёт то же распределение.
+    """
+    rng = random.Random(seed)
+    names = list(voice_names)
+    out = {}
+    for nid in nids:
+        v = (prior or {}).get(nid)
+        out[nid] = v if v in names else rng.choice(names)
+    return out
+
+
 def _mode_title(mode):
     """Режим озвучки по-человечески."""
     return {"both": "слово + предложение", "sentence": "только предложение",
@@ -2567,8 +2623,24 @@ def _field_title(field, fields):
 
 
 def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
-                fields=None, verify=None, asr_model=None):
-    v = get_voice(voice_name)
+                fields=None, verify=None, asr_model=None, extra_voices=None):
+    """Озвучить карточки.
+
+    Голосов может быть несколько (extra_voices): тогда карточки случайно
+    распределяются между ними (assign_voices) и озвучиваются ПАРТИЯМИ —
+    веса каждого голоса грузятся один раз за прогон, а в колоде голоса
+    чередуются максимально случайно. Карточка с тегом av_voice::имя
+    сохраняет свой прежний голос.
+    Успешно озвученным карточкам ставится тег av_voiced — по нему работает
+    voice --new. Итог прогона пишется в last_run.json — по нему работает
+    voice --retry.
+    """
+    names = [voice_name]
+    for n in (extra_voices or []):
+        n = (n or "").strip()
+        if n and n not in names:
+            names.append(n)
+    voices = {n: get_voice(n) for n in names}
     notes = notes_info(ids)
     jobs = build_jobs(notes, mode, force, fields=fields)
     if not jobs:
@@ -2577,24 +2649,61 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
               "(в интерфейсе — «Пересобрать всё заново»).")
         return 0, 0
     ncards = len({j[0] for j in jobs})
+    main_v = voices[names[0]]
+    if len(names) > 1:
+        prior = {}
+        for n in names:
+            try:
+                for i in ac("findNotes", query='tag:"av_voice::%s"' % n):
+                    prior[i] = n
+            except Exception:
+                pass
+        assign = assign_voices({j[0] for j in jobs}, names, seed=seed,
+                               prior=prior)
+        print("Ансамбль: %s. Карточки распределены случайно, озвучка "
+              "партиями — веса переключатся %d %s."
+              % (", ".join(names), len(names),
+                 _plural(len(names), "раз", "раза", "раз")))
+        for n in names:
+            cnt = sum(1 for v in assign.values() if v == n)
+            print("  «%s»: %d %s" % (n, cnt,
+                                     _plural(cnt, "карточка", "карточки",
+                                             "карточек")))
+    else:
+        assign = {j[0]: names[0] for j in jobs}
     print("К озвучке: %d %s в %d %s (голос «%s», режим: %s)"
           % (len(jobs), _plural(len(jobs), "операция", "операции", "операций"),
              ncards, _plural(ncards, "карточке", "карточках", "карточках"),
-             v.get("display") or v["name"], _mode_title(mode)))
-    ensure_voice(v)
+             main_v.get("display") or main_v["name"], _mode_title(mode)))
     done, failed = 0, 0
-    cache = {}
-    cards_seen = 0
-    last_nid = None
-    for i, (nid, field, text, src_text) in enumerate(jobs, 1):
-        if nid != last_nid:
-            cards_seen += 1
-            last_nid = nid
-        # строка этапа: видно, над чем идёт работа и сколько осталось
-        print("Карточка %d из %d — %s: %s"
-              % (cards_seen, ncards, _field_title(field, fields), text[:40]))
+    failed_jobs = []
+    voiced_fields = {}     # nid -> {успешно записанные поля этого прогона}
+    cache = {}             # ключ включает голос: один текст у двух голосов
+    t0 = time.time()       # — это два разных звука
+    total = len(jobs)
+    # партии по голосам, внутри партии — исходный порядок карточек
+    ordered = []
+    for n in names:
+        ordered.extend(j for j in jobs if assign[j[0]] == n)
+    v = None
+    v_cur = None
+    for i, (nid, field, text, src_text) in enumerate(ordered, 1):
+        name = assign[nid]
+        if name != v_cur:
+            v = voices[name]
+            v_cur = name
+            ensure_voice(v)
+        # ETA по фактической скорости прогона (после первых операций)
+        eta = ""
+        if i > 1:
+            elapsed = time.time() - t0
+            if elapsed > 5:
+                eta = " · осталось ~%s" % _human_dur(
+                    (total - i + 1) * elapsed / (i - 1))
+        print("Карточка %d из %d%s — %s: %s"
+              % (i, total, eta, _field_title(field, fields), text[:40]))
         try:
-            key = (text, seed, speed)
+            key = (name, text, seed, speed)
             if key not in cache:
                 # содержание сверяем только у предложения: изолированное
                 # слово распознаётся ненадёжно (см. замер на 300 словах)
@@ -2612,6 +2721,7 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
                 fname = stored
             ac("updateNoteFields", note={"id": nid, "fields": {field: "[sound:%s]" % fname}})
             done += 1
+            voiced_fields.setdefault(nid, set()).add(field)
             print("OK   [%d] %-16s %s (%s, %.0f КБ)"
                   % (nid, _field_title(field, fields), text[:40], ext,
                      len(blob) / 1024))
@@ -2623,19 +2733,52 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
                 pass
         except SystemExit as e:
             failed += 1
+            failed_jobs.append((nid, field))
             print("FAIL [%d] %s: %s" % (nid, field, e))
         except Exception as e:
             failed += 1
+            failed_jobs.append((nid, field))
             msg = str(e)
             if "editor" in msg.lower():
                 msg += "  <- закой карточку в редакторе Anki"
             print("FAIL [%d] %s: %s" % (nid, field, msg))
+    # теги проставляем пачкой и только ПОЛНОСТЬЮ успешным карточкам этого
+    # прогона: у карточки с одной неудавшейся операцией av_voiced не будет —
+    # следующий voice --new её подхватит
+    all_fields = {}
+    for nid, field, _t, _s in jobs:
+        all_fields.setdefault(nid, set()).add(field)
+    ok_cards = sorted(nid for nid, fl in voiced_fields.items()
+                      if all_fields.get(nid) and fl >= all_fields[nid])
+    for tags, card_ids in (("av_voiced", ok_cards),):
+        for chunk in _chunks(card_ids, 400):
+            try:
+                ac("addTags", notes=chunk, tags=tags)
+            except Exception as e:
+                print("  (тег %s проставить не удалось: %s)" % (tags, e))
+    for n in names:
+        ids_n = [nid for nid in ok_cards if assign.get(nid) == n]
+        for chunk in _chunks(ids_n, 400):
+            try:
+                ac("addTags", notes=chunk, tags="av_voice::" + n)
+            except Exception:
+                pass
     extra = ""
     if _PRON_STATE.get("checked"):
         extra = (" | произношение проверено: %d, подозрительных: %d, брака: %d"
                  % (_PRON_STATE["checked"], _PRON_STATE.get("suspect", 0),
                     _PRON_STATE.get("bad", 0)))
     print("\nГотово: %d, ошибок: %d%s" % (done, failed, extra))
+    _write_last_run({
+        "voice": names[0] if len(names) == 1 else names,
+        "mode": mode,
+        "fields": fields or {},
+        "done": done,
+        "failed": failed,
+        "failed_ids": sorted({nid for nid, _f in failed_jobs}),
+        "ok_cards": ok_cards,
+        "at": time.strftime("%Y-%m-%d %H:%M:%S"),
+    })
     return done, failed
 
 
@@ -2993,8 +3136,42 @@ def _chunks(seq, n):
 def cmd_voice(args):
     fields = _fields_from_args(args, deck=args.deck)
     tag = getattr(args, "tag", None)
+    if getattr(args, "retry", False):
+        # перезапуск неудавшихся операций прошлого прогона: force=False,
+        # поэтому уже озвученные поля пропускаются сами
+        lr = read_last_run()
+        fids = lr.get("failed_ids") or []
+        if not fids:
+            raise SystemExit("Перепробовать нечего: у прошлого прогона "
+                             "ошибок нет (или итогового файла ещё нет).")
+        print("Перепробовать %d %s прошлого прогона (%s)."
+              % (len(fids), _plural(len(fids), "карточку", "карточки",
+                                    "карточек"),
+                 lr.get("at") or "время неизвестно"))
+        lr_voice = lr.get("voice")
+        if isinstance(lr_voice, list):
+            lr_voice, lr_extra = lr_voice[0], lr_voice[1:]
+        else:
+            lr_extra = []
+        voice_notes(fids, lr_voice or args.voice or None,
+                    mode=lr.get("mode", "both"), force=False,
+                    fields=lr.get("fields") or fields,
+                    verify=getattr(args, "verify", None),
+                    asr_model=getattr(args, "asr_model", None),
+                    extra_voices=lr_extra)
+        return
     if args.deck:
-        ids = ac("findNotes", query='deck:"%s"' % args.deck)
+        if getattr(args, "new", False):
+            # ежедневный сценарий: только карточки без av_voiced
+            ids = ac("findNotes",
+                     query='deck:"%s" -tag:av_voiced' % args.deck)
+            if not ids:
+                print("Новых карточек нет: у всех карточек колоды '%s' есть "
+                      "тег av_voiced." % args.deck)
+                return
+            print("Новых карточек (без av_voiced): %d." % len(ids))
+        else:
+            ids = ac("findNotes", query='deck:"%s"' % args.deck)
         if tag:
             # внутри колоды оставляем только карточки с тегом
             tagged = set(ac("findNotes", query='tag:"%s"' % tag))
@@ -3023,10 +3200,13 @@ def cmd_voice(args):
         ids = [int(x) for x in args.ids]
     else:
         raise SystemExit("Укажи --deck или --ids.")
+    extra = [x.strip() for x in (getattr(args, "voices", "") or "").split(",")
+             if x.strip()]
     voice_notes(ids, args.voice, mode=args.mode, force=args.force,
                 seed=args.seed, speed=args.speed, fields=fields,
                 verify=getattr(args, "verify", None),
-                asr_model=getattr(args, "asr_model", None))
+                asr_model=getattr(args, "asr_model", None),
+                extra_voices=extra)
 
 
 
@@ -3923,6 +4103,16 @@ def main():
 
     p = sub.add_parser("voice", help="озвучить колоду/карточки")
     p.add_argument("--voice")
+    p.add_argument("--voices", default="",
+                   help="ансамбль: «голос1,голос2,…» — карточки случайно "
+                        "распределяются между голосами и озвучиваются "
+                        "партиями (веса переключаются один раз на голос)")
+    p.add_argument("--new", action="store_true",
+                   help="только карточки без тега av_voiced (ежедневный "
+                        "сценарий: добавил карточки — нажал одну кнопку)")
+    p.add_argument("--retry", action="store_true",
+                   help="перезапустить неудавшиеся операции прошлого "
+                        "прогона (из last_run.json)")
     p.add_argument("--deck", default=None)
     p.add_argument("--ids", nargs="*", default=None)
     p.add_argument("--limit", type=int, default=None)

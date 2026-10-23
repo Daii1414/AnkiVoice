@@ -50,6 +50,17 @@ I18N_EN = {
         "The app does not freeze — the log and the progress bar keep updating.",
     "▶ Начать озвучку": "▶ Start dubbing",
     "■ Остановить": "■ Stop",
+    "✚ Озвучить новые": "✚ Voice new cards",
+    "⟳ Перепробовать": "⟳ Retry failed",
+    "Ансамбль (необязательно)": "Ensemble (optional)",
+    "Зажми Ctrl и выбери 2+ голоса: карточки колоды распределятся между ними случайно, "
+    "каждая будет озвучена целиком одним голосом, а партии пойдут друг за другом — "
+    "переключений весов будет по одному на голос, не на карточку. Уже озвученные карточки "
+    "сохраняют свой прежний голос.":
+        "Ctrl-click to pick 2+ voices: deck cards are split between them at "
+        "random, each card is voiced entirely by one voice, and parts run one "
+        "after another — weights switch once per voice, not per card. Cards "
+        "already voiced keep their previous voice.",
     "Проверить колоду": "Check deck",
     "Самопроверка": "Self-test",
     "Проверить произношение": "Check pronunciation",
