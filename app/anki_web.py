@@ -1087,6 +1087,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/shutdown":
             self._json({"ok": True})
+            stop_run()      # гасим и дочерний пайплайн, иначе он останется
             threading.Thread(target=self.server.shutdown, daemon=True).start()
             return
 

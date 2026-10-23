@@ -90,22 +90,80 @@ Filename: "{app}\AnkiVoice.exe"; Description: "Запустить {#MyAppName}";
   Flags: nowait postinstall skipifsilent
 
 [InstallDelete]
-; при обновлении убираем файлы прежней раскладки (код лежал в корне)
+; при обновлении убираем файлы прежней раскладки (код лежал в корне).
+; voices.json здесь НЕ удаляем: в 1.8 он лежал в корне и был ПОЛЬЗОВАТЕЛЬСКИМ
+; (реестр голосов) — удалять его значит молча терять настройки. Переносит его
+; на новое место CurStepChanged в [Code] ниже.
 Type: files; Name: "{app}\anki_gui.py"
 Type: files; Name: "{app}\anki_web.py"
 Type: files; Name: "{app}\voice_pipeline.py"
 Type: files; Name: "{app}\sudachi_g2p.py"
 Type: files; Name: "{app}\g2p_core.py"
 Type: files; Name: "{app}\kana_stress.py"
-Type: files; Name: "{app}\voices.json"
 Type: files; Name: "{app}\pyruntime.zip"
 Type: files; Name: "{app}\sudachidict.zip"
 
+[Code]
+// Обновление с 1.8: реестр голосов жил в {app}\voices.json, теперь живёт в
+// {app}\app\voices.json. Копируем старый на новое место до установки файлов
+// (ssInstall срабатывает раньше [InstallDelete] и [Files]), только если
+// своего ещё нет — свежий установочный не затираем.
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  OldVoices, NewVoices: String;
+begin
+  if CurStep = ssInstall then
+  begin
+    OldVoices := ExpandConstant('{app}\voices.json');
+    NewVoices := ExpandConstant('{app}\app\voices.json');
+    if FileExists(OldVoices) and not FileExists(NewVoices) then
+    begin
+      ForceDirectories(ExpandConstant('{app}\app'));
+      FileCopy(OldVoices, NewVoices, True);   // True: не перезаписывать
+    end;
+  end;
+end;
+
+// При удалении программы {app}\app вычищается ВРУЧНУЮ: у [UninstallDelete]
+// нет параметра Excludes, а voices.json там — пользовательский реестр
+// голосов, его терять нельзя. Всё прочее удаляется, сам каталог снимается,
+// только если опустел.
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  AppDir: String;
+  FindRec: TFindRec;
+begin
+  if CurUninstallStep <> usUninstall then
+    Exit;
+  AppDir := ExpandConstant('{app}\app');
+  if not DirExists(AppDir) then
+    Exit;
+  if FindFirst(AppDir + '\*', FindRec) then
+  begin
+    try
+      repeat
+        if (FindRec.Name <> '.') and (FindRec.Name <> '..') and
+           (CompareText(FindRec.Name, 'voices.json') <> 0) then
+        begin
+          if DirExists(AppDir + '\' + FindRec.Name) then
+            DelTree(AppDir + '\' + FindRec.Name, True, True, True)
+          else
+            DeleteFile(AppDir + '\' + FindRec.Name);
+        end;
+      until not FindNext(FindRec);
+    finally
+      FindClose(FindRec);
+    end;
+  end;
+  RemoveDir(AppDir);    // сработает, только если внутри остался voices.json
+end;
+
 [UninstallDelete]
-; pyruntime и логи создаёт сама программа — установщик о них не знает
+; pyruntime и логи создаёт сама программа — установщик о ней не знает.
+; {app}\app НЕ в списке: его содержимое (кроме пользовательского
+; voices.json) вычищает CurUninstallStepChanged в [Code].
 Type: filesandordirs; Name: "{app}\pyruntime"
 Type: filesandordirs; Name: "{app}\logs"
 Type: filesandordirs; Name: "{app}\lab"
-Type: filesandordirs; Name: "{app}\app"
 Type: filesandordirs; Name: "{app}\bundled"
 Type: files; Name: "{app}\gptsovits_path.txt"

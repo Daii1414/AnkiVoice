@@ -934,7 +934,11 @@ def _ensure_pyruntime():
         return False
     print("-- Собираю встроенный разбор текста (pyruntime, один раз)...")
     with zipfile.ZipFile(PYRUNTIME_ZIP) as zf:
-        zf.extractall(CODE)
+        # архив содержит верхний каталог pyruntime/, поэтому распаковываем в
+        # ROOT: python.exe окажется ровно в PYRUNTIME_DIR, где его ждут
+        # sudachi_g2p/g2p_core и pipeline_cmd (extractall(CODE) клал его в
+        # app\pyruntime — на свежей установке помощники не запускались вовсе)
+        zf.extractall(ROOT)
     return os.path.isfile(PYRUNTIME_PY)
 
 
@@ -1153,6 +1157,28 @@ def _pyopenjtalk_g2p(text):
 _KATA_ONLY = re.compile(r"^[\u30a0-\u30ff]+$")
 
 
+def _span_drift(surface, word):
+    """Спаны помощника съехали относительно текста — разметке верить нельзя.
+
+    Случай: в числе с разделителями («1,280») нормальная форма короче
+    поверхности, и хвостовые токены получают ЧУЖИЕ поверхности: слово 円
+    указывает на запятую, «です» — на «2». У куска без букв (только знаки
+    препинания) слово обязано совпадать с поверхностью; иначе уводим всё
+    предложение в запасную цепочку. Кандзи/цифры/кана/латиница не
+    проверяются: там word легитимно отличается (нормализация 十/百/千,
+    ляпсусы словаря вроде シュミレーション).
+    """
+    s = surface or ""
+    if not s or s.isspace() or KANJI_RE.search(s):
+        return False
+    if any(c.isdigit() for c in s):
+        return False
+    if re.search(r"[\u3040-\u30ff\u31f0-\u31ff\uff66-\uff9fa-zA-Z]", s):
+        return False
+    return unicodedata.normalize("NFKC", word or "") != \
+        unicodedata.normalize("NFKC", s)
+
+
 def _g2p_core(text):
     """Чтение через ядро Haqumei. None — ядро недоступно/не справилось.
 
@@ -1189,7 +1215,17 @@ def _g2p_core(text):
                 return None                 # пропущен кусок с иероглифами
             out.append(gap)
         surface = text[s:e]                 # исходный текст (не нормализация)
-        if KANJI_RE.search(surface):
+        if s == e:
+            # нулевой спан: Haqumei вставил знак нормализации без поверхности
+            # (разряды 十/百/千 в числах: 2024 -> 二千[二十四]). Поверхности
+            # нет, источник истины — чтение токена; без этого 2024年
+            # собирался как にせんによねん (じゅоу терялся).
+            if not read or KANJI_RE.search(read):
+                return None                 # чтения нет — запасная цепочка
+            out.append(read)
+        elif _span_drift(surface, word):
+            return None                     # спаны съехали — не доверяем
+        elif KANJI_RE.search(surface):
             if unicodedata.normalize("NFKC", word) != \
                     unicodedata.normalize("NFKC", surface):
                 return None                 # разметка съехала — не доверяем
@@ -1254,7 +1290,16 @@ def g2p_kana(text, furigana_map=None):
                             break                 # пропущен кусок с иероглифами
                         out.append(gap)
                     surface = text[s:e]           # исходный текст
-                    if KANJI_RE.search(surface):
+                    if s == e:
+                        # нулевой спан — вставленный разряд числа (см. _g2p_core)
+                        if not read or KANJI_RE.search(read):
+                            completed = False
+                            break
+                        out.append(read)
+                    elif _span_drift(surface, word):
+                        completed = False
+                        break
+                    elif KANJI_RE.search(surface):
                         # 1. Фуригана (Опция 1) — источник истины, если валидна
                         furi = furigana_map.get(surface) if furigana_map else None
                         if furi:
@@ -1435,8 +1480,18 @@ def _parse_furigana(furigana: str, expression: str = "") -> str:
         expr = (expression or "").strip()
         if not expr or base == expr or not re.search(
                 r"[\u3005\u3400-\u4dbf\u4e00-\u9fff]", base):
-            # разметка на всё слово (либо выражение не известно) -> одно чтение
-            return _content(segs[idxs[0]]).replace("\u30fb", "")
+            reading = _content(segs[idxs[0]]).replace("\u30fb", "")
+            if re.search(r"[\u3005\u3400-\u4dbf\u4e00-\u9fff]", base):
+                # Разметка «на всё слово» или «только на кандзи» по записи
+                # неразличима — различаем по звучанию: если кана вокруг
+                # кандзи уже звучит в чтении (点群データ[てんぐんでーた]),
+                # чтение на всё слово; иначе эта кана — своя, терять её
+                # нельзя (アーク溶接棒[ようせつぼう] -> アークようせつぼう,
+                # а не голое ようせつぼう).
+                if _reading_covers_word(base, reading):
+                    return reading
+                return _base_reading(base, reading)
+            return reading
     return _concat().replace("\u30fb", "")
 
 
@@ -1473,11 +1528,13 @@ def kanaize_card(text, expression=None, furigana=None):
 
     if norm_expr and norm_expr in t:
         # проверенное чтение вместо написания основного слова
-        return kanaize(t.replace(norm_expr, reading))
+        return kanaize(replace_term(t, norm_expr, reading))
 
     # латиница в предложении может отличаться регистром (PLATEAU vs plateau)
     if norm_expr and re.search(r"[A-Za-z]", norm_expr):
-        pat = re.compile(re.escape(norm_expr), re.IGNORECASE)
+        k = KANJI_RE.pattern
+        pat = re.compile(r"(?<!%s)%s(?!%s)" % (k, re.escape(norm_expr), k),
+                         re.IGNORECASE)
         if pat.search(t):
             return kanaize(pat.sub(lambda _m: reading, t))
 
@@ -1585,17 +1642,25 @@ def furiga_pair(text):
     «相欠[あいが]き継[つ]ぎ» -> («相欠き継ぎ», «あいがきつぎ»).
     Хвост после последней скобки без чтения остаётся как есть.
     (None, None) — если разметки нет.
+    Многовариантное чтение («生花[いけばな,せいか]») берётся первым
+    вариантом до запятой — как в _parse_furigana, иначе запятая уезжает
+    в текст синтеза.
     """
     if "[" not in text:
         return None, None
+
+    def _first(s):
+        return s.split(",", 1)[0].strip()
+
     parts = re.split(r"\[([^\[\]]*)\]", text)
     last = len(parts) - 1
     # Одна скобка в самом конце: чтение либо на всё слово
     # («点群データ[てんぐんでーта]» — окуригану добавлять нельзя, иначе
     # «データ» прозвучит дважды), либо только на иероглифы
-    # («アイススケート場[じょう]» — окуригана нужна).
-    if len(parts) == 3 and parts[2] == "" and _reading_covers_word(parts[0], parts[1]):
-        return parts[0], parts[1].replace("\u30fb", "")
+    # («アイススケート场[じょう]» — окуригана нужна).
+    if len(parts) == 3 and parts[2] == "" and \
+            _reading_covers_word(parts[0], _first(parts[1])):
+        return parts[0], _first(parts[1]).replace("\u30fb", "")
     surf, read = [], []
     i = 0
     while i < len(parts):
@@ -1607,7 +1672,7 @@ def furiga_pair(text):
             read.append(parts[i])
         else:
             surf.append(parts[i])
-            read.append(_base_reading(parts[i], parts[i + 1]))
+            read.append(_base_reading(parts[i], _first(parts[i + 1])))
             i += 1
         i += 1
     # «・» в чтении — это разделитель морфем, а не знак для произнесения:
@@ -1672,6 +1737,21 @@ def _doubled_okurigana(surface, text):
     return ""
 
 
+def replace_term(text, surface, repl):
+    """Заменить surface -> repl только там, где совпадение — целое слово.
+
+    Простая string-замена бьёт и по чужим словам: 星 (ほし) внутри 火星 даёт
+    «火ほし», 女王 (おう) — «女おう». Заменяем только совпадения, к которым
+    НЕ прилегает иероглиф: прилегание слева/справа означает, что найденный
+    кусок — часть кандзи-композита, а не сам термин. Прилегающая кана —
+    разрешена (окуригана, частицы: 相欠き+を), латиница тоже (I形+鋼 — сам
+    термин содержит латиницу и меняется вместе с ней).
+    """
+    k = KANJI_RE.pattern
+    pat = re.compile(r"(?<!%s)%s(?!%s)" % (k, re.escape(surface), k))
+    return pat.sub(lambda _m: repl, text)
+
+
 def inject_reading_lenient(sentence, note, reading_field):
     """Подставить чтение из поля в предложение без ограничения.
 
@@ -1710,7 +1790,7 @@ def inject_reading_lenient(sentence, note, reading_field):
         print("  [прочтение] окуригана %r прозвучала бы дважды — термин "
               "оставлен как есть" % dup)
         return sentence
-    return sentence.replace(surface, repl)
+    return replace_term(sentence, surface, repl)
 
 
 def inject_reading(sentence, note, reading=""):
@@ -1734,7 +1814,7 @@ def inject_reading(sentence, note, reading=""):
         return sentence
     if kanji not in sentence:
         return sentence
-    return sentence.replace(kanji, kata2hira(rd))
+    return replace_term(sentence, kanji, kata2hira(rd))
 
 
 # --------------------------------------------------------------- синтез

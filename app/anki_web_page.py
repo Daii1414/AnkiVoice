@@ -1231,7 +1231,7 @@ async function loadFields(){
                    : "";
     fillSelect($("f_reading"),  FIELDS, readMode);
     $("fieldsHint").innerHTML = "Полей в колоде: <b>"+FIELDS.length+"</b>. " +
-      "Фуригана: <b>"+(g.furigana_src || c.furigana_src || "нет — слово прочитается автоматически")+"</b>.";
+      "Фуригана: <b>"+esc(g.furigana_src || c.furigana_src || "нет — слово прочитается автоматически")+"</b>.";
     banner("ankiBanner", null);
   }catch(e){
     $("fieldsHint").textContent = "Ошибка: " + e.message;

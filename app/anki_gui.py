@@ -2064,6 +2064,13 @@ def run_gui(open_tab=None):
                 messagebox.showerror(APP_NAME, "Файл не найден:\n%s" % f)
 
         def on_close(self):
+            # закрытие окна не должно оставлять пайплайн-сироту: он продолжает
+            # синтез и писать в Anki невидимо для пользователя
+            try:
+                if self.run:
+                    self.run.stop()
+            except Exception:
+                pass
             self.destroy()
 
     app = App(open_tab)
