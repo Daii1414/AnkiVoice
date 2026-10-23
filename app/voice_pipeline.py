@@ -1480,8 +1480,18 @@ def _parse_furigana(furigana: str, expression: str = "") -> str:
         expr = (expression or "").strip()
         if not expr or base == expr or not re.search(
                 r"[\u3005\u3400-\u4dbf\u4e00-\u9fff]", base):
-            # разметка на всё слово (либо выражение не известно) -> одно чтение
-            return _content(segs[idxs[0]]).replace("\u30fb", "")
+            reading = _content(segs[idxs[0]]).replace("\u30fb", "")
+            if re.search(r"[\u3005\u3400-\u4dbf\u4e00-\u9fff]", base):
+                # Разметка «на всё слово» или «только на кандзи» по записи
+                # неразличима — различаем по звучанию: если кана вокруг
+                # кандзи уже звучит в чтении (点群データ[てんぐんでーた]),
+                # чтение на всё слово; иначе эта кана — своя, терять её
+                # нельзя (アーク溶接棒[ようせつぼう] -> アークようせつぼう,
+                # а не голое ようせつぼう).
+                if _reading_covers_word(base, reading):
+                    return reading
+                return _base_reading(base, reading)
+            return reading
     return _concat().replace("\u30fb", "")
 
 
@@ -1632,17 +1642,25 @@ def furiga_pair(text):
     «相欠[あいが]き継[つ]ぎ» -> («相欠き継ぎ», «あいがきつぎ»).
     Хвост после последней скобки без чтения остаётся как есть.
     (None, None) — если разметки нет.
+    Многовариантное чтение («生花[いけばな,せいか]») берётся первым
+    вариантом до запятой — как в _parse_furigana, иначе запятая уезжает
+    в текст синтеза.
     """
     if "[" not in text:
         return None, None
+
+    def _first(s):
+        return s.split(",", 1)[0].strip()
+
     parts = re.split(r"\[([^\[\]]*)\]", text)
     last = len(parts) - 1
     # Одна скобка в самом конце: чтение либо на всё слово
     # («点群データ[てんぐんでーта]» — окуригану добавлять нельзя, иначе
     # «データ» прозвучит дважды), либо только на иероглифы
-    # («アイススケート場[じょう]» — окуригана нужна).
-    if len(parts) == 3 and parts[2] == "" and _reading_covers_word(parts[0], parts[1]):
-        return parts[0], parts[1].replace("\u30fb", "")
+    # («アイススケート场[じょう]» — окуригана нужна).
+    if len(parts) == 3 and parts[2] == "" and \
+            _reading_covers_word(parts[0], _first(parts[1])):
+        return parts[0], _first(parts[1]).replace("\u30fb", "")
     surf, read = [], []
     i = 0
     while i < len(parts):
@@ -1654,7 +1672,7 @@ def furiga_pair(text):
             read.append(parts[i])
         else:
             surf.append(parts[i])
-            read.append(_base_reading(parts[i], parts[i + 1]))
+            read.append(_base_reading(parts[i], _first(parts[i + 1])))
             i += 1
         i += 1
     # «・» в чтении — это разделитель морфем, а не знак для произнесения:
