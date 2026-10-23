@@ -756,7 +756,39 @@ LATIN = {"A": "エー", "B": "ビー", "C": "シー", "D": "ディー", "E": "�
 _g2p_warned = False
 
 
+try:
+    import en_translit
+    _translit_en_local = en_translit.transliterate_en
+except Exception:
+    en_translit = None
+    _translit_en_local = None
+
+
 def latin2kana(s):
+    """Транслитерация латиницы: гибрид e2k + словарь аббревиатур + fallback."""
+    if not s or not re.search(r"[A-Za-z0-9]", s):
+        return s
+    # 1. Локальный запуск (если e2k доступен прямо в текущем Python 3.10+)
+    if en_translit is not None and getattr(en_translit, "has_e2k", lambda: False)():
+        try:
+            return _translit_en_local(s)
+        except Exception:
+            pass
+    # 2. Через фоновый процесс pyruntime (Python 3.9 в рантайме GPT-SoVITS -> Python 3.13 с e2k)
+    try:
+        c = core_client()
+        if c and hasattr(c, "translit"):
+            res = c.translit(s)
+            if res:
+                return res
+    except Exception:
+        pass
+    # 3. Локальный transliterate_en (хотя бы по словарю ACRONYMS / дефисам) или fallback
+    if _translit_en_local is not None:
+        try:
+            return _translit_en_local(s)
+        except Exception:
+            pass
     return re.sub(r"[A-Za-z]", lambda m: LATIN.get(m.group(0).upper(), m.group(0)), s)
 
 
@@ -1044,6 +1076,26 @@ class _CoreProc(object):
         except Exception:
             self.proc = None
             return False
+
+    def translit(self, text):
+        """Транслитерация английских слов в катакану (e2k) через встроенный Python."""
+        for _ in range(2):
+            if self.proc is None and not self.start():
+                return None
+            try:
+                req = (json.dumps({"id": 1, "action": "translit", "text": text},
+                                  ensure_ascii=False) + "\n").encode("utf-8")
+                self.proc.stdin.write(req)
+                self.proc.stdin.flush()
+                line = self.proc.stdout.readline()
+                if not line:
+                    self.proc = None
+                    continue
+                msg = json.loads(line.decode("utf-8"))
+                return msg.get("result")
+            except Exception:
+                self.proc = None
+        return None
 
     def reads(self, text):
         """[[поверхность, чтение, начало, конец, неизвестно], ...] или None."""
@@ -3592,7 +3644,12 @@ def cmd_selftest(args):
     for src, want in ((u"ｶﾞｷｮｳ", u"がきょう"),
                       (u"ＩＥＣ規格", u"あいいーしーきかく"),
                       (u"食べさせられたくなかった", u"たべさせられたくなかった"),
-                      (u"キョウト", u"きょうと")):
+                      (u"キョウト", u"きょうと"),
+                      (u"bus", u"ばす"),
+                      (u"community", u"こみゅにてぃー"),
+                      (u"3D", u"すりーでぃー"),
+                      (u"USB", u"ゆーえすびー"),
+                      (u"Wi-Fi", u"わいふぁい")):
         got = kanaize(src)
         if got == want:
             ok("%s -> %s" % (src, got))

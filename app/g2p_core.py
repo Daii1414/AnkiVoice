@@ -27,6 +27,8 @@ import os
 import sys
 
 CODE = os.path.dirname(os.path.abspath(__file__))
+if CODE not in sys.path:
+    sys.path.insert(0, CODE)
 
 
 def _valid_read(read):
@@ -137,6 +139,14 @@ def main():
             continue
         try:
             req = json.loads(line)
+            if req.get("action") == "translit":
+                try:
+                    from en_translit import transliterate_en
+                    res = transliterate_en(req.get("text", ""))
+                except Exception:
+                    res = req.get("text", "")
+                print(json.dumps({"id": req.get("id"), "result": res}, ensure_ascii=False), flush=True)
+                continue
             words = []
             mapped = list(h.g2p_mapping_detailed(req["text"]))
             for i, w in enumerate(mapped):
