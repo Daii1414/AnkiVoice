@@ -125,10 +125,12 @@ begin
 end;
 
 [UninstallDelete]
-; pyruntime и логи создаёт сама программа — установщик о них не знает
+; pyruntime и логи создаёт сама программа — установщик о ней не знает.
+; voices.json в {app}\app — ПОЛЬЗОВАТЕЛЬСКИЙ реестр голосов: при удалении
+; программы его сохраняем (Excludes), потери настроек быть не должно.
 Type: filesandordirs; Name: "{app}\pyruntime"
 Type: filesandordirs; Name: "{app}\logs"
 Type: filesandordirs; Name: "{app}\lab"
-Type: filesandordirs; Name: "{app}\app"
+Type: filesandordirs; Name: "{app}\app"; Excludes: "voices.json"
 Type: filesandordirs; Name: "{app}\bundled"
 Type: files; Name: "{app}\gptsovits_path.txt"
