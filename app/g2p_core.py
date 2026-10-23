@@ -116,21 +116,94 @@ _RENYOU_NEXT = frozenset((
 ))
 
 
-def main():
+_H = None          # ленивый Haqumei (общий для протокола и in-process вызова)
+
+
+def _haqumei():
+    """Ленивый экземпляр Haqumei.
+
+    revert_long_vowels: ー -> う/い-нотация (トーキョー -> トウキョウ) — та же
+    нотация, что у Sudachi и у корпуса ROHAN; иначе сравнение и кэш конвейера
+    получают два разных стиля записи одного звука.
+    revert_yotsugana: нормализация づ/ぢ под корпус (четыре варианта знака).
+    """
+    global _H
+    if _H is None:
+        from haqumei import Haqumei
+        _H = Haqumei(revert_long_vowels=True, revert_yotsugana=True)
+    return _H
+
+
+def reads(text):
+    """Текст -> [[поверхность, чтение, начало, конец, неизвестно], ...].
+
+    Общая сборка слов: её вызывает и протокол main() (для pyruntime), и
+    пайплайн напрямую, когда Haqumei уже стоит в его интерпретаторе
+    (CI, собранный exe, dev-venv) — см. voice_pipeline._core_local().
+    """
     _init_kanji()
     _init_voice()
+    h = _haqumei()
+    words = []
+    mapped = list(h.g2p_mapping_detailed(text))
+    for i, w in enumerate(mapped):
+        s, e = w.char_span
+        read = w.read if w.read and w.read != "*" else ""
+        # Иероглифы: берём ПРОИЗНОСИТЕЛЬНУЮ форму pron — она
+        # контекстная (六百 -> ロッピャク, 殿 -> ドノ, частица
+        # は -> ワ), а read — словарная (ロクヒャク, トノ).
+        # У слова без иероглифов (частицы, знаки) кана проходит
+        # мимо: их pron портит частицу を (ヲ вместо «о»).
+        if _KANJI.search(w.word):
+            clean = _kana_only(w.pron or "")
+            if _valid_read(clean):
+                read = clean
+                # У глаголов/прилагательных сверяем контекст с
+                # отдельным чтением: если разница только в
+                # озвончении, это ложный дакутен (см. выше).
+                # Читаем основу ВМЕСТЕ со следующим окончанием:
+                # g2k("張っ") даёт «バッ», а «張った» — «ハッ».
+                pos = getattr(w, "pos", "") or ""
+                if pos.startswith(("動詞", "形容詞")):
+                    alone = ""
+                    nxt = mapped[i + 1] if i + 1 < len(mapped) else None
+                    if (nxt is not None and nxt.word in _RENYOU_NEXT
+                            and nxt.char_span[0] == e):
+                        try:
+                            parts = h.g2p_mapping_detailed(
+                                w.word + nxt.word)
+                            if parts and parts[0].word == w.word:
+                                alone = _kana_only(
+                                    parts[0].pron or parts[0].read or "")
+                        except Exception:
+                            alone = ""
+                    if not alone:
+                        try:
+                            alone = _kana_only(h.g2k(w.word) or "")
+                        except Exception:
+                            alone = ""
+                    if _dakuten_only(clean, alone):
+                        read = alone
+            elif not _valid_read(read):
+                # чтение не нашлось (слова нет даже в словаре
+                # Haqumei) — пробуем прочитать слово отдельно,
+                # там он подставит чтение по он'ёму/по модели
+                try:
+                    read = h.g2k(w.word).strip()
+                except Exception:
+                    read = ""
+        words.append([w.word, read, s, e, bool(w.is_unknown)])
+    return words
+
+
+def main():
     try:
         from importlib.metadata import version as _pkgver
-        from haqumei import Haqumei
+        _haqumei()                       # ранний отказ — до приветствия
         ver = _pkgver("haqumei")
     except Exception as e:
         print(json.dumps({"ok": False, "error": str(e)}), flush=True)
         return
-    # revert_long_vowels: ー -> う/い-нотация (トーキョー -> トウキョО) — та же
-    # нотация, что у Sudachi и у корпуса ROHAN; иначе сравнение и кэш конвейера
-    # получают два разных стиля записи одного звука.
-    # revert_yotsugana: нормализация づ/ぢ под корпус (четыре варианта знака).
-    h = Haqumei(revert_long_vowels=True, revert_yotsugana=True)
     print(json.dumps({"ok": True, "engine": "haqumei", "version": ver}),
           flush=True)
     for line in sys.stdin:
@@ -147,56 +220,7 @@ def main():
                     res = req.get("text", "")
                 print(json.dumps({"id": req.get("id"), "result": res}, ensure_ascii=False), flush=True)
                 continue
-            words = []
-            mapped = list(h.g2p_mapping_detailed(req["text"]))
-            for i, w in enumerate(mapped):
-                s, e = w.char_span
-                read = w.read if w.read and w.read != "*" else ""
-                # Иероглифы: берём ПРОИЗНОСИТЕЛЬНУЮ форму pron — она
-                # контекстная (六百 -> ロッピャク, 殿 -> ドノ, частица
-                # は -> ワ), а read — словарная (ロクヒャク, トノ).
-                # У слова без иероглифов (частицы, знаки) кана проходит
-                # мимо: их pron портит частицу を (ヲ вместо «о»).
-                if _KANJI.search(w.word):
-                    clean = _kana_only(w.pron or "")
-                    if _valid_read(clean):
-                        read = clean
-                        # У глаголов/прилагательных сверяем контекст с
-                        # отдельным чтением: если разница только в
-                        # озвончении, это ложный дакутен (см. выше).
-                        # Читаем основу ВМЕСТЕ со следующим окончанием:
-                        # g2k("張っ") даёт «バッ», а «張った» — «ハッ».
-                        pos = getattr(w, "pos", "") or ""
-                        if pos.startswith(("動詞", "形容詞")):
-                            alone = ""
-                            nxt = mapped[i + 1] if i + 1 < len(mapped) else None
-                            if (nxt is not None and nxt.word in _RENYOU_NEXT
-                                    and nxt.char_span[0] == e):
-                                try:
-                                    parts = h.g2p_mapping_detailed(
-                                        w.word + nxt.word)
-                                    if parts and parts[0].word == w.word:
-                                        alone = _kana_only(
-                                            parts[0].pron or parts[0].read or "")
-                                except Exception:
-                                    alone = ""
-                            if not alone:
-                                try:
-                                    alone = _kana_only(h.g2k(w.word) or "")
-                                except Exception:
-                                    alone = ""
-                            if _dakuten_only(clean, alone):
-                                read = alone
-                    elif not _valid_read(read):
-                        # чтение не нашлось (слова нет даже в словаре
-                        # Haqumei) — пробуем прочитать слово отдельно,
-                        # там он подставит чтение по он'ёму/по модели
-                        try:
-                            read = h.g2k(w.word).strip()
-                        except Exception:
-                            read = ""
-                words.append([w.word, read, s, e, bool(w.is_unknown)])
-            out = {"id": req.get("id"), "words": words}
+            out = {"id": req.get("id"), "words": reads(req["text"])}
         except Exception as e:
             out = {"id": None, "error": str(e)}
         print(json.dumps(out, ensure_ascii=False), flush=True)

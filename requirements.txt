@@ -1,0 +1,12 @@
+# Зависимости, которыми гоняются тесты CI и лабораторные скрипты
+# (ubuntu/py3.12). Пиная версию, меняй и комментарий в CONTRIBUTING.md.
+#
+# Отдельно от этого существует bundled/pyruntime.zip — Windows-рантайм
+# Python 3.13 для помощников чтения (haqumei/e2k/sudachipy внутри); он
+# собирается вручную и в pip не входит (см. CONTRIBUTING.md).
+numpy==2.4.6
+haqumei==0.12.2
+e2k==0.7.0
+# запасная цепочка чтения (Sudachi по словарю UniDic) — на CI и у разработчика
+sudachipy==0.7.0
+sudachidict-core==20261015

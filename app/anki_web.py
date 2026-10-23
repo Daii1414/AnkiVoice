@@ -858,9 +858,13 @@ class Handler(BaseHTTPRequestHandler):
 
     # ------------------------------------------------------------- GET
     def do_GET(self):
-        if not self._guard(need_token=False):
-            return
         u = urllib.parse.urlparse(self.path)
+        # Без ключа отдаём только саму страницу; все /api/* требуют
+        # служебный ключ (заголовок или ?t= — для <audio>/<img> и
+        # EventSource, которые не умеют заголовки). Раньше GET отдавал
+        # конфиг, дерево файловой системы и лог любому локальному процессу.
+        if not self._guard(need_token=u.path not in ("/", "/index.html")):
+            return
         q = dict(urllib.parse.parse_qsl(u.query))
         path = u.path
 
