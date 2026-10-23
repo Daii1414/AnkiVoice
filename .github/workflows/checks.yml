@@ -31,7 +31,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           python -m pip install --upgrade pip
-          python -m pip install numpy==2.4.6 haqumei==0.12.2 e2k
+          python -m pip install -r requirements.txt
 
       - name: Compile Python
         run: python -m compileall -q app lab
@@ -47,6 +47,12 @@ jobs:
           python lab/readme_check.py
           python lab/fmt_check.py
           python lab/i18n_check.py
+
+      # батарея чтений: на Linux pyruntime недоступен, kanaize работает
+      # через in-process Haqumei (g2p_core.reads) — тот же движок, что и в
+      # бою; доменные термины колоды гейтят отдельно (DOMAIN_CASES)
+      - name: Kana reading battery
+        run: python app/kana_stress.py
 
   installer:
     name: installer (windows)

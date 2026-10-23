@@ -1570,7 +1570,7 @@ function openLog(since){
   if(!since) log.innerHTML = "";
   let lastCount = since || 0;
 
-  SSE = new EventSource("/api/log?since=" + (since||0));
+  SSE = new EventSource("/api/log?since=" + (since||0) + "&t=" + encodeURIComponent(AV_TOKEN));
   SSE.onmessage = ev=>{
     let d;
     try{ d = JSON.parse(ev.data); }catch(e){ return; }

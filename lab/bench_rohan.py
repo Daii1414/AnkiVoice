@@ -27,7 +27,8 @@ import unicodedata
 
 LAB = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(LAB)
-sys.path.insert(0, os.path.join(LAB, "pylibs"))  # haqumei (если не в pyruntime)
+sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.join(ROOT, "app"))   # voice_pipeline (kanaize) живёт в app/
 sys.path.insert(0, ROOT)
 
 TRANSCRIPT = os.path.join(LAB, "rohan", "transcript.txt")
@@ -37,7 +38,7 @@ HIRA2KATA = lambda s: "".join(
     chr(ord(c) + 0x60) if "ぁ" <= c <= "ゖ" else c for c in s)
 
 # --- выравнивание нотации долгих гласных -------------------------------
-# ROHAN пишет «トウゲンキョウ» (через う), движки — «トーゲнキョー» (через ー).
+# ROHAN пишет «トウゲンキョウ» (через う), движки — «トーゲンキョー» (через ー).
 # Это РАЗЛИЧИЕ НОТАЦИИ, а не чтения. Чтобы сравнивать честно, обе стороны
 # (эталон и ответ движка) прогоняются через одно преобразование:
 #   обе стороны прогоняются через одно симметричное правило — collapse_long().
@@ -76,8 +77,8 @@ def collapse_long(kata):
     """Мягкая нормализация долгих гласных (применяется к ОБЕИМ сторонам).
 
     Убрать ー; убрать い/う, стоящие после гласной или малой кана.
-    Тогда «トウゲンкиョウ» (нотация ROHAN) = «トーゲンкюо/トーゲンкё» (нотация
-    движка) = «トゲнкё». Правило симметрично — это не подгонка под движок,
+    Тогда «トウゲンキョウ» (нотация ROHAN) = «トーゲンキョー/トーゲンキョ» (нотация
+    движка) = «トゲンキョ». Правило симметрично — это не подгонка под движок,
     а снятие различий записи одного и того же звука.
     """
     out = []
@@ -85,7 +86,7 @@ def collapse_long(kata):
         if c == "ー":
             continue                    # знак долгого — гласная предыдущего
         if c in _LONG_AFTER.get(_ROW_VOWEL.get(out[-1] if out else ""), ()):
-            continue                    # «トу/тоー» — одна и та же запись
+            continue                    # «トウ/トー» — одна и та же запись
         out.append(c)
     return "".join(out)
 

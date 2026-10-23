@@ -857,8 +857,8 @@ def _segments(text):
 
 
 # «Защищённые» слова: остаются КАТАКАНОЙ в итоговом тексте.
-# Причина: MeCab читает хираграфу как частицу (こんにちは -> コンニчива,
-# こんにちは -> コнбанва), а катакану читает верно. Финальный kata2hira
+# Причина: MeCab читает хирагану как частицу (こんにちは -> コンニチワ,
+# こんばんは -> コンバンワ), а катакану читает верно. Финальный kata2hira
 # их не трогает — в отличие от прочей катаканы, которую мы сами сгладили
 # в хирагану, чтобы MeCab не портил наши сборки вроде
 # IEC -> アイイーシー -> アイイースィー.
@@ -886,6 +886,10 @@ def _ensure_pyruntime():
     """Развернуть встроенный Python из pyruntime.zip, если его ещё нет."""
     if os.path.isfile(PYRUNTIME_PY):
         return True
+    if os.name != "nt":
+        # pyruntime — Windows-сборка (python.exe): на других ОС его нет и
+        # не будет, чтение делает in-process Haqumei (см. _core_local)
+        return False
     if not os.path.isfile(PYRUNTIME_ZIP):
         return False
     print("-- Собираю встроенный разбор текста (pyruntime, один раз)...")
@@ -1080,13 +1084,63 @@ class _CoreProc(object):
         return None
 
 
+_CORE_LOCAL = None        # None — ещё не пробовали, False — недоступен
+
+
+class _CoreLocal(object):
+    """Тот же протокол reads()/translit(), но Haqumei работает В ЭТОМ
+    интерпретаторе (g2p_core.reads).
+
+    Сюда попадаем, только если haqumei уже импортируется в текущем питоне
+    (CI, собранный exe, dev-venv): в питон движка сами его не ставим — там
+    чужой numpy, который нельзя подменять. Долгоживущий процесс pyruntime
+    при этом остаётся первым ходом на Windows.
+    """
+
+    def __init__(self, mod, version):
+        self._mod = mod
+        self.version = version
+
+    def translit(self, text):
+        try:
+            from en_translit import transliterate_en
+            return transliterate_en(text)
+        except Exception:
+            return text
+
+    def reads(self, text):
+        try:
+            return [list(w) for w in self._mod.reads(text)]
+        except Exception:
+            return None
+
+
+def _core_local():
+    """In-process ядро (Haqumei из текущего интерпретатора) или None."""
+    global _CORE_LOCAL
+    if _CORE_LOCAL is None:
+        try:
+            import g2p_core as _gc
+            from importlib.metadata import version as _pkgver
+            ver = _pkgver("haqumei")
+            if not _gc.reads("試し"):        # прогрев: модель обязана работать
+                raise RuntimeError("haqumei вернул пустую разметку")
+            _CORE_LOCAL = _CoreLocal(_gc, ver)
+        except Exception:
+            _CORE_LOCAL = False
+    return _CORE_LOCAL or None
+
+
 def core_client():
-    """Помощник-ядро (Haqumei) или None, если недоступен."""
+    """Помощник-ядро (Haqumei): pyruntime-процесс, иначе in-process, иначе None."""
     global _CORE_PROC, _core_warned
     if _CORE_PROC is None:
         proc = _CoreProc()
         _CORE_PROC = proc if proc.start() else False
     if _CORE_PROC is False:
+        local = _core_local()
+        if local is not None:
+            return local
         if not _core_warned:
             print("-- Ядро Haqumei недоступно — читает запасная цепочка "
                   "Sudachi + pyopenjtalk.")
@@ -1175,7 +1229,7 @@ def _g2p_core(text):
             # нулевой спан: Haqumei вставил знак нормализации без поверхности
             # (разряды 十/百/千 в числах: 2024 -> 二千[二十四]). Поверхности
             # нет, источник истины — чтение токена; без этого 2024年
-            # собирался как にせんによねん (じゅоу терялся).
+            # собирался как にせんによねん (じゅう терялся).
             if not read or KANJI_RE.search(read):
                 return None                 # чтения нет — запасная цепочка
             out.append(read)
@@ -1259,9 +1313,9 @@ def kanaize(text):
     -> g2p только иероглифы -> хирагана.
 
     Главный принцип: MeCab надёжно читает иероглифы и катакану, но портит
-    уже готовую хирагану (применяет правила частиц: こんにちは -> コンничива).
+    уже готовую хирагану (применяет правила частиц: こんにちは -> コンニチワ).
     Поэтому ядру Haqumei подаётся текст с катеканой как есть — она даёт
-    контекст для чтения иероглифов (ビェниャク殿 -> ドノ, а не ТОНО),
+    контекст для чтения иероглифов (ロッピャク殿 -> ドノ, а не トノ),
     а хирагана/цифры/знаки проходят мимо g2p без изменений.
 
     Шаги подробно (важно для сложных слов):
@@ -1493,8 +1547,8 @@ def _reading_covers_word(base, reading):
     """Чтение покрывает слово целиком, а не только иероглифы.
 
     В колодах два формата разметки:
-      * «点群データ[てんぐんでーта]» — чтение на всё слово. Окуригану
-        («データ») добавлять нельзя: получится «データてんぐんでーта», и
+      * «点群データ[てんぐんでーた]» — чтение на всё слово. Окуригану
+        («データ») добавлять нельзя: получится «データてんぐんでーた», и
         «データ» прозвучит дважды.
       * «アーク溶接棒[ようせつぼう]» — чтение только на иероглифы, окуригана
         («アーク») нужна.
@@ -1535,9 +1589,9 @@ def furiga_pair(text):
     parts = re.split(r"\[([^\[\]]*)\]", text)
     last = len(parts) - 1
     # Одна скобка в самом конце: чтение либо на всё слово
-    # («点群データ[てんぐんでーта]» — окуригану добавлять нельзя, иначе
+    # («点群データ[てんぐんでーた]» — окуригану добавлять нельзя, иначе
     # «データ» прозвучит дважды), либо только на иероглифы
-    # («アイススケート场[じょう]» — окуригана нужна).
+    # («アイススケート場[じょう]» — окуригана нужна).
     if len(parts) == 3 and parts[2] == "" and \
             _reading_covers_word(parts[0], _first(parts[1])):
         return parts[0], _first(parts[1]).replace("\u30fb", "")
@@ -1601,8 +1655,8 @@ def _doubled_okurigana(surface, text):
     """Окуригана прозвучит в готовом тексте дважды — вернём её (если нашли).
 
     Считаем в самом тексте, а не по формату записи, поэтому правило работает
-    и для незнакомых форматов фуриганы. «データ» + «てんぐんでーта» ->
-    «でーた» и «でーта»: модель сказала бы «データ» дважды.
+    и для незнакомых форматов фуриганы. «データ» + «てんぐんでーた» ->
+    «でーた» и «でーた»: модель сказала бы «データ» дважды.
 
     Возвращает найденный кусок (пустая строка — всё в порядке).
     """
