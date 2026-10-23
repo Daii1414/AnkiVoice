@@ -164,14 +164,14 @@ def main():
     iss = read("AnkiVoice.iss")
     shipped = set(re.findall(r'Source:\s*"lab\\([^"]+)"', iss))
     all_text = "\n".join(d for d, _ in docs)
-    claimed = set(re.findall(r"10 \u043c\u043e\u0434\u0443\u043b\u0435\u0439", all_text))
-    if len(shipped) != 10:
-        fail("установщик везёт %d модулей lab/, а README говорит о 10: %s"
+    claimed = set(re.findall(r"6 \u043c\u043e\u0434\u0443\u043b\u0435\u0439", all_text))
+    if len(shipped) != 6:
+        fail("установщик везёт %d модулей lab/, а README говорит о 6: %s"
              % (len(shipped), ", ".join(sorted(shipped))))
     else:
-        ok("установщик везёт 10 модулей lab/ (%s)" % ", ".join(sorted(shipped)))
+        ok("установщик везёт 6 модулей lab/ (%s)" % ", ".join(sorted(shipped)))
     if not claimed:
-        fail("в README нет упоминания про 10 модулей установщика")
+        fail("в README нет упоминания про 6 модулей установщика")
 
     # ---- 7. режимы чтения: авто (по полю с фуриганой) и только кандзи ----
     page = read("app/anki_web_page.py")

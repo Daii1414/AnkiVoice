@@ -60,13 +60,10 @@ Source: "app\anki_gui.py";        DestDir: "{app}\app"; Flags: ignoreversion
 Source: "app\sudachi_g2p.py";     DestDir: "{app}\app"; Flags: ignoreversion
 Source: "app\g2p_core.py";        DestDir: "{app}\app"; Flags: ignoreversion
 Source: "app\kana_stress.py";     DestDir: "{app}\app"; Flags: ignoreversion
-; модули системы чтения и QC v2 — без них в установленном приложении
-; молча отключаются подстановка чтения из фуриганы, доменный словарь
-; и многосигнальная проверка качества звука
-Source: "lab\g2p_provenance.py"; DestDir: "{app}\lab"; Flags: ignoreversion
-Source: "lab\domain_dict.py";     DestDir: "{app}\lab"; Flags: ignoreversion
-Source: "lab\g2p_candidates.py";  DestDir: "{app}\lab"; Flags: ignoreversion
-Source: "lab\g2p_resolver.py";    DestDir: "{app}\lab"; Flags: ignoreversion
+; QC v2 и проверка произношения — без них в установленном приложении
+; молча отключается многосигнальная проверка качества звука
+; (бывшая «система чтения» — provenance/доменный словарь/резолвер —
+; удалена как мёртвый код, аудит v1.9)
 Source: "lab\quality_v2.py";       DestDir: "{app}\lab"; Flags: ignoreversion
 Source: "lab\pron_check.py";       DestDir: "{app}\lab"; Flags: ignoreversion
 Source: "lab\align_ja.py";         DestDir: "{app}\lab"; Flags: ignoreversion

@@ -168,20 +168,22 @@ def test_split_method_is_japanese_safe():
 
 
 def test_installer_ships_runtime_modules():
-    """Установщик обязан везти модули чтения и QC v2.
+    """Установщик обязан везти QC v2 и проверку произношения.
 
-    Без них в установленном приложении молча отключаются доменный словарь
-    и многосигнальная проверка качества (voice_pipeline.py грузит их из lab/).
+    Без них в установленном приложении молча отключается многосигнальная
+    проверка качества (voice_pipeline.py грузит их из lab/). Бывшие модули
+    «системы чтения» (provenance/доменный словарь/резолвер) удалены как
+    мёртвый код — их в установщике быть не должно.
     """
     with open(os.path.join(ROOT, "AnkiVoice.iss"), encoding="utf-8") as f:
         iss = f.read()
-    for name in ("g2p_provenance.py", "domain_dict.py", "g2p_candidates.py",
-                 "g2p_resolver.py", "quality_v2.py", "pron_check.py"):
+    for name in ("quality_v2.py", "pron_check.py", "align_ja.py",
+                 "indextts_service.py", "indextts_fast.py", "indextts_norm.py"):
         check(("lab\\" + name) in iss, "installer must ship lab/" + name)
-    with open(os.path.join(ROOT, "lab", "g2p_candidates.py"), encoding="utf-8") as f:
-        src = f.read()
-    check('sys.path.append(r"' not in src, "hardcoded dev path in g2p_candidates")
-    check("del _h" not in src, "del _h raises NameError and breaks the import")
+    for name in ("domain_dict.py", "g2p_resolver.py", "g2p_candidates.py",
+                 "g2p_provenance.py"):
+        check(("lab\\" + name) not in iss,
+              "dead reading module must NOT ship: lab/" + name)
 
 
 def test_pending_notes_limit():

@@ -22,8 +22,7 @@ immediately.
 |---|---|---|
 | Core | `voice_pipeline.py` | All synthesis, reading and Anki writing logic. It runs from disk — changes take effect immediately, no exe rebuild. |
 | Interface | `anki_gui.py`, `anki_web.py`, `anki_web_page.py` | Baked into the exe. After editing these, the exe and the installer must be rebuilt. |
-| Reading system | `lab/g2p_*.py`, `lab/domain_dict.py` | Reading modules. Ten files from `lab/` are shipped in the installer - do not break their imports. |
-| Quality | `lab/quality_v2.py` | Multi-signal audio quality check. Shipped in the installer as well. |
+| Audio and pronunciation QC | `lab/quality_v2.py`, `lab/pron_check.py`, `lab/align_ja.py`, `lab/indextts_*.py` | Six files from `lab/` are shipped in the installer - do not break their imports. |
 
 The full technical description is in [PROJECT.md](PROJECT.md).
 

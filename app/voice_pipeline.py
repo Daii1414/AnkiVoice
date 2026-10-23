@@ -64,50 +64,6 @@ try:
 except Exception:
     pass
 
-# ------------------------------------------------------------------ модули чтения (lab/)
-# Импортируются лениво, чтобы не падать при отсутствии lab/ (например, в
-# собранном .exe без исходников). Функции _ensure_reading_modules() /
-# _reading_modules() ниже инициализируют singleton при первом вызове.
-_READING_MODULES = None
-
-
-def _ensure_reading_modules():
-    """Загружает модули системы чтения (provenance, domain_dict, resolver) из lab/."""
-    global _READING_MODULES
-    if _READING_MODULES is not None:
-        return _READING_MODULES
-    lab_path = lab_dir()
-    if lab_path not in sys.path:
-        sys.path.insert(0, lab_path)
-    try:
-        from g2p_provenance import ReadingSource, ReadingCandidate
-        from domain_dict import DomainDictionary, ReadingSource as _RS2
-        from g2p_resolver import ReadingResolver
-        from g2p_candidates import CandidateGenerator
-        try:
-            from haqumei import Haqumei
-            h = Haqumei(revert_long_vowels=True, revert_yotsugana=True)
-        except Exception:
-            h = None
-        try:
-            from sudachi_g2p import sudachi_client as _sc
-        except Exception:
-            _sc = None
-        dd = DomainDictionary()
-        gen = CandidateGenerator(domain_dict=dd, haqumei=h, sudachi_client=_sc)
-        resolver = ReadingResolver(domain_dict=dd, generator=gen)
-        _READING_MODULES = {
-            "ReadingSource": ReadingSource,
-            "ReadingCandidate": ReadingCandidate,
-            "domain_dict": dd,
-            "resolver": resolver,
-        }
-    except Exception as e:
-        _READING_MODULES = {"_error": str(e)}
-        print("-- Модули чтения (lab/) недоступны: %r" % (e,))
-        print("   Подстановка чтения из фуриганы и доменный словарь отключены.")
-    return _READING_MODULES
-
 # ------------------------------------------------------------------ константы
 # CODE  — папка самого инструмента (этот скрипт, voices.json).
 # ROOT  — корень репозитория (на уровень выше): там lab/ и bundled/.
@@ -1251,87 +1207,20 @@ def _g2p_core(text):
     return res
 
 
-def g2p_kana(text, furigana_map=None):
-    """Иероглифы -> катану: ядро Haqumei + резолвер с доменным словарём.
+def g2p_kana(text):
+    """Иероглифы -> катану: ядро Haqumei, запасной ход Sudachi / pyopenjtalk.
 
     Первый ход — ядро (g2p_core.py, Haqumei): слово читается В КОНТЕКСТЕ
-    ПРЕДЛОЖЕНИЯ. Затем накладываются переопределения:
-      1. furigana_map — чтение из ExpressionFurigana (Опция 1, источник истины,
-         если прошло валидацию);
-      2. доменный словарь из колод (Опция 2, записанные пользователем чтения);
-      3. Haqumei pron (контекстная произносительная форма);
-      4. резерв Sudachi / pyopenjtalk.
+    ПРЕДЛОЖЕНИЯ. Не справилось — Sudachi по словарю UniDic, затем
+    pyopenjtalk. Хирагана/катакана и знаки проходят как есть — их g2p не
+    трогает.
 
-    Параметр furigana_map: dict {поверхность_слова: чтение_из_фуриганы}.
-    Используется при импорте карточек (Опция 1). При отсутствии — работает
-    чистый автомат (Опция 2).
-
-    Хирагана/катакана и знаки проходят как есть — их g2p не трогает.
+    Бывшая «система чтения» (furigana_map, доменный словарь, резолвер)
+    удалена: доменный словарь никогда не наполнялся, furigana_map никто не
+    передавал, резолвер не вызывался — мёртвый код (аудит v1.9, M3).
+    Реальная подстановка чтения из фуриганы карточки живёт выше — в
+    kanaize_card / inject_reading.
     """
-    mods = _ensure_reading_modules()
-    if mods is not None and "_error" not in mods:
-        domain_dict = mods["domain_dict"]
-        core = core_client()
-        if core is not None:
-            words = core.reads(text)
-            if words:
-                out = []
-                pos = 0
-                completed = True
-                for w in words:
-                    word, read, s, e = w[0], w[1], int(w[2]), int(w[3])
-                    if not (0 <= pos <= s <= e <= len(text)):
-                        completed = False
-                        break                     # позиции вышли за текст
-                    if s > pos:                   # пропуск между словами
-                        gap = text[pos:s]
-                        if KANJI_RE.search(gap):
-                            completed = False
-                            break                 # пропущен кусок с иероглифами
-                        out.append(gap)
-                    surface = text[s:e]           # исходный текст
-                    if s == e:
-                        # нулевой спан — вставленный разряд числа (см. _g2p_core)
-                        if not read or KANJI_RE.search(read):
-                            completed = False
-                            break
-                        out.append(read)
-                    elif _span_drift(surface, word):
-                        completed = False
-                        break
-                    elif KANJI_RE.search(surface):
-                        # 1. Фуригана (Опция 1) — источник истины, если валидна
-                        furi = furigana_map.get(surface) if furigana_map else None
-                        if furi:
-                            out.append(_normalize_furigana(furi))
-                        # 2. Доменный словарь (Опция 2) — записанные чтения
-                        elif domain_dict is not None:
-                            entry = domain_dict.lookup(surface)
-                            if entry:
-                                out.append(entry.reading)
-                            else:
-                                # 3. Чтение из ядра (уже содержит pron/сандхи
-                                #    из контекста целого предложения)
-                                out.append(read if read else surface)
-                        else:
-                            out.append(read if read else surface)
-                    elif any(c.isdigit() for c in surface):
-                        out.append(read or _pyopenjtalk_g2p(surface))
-                    elif _KATA_ONLY.match(surface) and word != surface and \
-                            _KATA_ONLY.match(word or ""):
-                        out.append(word)            # ляпсус словаря катаканой
-                    else:
-                        out.append(surface)         # кана/знаки/латиница — как есть
-                    pos = e
-                if completed:
-                    tail = text[pos:]
-                    if not KANJI_RE.search(tail):
-                        out.append(tail)
-                    res = "".join(out)
-                    if any(c.isdigit() for c in res):
-                        res = _pyopenjtalk_g2p(res)  # цифры внутри чтения
-                    return res
-    # Fallback: исходный _g2p_core без резолвера
     res = _g2p_core(text)
     if res is not None:
         return res
@@ -1365,7 +1254,7 @@ def g2p_kana(text, furigana_map=None):
     return res
 
 
-def kanaize(text, furigana_map=None):
+def kanaize(text):
     """Текст -> хирагана: NFKC -> словарь -> латиница катаканой -> сегменты
     -> g2p только иероглифы -> хирагана.
 
@@ -1390,15 +1279,6 @@ def kanaize(text, furigana_map=None):
     Результат кэшируется: одни и те же слова повторяются между карточками,
     а g2p (MeCab) — самая дорогая часть конвейера.
     """
-    if furigana_map is not None:
-        # Не кэшируем, когда есть внешние переопределения фуриганы
-        t = normalize_text(text)
-        t = latin2kana(t)
-        if KANJI_RE.search(t):
-            t = g2p_kana(t, furigana_map=furigana_map)
-        result = kata2hira(t, keep_kata=_KEEP_KATA).strip()
-        return result
-
     hit = _KANA_CACHE.get(text)
     if hit is not None:
         return hit
@@ -3691,13 +3571,6 @@ def cmd_selftest(args):
                     ok("%s: %s %s" % (name, key, ("%.1f с" % d) if d else ""))
             else:
                 fail("%s: %s не найден: %s" % (name, key, p))
-    mods = _ensure_reading_modules()
-    if mods and "_error" not in mods:
-        ok("модули чтения (lab/): provenance, доменный словарь, резолвер")
-    else:
-        fail("модули чтения (lab/) недоступны: %s — "
-             "чтение из фуриганы и доменный словарь отключены"
-             % (mods or {}).get("_error", "?"))
     if _qc_v2_module() is not None:
         ok("QC v2: многосигнальная проверка качества звука")
     else:
