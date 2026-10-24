@@ -43,6 +43,10 @@ I18N_EN = {
     "0 = все": "0 = all",
     "Пересобрать всё заново": "Rebuild everything",
     "Только изменённые": "Only changed",
+    "История прогонов": "Run history",
+    "Прогонов пока нет — отчёты появятся после озвучки.":
+        "No runs yet - reports appear after dubbing.",
+    "Читаю…": "Reading…",
     "Медиа: мусор": "Media: junk",
     "Проверять произношение": "Check pronunciation",
     "Проверять произношение (в 10 раз дольше)": "Check pronunciation (10× longer)",

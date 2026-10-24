@@ -787,7 +787,15 @@ select{cursor:pointer}
           <span class="hint">Закрывает приложение и локальный сервер. Карточки и звук в Anki остаются как есть.</span>
         </div>
       </div>
-    </section>
+    
+  <div class="card">
+    <label class="f">История прогонов</label>
+    <div id="histList" class="hint">—</div>
+    <pre id="histView" style="display:none;max-height:320px;overflow:auto;
+         background:rgba(127,127,127,.08);padding:10px;border-radius:8px;
+         white-space:pre-wrap;font-size:12px"></pre>
+  </div>
+</section>
 
   </main>
 </div>
@@ -1224,9 +1232,14 @@ async function loadFields(){
     // иначе — автоподбор по названиям полей
     const c = ST.cfg || {};
     const prof = ((c.profiles) || {})[deck] || {};
-    // голос на колоду: профиль помнит последний голос этой колоды
+    // голос и состав ансамбля на колоду: профиль помнит последний прогон
     if (prof.voice && [...$("voice").options].some(o=>o.value===prof.voice))
       $("voice").value = prof.voice;
+    const sel2 = $("voices2");
+    if (sel2){
+      const want = String(prof.ensemble || "").split(",").map(x=>x.trim());
+      [...sel2.options].forEach(o=>{ o.selected = want.includes(o.value); });
+    }
     const pick = (key, guess) => {
       if (prof[key] !== undefined && prof[key] !== null && prof[key] !== "")
         return prof[key];
@@ -1569,6 +1582,35 @@ function beginRunUI(r){
   $("voiceBanner") && banner("voiceBanner", null);
   openLog(0);
 }
+async function loadHistory(){
+  try{
+    const j = await api("/api/history");
+    const HIST = j.runs || [];
+    const box = $("histList");
+    if(!box) return;
+    if(!HIST.length){ box.textContent = "Прогонов пока нет — отчёты появятся после озвучки."; return; }
+    box.innerHTML = HIST.map(h=>
+      '<div style="cursor:pointer;padding:2px 0" data-f="'+esc(h.file)+'">'
+      + '<b>'+esc(h.at)+'</b> — готово '+h.done+', ошибок '+h.failed
+      + ' ('+esc(h.voices)+')</div>').join("");
+    box.querySelectorAll("[data-f]").forEach(el=>{
+      el.onclick = ()=>showReport(el.dataset.f);
+    });
+  }catch(e){ const b = $("histList"); if(b) b.textContent = "История недоступна: " + e.message; }
+}
+async function showReport(f){
+  const view = $("histView");
+  if(!view) return;
+  view.style.display = "";
+  view.textContent = "Читаю…";
+  try{
+    const r = await fetch("/api/history?file=" + encodeURIComponent(f),
+                          {headers:{"X-AV-Token": AV_TOKEN}});
+    view.textContent = await r.text();
+  }catch(e){ view.textContent = "Не удалось: " + e.message; }
+}
+// первичная загрузка истории вместе с состоянием
+setTimeout(loadHistory, 1500);
 function beep(){
   // короткий сигнал без внешних файлов (страница офлайн)
   try{
@@ -1635,9 +1677,10 @@ function endRunUI(s){
       "<b>Проверка нашла проблемы.</b> Список карточек — в журнале ниже.");
   }else if(!ok) banner("voiceBanner","bad",
     "<b>Завершилось с ошибкой (код "+(s?s.code:"?")+").</b> Посмотри журнал ниже.");
+  else banner("voiceBanner","good", done ? ("<b>Готово.</b> " + done) : "<b>Готово.</b>");
   // уведомление — только про озвучку: предпросмотр/проверки не стоят того
   if(!stopped && /Озвучка|Перепробовать/.test(t)) notifyDone(s);
-  else banner("voiceBanner","good", done ? ("<b>Готово.</b> " + done) : "<b>Готово.</b>");
+  try{ if(typeof loadHistory === 'function') loadHistory(); }catch(e){}
 }
 function showLastRun(s){
   $("prog").className = "prog";

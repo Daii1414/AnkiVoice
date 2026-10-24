@@ -12,6 +12,7 @@ import json
 import os
 import random
 import re
+import re
 import time
 
 import av_state
@@ -113,6 +114,46 @@ def _filter_changed_jobs(jobs, notes, fields, manifest, voice_by_nid,
     return kept, skipped
 
 
+def parse_ensemble(spec):
+    """Разобрать спецификацию ансамбля: "a,b" или "a:60,b:40".
+
+    Возвращает пул имён, сохраняющий пропорции в минимальном объёме:
+    60/40 -> 3 и 2 вхождения (сокращение через НОД), a:2,b -> 2 и 1,
+    без веса -> 1. Пул передаётся в assign_voices: rng.choice(pool)
+    даёт нужные пропорции. Вес 0 (или мусор вместо числа с ":" пустым)
+    исключает голос; мусорные части игнорируются.
+    """
+    import math
+    pairs = []
+    for part in (spec or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        name, _, w = part.partition(":")
+        name = name.strip()
+        if not name or not re.fullmatch(r"[\w\- ]+", name):
+            continue                        # мусор вместо имени голоса
+        if w.strip():
+            try:
+                weight = int(w)
+            except ValueError:
+                weight = 1                  # вес не число — берём голос
+        else:
+            weight = 1                      # вес не указан
+        if weight > 0:
+            pairs.append((name, weight))
+    if not pairs:
+        return []
+    g = 0
+    for _n, w in pairs:
+        g = math.gcd(g, w)
+    g = g or 1
+    pool = []
+    for name, w in pairs:
+        pool.extend([name] * (w // g))
+    return pool
+
+
 def assign_voices(nids, voice_names, seed=42, prior=None):
     """Случайно распределить карточки между голосами ансамбля.
 
@@ -163,12 +204,16 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
     после каждого прогона; only_changed=True («Пересобрать только
     изменённые») пропускает операции, чей голос/текст не изменились.
     """
-    names = [voice_name]
-    for n in (extra_voices or []):
+    # extra_voices — ПУЛ (с повторами по весу из parse_ensemble):
+    # ["sakura", "sakura", "madara"] = пропорция 2:1
+    names = []
+    for n in [voice_name] + list(extra_voices or []):
         n = (n or "").strip()
         if n and n not in names:
             names.append(n)
     voices = {n: get_voice(n) for n in names}
+    pool = [n.strip() for n in ([voice_name] + list(extra_voices or []))
+            if (n or "").strip()]
     notes = notes_info(ids)
     jobs = build_jobs(notes, mode, force, fields=fields)
     if not jobs:
@@ -185,7 +230,7 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
                     prior[i] = n
             except Exception:
                 pass
-        assign = assign_voices({j[0] for j in jobs}, names, seed=seed,
+        assign = assign_voices({j[0] for j in jobs}, pool, seed=seed,
                                prior=prior)
         print("Ансамбль: %s. Карточки распределены случайно, озвучка "
               "партиями — веса переключатся %d %s."

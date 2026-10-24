@@ -856,6 +856,28 @@ def test_changed_filter_and_manifest():
         vc.VOICED_MANIFEST_FILE = old
 
 
+def test_parse_ensemble_weights():
+    """Ансамбль 2.0: пропорции через вес, деградация на мусорный ввод."""
+    check(vc.parse_ensemble("a,b") == ["a", "b"], "без весов — по одному")
+    check(vc.parse_ensemble("a:60,b:40") == ["a"] * 3 + ["b"] * 2,
+          "веса 60/40 -> пул 3 и 2 (НОД)")
+    check(vc.parse_ensemble("a:0,b") == ["b"], "вес 0 исключает голос")
+    check(vc.parse_ensemble("a:60,b:60") == ["a", "b"],
+          "равные веса сокращаются до 1:1")
+    check(vc.parse_ensemble("a:x,b") == ["a", "b"],
+          "не-числовой вес = 1")
+    check(vc.parse_ensemble(" , a:2 ,, b ") == ["a", "a", "b"],
+          "пустые части игнорируются")
+    check(vc.parse_ensemble("") == [], "пустая строка -> пустой пул")
+    # взвешенное распределение действительно пропорционально
+    from collections import Counter
+    nids = list(range(1000))
+    assign = vp.assign_voices(nids, vc.parse_ensemble("a:3,b:1"), seed=9)
+    cnt = Counter(assign.values())
+    check(abs(cnt["a"] - 750) < 60 and abs(cnt["b"] - 250) < 60,
+          "пропорция 3:1 на 1000 карточках (±6%%): %s" % dict(cnt))
+
+
 def main():
     tests = [test_version_tuple, test_release_parse, test_download_sha,
              test_busy_download_no_deadlock, test_installer_ships_runtime_modules,
@@ -872,7 +894,7 @@ def main():
              test_setup_status,
              test_assign_voices, test_last_run_roundtrip,
              test_preview_report, test_release_body_extract,
-             test_changed_filter_and_manifest]
+             test_changed_filter_and_manifest, test_parse_ensemble_weights]
     failed = 0
     for t in tests:
         try:

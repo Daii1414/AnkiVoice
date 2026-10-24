@@ -195,13 +195,19 @@ via the `--classic` flag.
   the cards — how many voices are ready and where the server lives.
 * **Deck** and **Voice** — lists pulled from Anki and `voices.json`.
 * **What to voice** — “word + sentence” (the usual choice), sentence only or
-  word only; a card limit (0 = all); “rebuild everything” ignores cards that
-  are already done.
+  word only; a card limit (0 = all); “rebuild everything” re-records the
+  audio, “only changed” re-records just the cards whose text or voice changed
+  since the last run.
 * **The limit is an amount of work**, not a position in the deck: “voice 20
   cards” takes the 20 cards that have no audio yet, not the first twenty.
-* **“Начать озвучку”** (Start dubbing) — the main button; next to it are
-  **“Остановить”** (Stop), **“Проверить колоду”** (Check deck) and
-  **“Самопроверка”** (Self-test).
+* **Ensemble (optional)** — Ctrl-pick 2+ voices: cards are split between them
+  at random, each card is voiced entirely by one voice, parts run one after
+  another. The cast is remembered per deck.
+* **Buttons**: “Start dubbing” — the main one; “Voice new cards” — only the
+  cards added since the last run; “Retry failed” — only the operations that
+  ended in an error; “Preview” — show what would be voiced, without any
+  synthesis; next to them “Stop”, “Check deck”, “Media: junk” and
+  “Self-test”.
 * **Progress bar** — an exact “N / total” counter and the error count.
 * **Log** — a live SSE stream with color coding: green = done, red = error,
   yellow = rejected and QC retries.
@@ -246,6 +252,8 @@ via the `--classic` flag.
   downloads the installer and verifies its SHA256.
 * **Diagnostics** — everything at once: tool, config, path, Anki, server, voice
   list. Look here first if something does not work.
+* **Run history** — when the deck was voiced, by which voices and with which
+  errors; click a run to open its full report (a markdown table per operation).
 * **Where the files live** — program folder and config.
 
 Status chips in the header: **Anki** (connected?), **Server** (GPT-SoVITS is
