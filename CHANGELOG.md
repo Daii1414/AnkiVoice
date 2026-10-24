@@ -3,7 +3,9 @@
 Все значимые изменения AnkiVoice. Формат — [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 версии — [Semantic Versioning](https://semver.org/lang/ru/).
 
-## [Не выпущено]
+## [1.9.2] — 2026-10-24
+
+Установщик: `AnkiVoice-Setup-1.9.2.exe` · релиз: <https://github.com/Daii1414/AnkiVoice/releases/tag/v1.9.2>
 
 ### Добавлено
 
