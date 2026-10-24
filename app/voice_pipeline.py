@@ -3133,33 +3133,13 @@ def _chunks(seq, n):
         yield seq[i:i + n]
 
 
-def cmd_voice(args):
-    fields = _fields_from_args(args, deck=args.deck)
+def _select_note_ids(args, fields):
+    """Общая выборка карточек для voice/preview: deck / ids / tag / --limit / --new.
+
+    Возвращает список id; пустая выборка — SystemExit с понятным текстом.
+    """
     tag = getattr(args, "tag", None)
-    if getattr(args, "retry", False):
-        # перезапуск неудавшихся операций прошлого прогона: force=False,
-        # поэтому уже озвученные поля пропускаются сами
-        lr = read_last_run()
-        fids = lr.get("failed_ids") or []
-        if not fids:
-            raise SystemExit("Перепробовать нечего: у прошлого прогона "
-                             "ошибок нет (или итогового файла ещё нет).")
-        print("Перепробовать %d %s прошлого прогона (%s)."
-              % (len(fids), _plural(len(fids), "карточку", "карточки",
-                                    "карточек"),
-                 lr.get("at") or "время неизвестно"))
-        lr_voice = lr.get("voice")
-        if isinstance(lr_voice, list):
-            lr_voice, lr_extra = lr_voice[0], lr_voice[1:]
-        else:
-            lr_extra = []
-        voice_notes(fids, lr_voice or args.voice or None,
-                    mode=lr.get("mode", "both"), force=False,
-                    fields=lr.get("fields") or fields,
-                    verify=getattr(args, "verify", None),
-                    asr_model=getattr(args, "asr_model", None),
-                    extra_voices=lr_extra)
-        return
+    ids = []
     if args.deck:
         if getattr(args, "new", False):
             # ежедневный сценарий: только карточки без av_voiced
@@ -3168,7 +3148,7 @@ def cmd_voice(args):
             if not ids:
                 print("Новых карточек нет: у всех карточек колоды '%s' есть "
                       "тег av_voiced." % args.deck)
-                return
+                return []
             print("Новых карточек (без av_voiced): %d." % len(ids))
         else:
             ids = ac("findNotes", query='deck:"%s"' % args.deck)
@@ -3200,6 +3180,38 @@ def cmd_voice(args):
         ids = [int(x) for x in args.ids]
     else:
         raise SystemExit("Укажи --deck или --ids.")
+    return ids
+
+
+def cmd_voice(args):
+    fields = _fields_from_args(args, deck=args.deck)
+    if getattr(args, "retry", False):
+        # перезапуск неудавшихся операций прошлого прогона: force=False,
+        # поэтому уже озвученные поля пропускаются сами
+        lr = read_last_run()
+        fids = lr.get("failed_ids") or []
+        if not fids:
+            raise SystemExit("Перепробовать нечего: у прошлого прогона "
+                             "ошибок нет (или итогового файла ещё нет).")
+        print("Перепробовать %d %s прошлого прогона (%s)."
+              % (len(fids), _plural(len(fids), "карточку", "карточки",
+                                    "карточек"),
+                 lr.get("at") or "время неизвестно"))
+        lr_voice = lr.get("voice")
+        if isinstance(lr_voice, list):
+            lr_voice, lr_extra = lr_voice[0], lr_voice[1:]
+        else:
+            lr_extra = []
+        voice_notes(fids, lr_voice or args.voice or None,
+                    mode=lr.get("mode", "both"), force=False,
+                    fields=lr.get("fields") or fields,
+                    verify=getattr(args, "verify", None),
+                    asr_model=getattr(args, "asr_model", None),
+                    extra_voices=lr_extra)
+        return
+    ids = _select_note_ids(args, fields)
+    if not ids:
+        return
     extra = [x.strip() for x in (getattr(args, "voices", "") or "").split(",")
              if x.strip()]
     voice_notes(ids, args.voice, mode=args.mode, force=args.force,
@@ -3208,6 +3220,120 @@ def cmd_voice(args):
                 asr_model=getattr(args, "asr_model", None),
                 extra_voices=extra)
 
+
+
+def _preview_report(jobs, fields, rmode_by_nid, src_by_nid=None):
+    """Строки предпросмотра + сводка. Чистая функция: без Anki и движка.
+
+    src_by_nid: {nid: сырое поле предложения} — база для сравнения при
+    подстановке (build_jobs возвращает src уже ПОСЛЕ инъекции, поэтому
+    базой служит исходное поле карточки).
+
+    Показывает то, что реально уйдёт в синтез, и помечает главное:
+      * подстановка чтения из фуриганы сработала или НЕ сработала
+        (термин не найден в предложении / отклонён страховкой);
+      * слово уйдёт каной (какой именно) или кандзи;
+      * какой режим чтения выбрался карточке.
+    """
+    sent_field = fields.get("sentence_audio")
+    rows = []
+    st = {"ops": len(jobs), "cards": len({j[0] for j in jobs}),
+          "inj_ok": 0, "inj_miss": 0, "asis": 0, "word_kana": 0,
+          "word_kanji": 0}
+    for nid, field, text, src in jobs:
+        kind = _field_title(field, fields)
+        rmode = rmode_by_nid.get(nid, "mix")
+        baseline = (src_by_nid or {}).get(nid, src)
+        if field == sent_field:
+            if rmode == "asis":
+                st["asis"] += 1
+                note = "кандзи — движок читает сам (режим asis)"
+            elif text != baseline:
+                st["inj_ok"] += 1
+                note = "подстановка чтения ✓"
+            else:
+                st["inj_miss"] += 1
+                note = ("⚠ подстановка НЕ сработала (термин не найден в "
+                        "предложении или отклонён) — движок прочитает сам")
+        else:
+            if rmode == "asis" or KANJI_RE.search(text):
+                st["word_kanji"] += 1
+                note = "как написано — движок прочитает сам"
+            else:
+                st["word_kana"] += 1
+                note = "кана: %s" % text
+        rows.append((nid, kind, note, text[:60]))
+    return rows, st
+
+
+def cmd_preview(args):
+    """Предпросмотр озвучки: что и как будет озвучено, без синтеза и GPU.
+
+    Прогоняет ту же выборку и build_jobs, что и voice, показывает текст
+    каждой операции, режим чтения карточки и результат подстановки фуриганы
+    (включая промахи). С --voices — ещё и случайное распределение карточек
+    по голосам ансамбля, как его сделает реальный прогон.
+    """
+    fields = _fields_from_args(args, deck=args.deck)
+    ids = _select_note_ids(args, fields)
+    if not ids:
+        return
+    notes = notes_info(ids)
+    jobs = build_jobs(notes, args.mode, args.force, fields=fields)
+    skipped = len({n["noteId"] for n in notes}) - len({j[0] for j in jobs})
+    rmode_by_nid = {n["noteId"]: reading_mode(fields, n,
+                                              fields.get("reading", ""))
+                    for n in notes}
+    print("Предпросмотр озвучки%s (режим: %s, пересборка: %s)"
+          % (" колоды «%s»" % args.deck if args.deck else "",
+             _mode_title(args.mode), "да" if args.force else "нет"))
+    if not jobs:
+        print("Озвучивать нечего: у выбранных карточек уже есть звук "
+              "(или пустой текст). Для пересмотра включи «Пересобрать всё "
+              "заново» (--force).")
+        return
+    # ансамбль: та же раскладка, что сделает реальный прогон
+    voice_by_nid = None
+    extra = [x.strip() for x in (getattr(args, "voices", "") or "").split(",")
+             if x.strip()]
+    names = []
+    for n in ([args.voice] if args.voice else []) + extra:
+        if n and n not in names:
+            names.append(n)
+    if len(names) > 1:
+        prior = {}
+        for n in names:
+            try:
+                for i in ac("findNotes", query='tag:"av_voice::%s"' % n):
+                    prior[i] = n
+            except Exception:
+                pass
+        voice_by_nid = assign_voices({j[0] for j in jobs}, names,
+                                     seed=args.seed, prior=prior)
+        print("Ансамбль: %s" % ", ".join(names))
+    # сырые поля предложений: база сравнения для подстановки
+    sent_f = fields.get("sentence_src", "Sentence")
+    src_by_nid = {}
+    for n in notes:
+        f = (n.get("fields") or {}).get(sent_f) or {}
+        src_by_nid[n["noteId"]] = plain(f.get("value", ""), strip_media=True)
+    rows, st = _preview_report(jobs, fields, rmode_by_nid, src_by_nid)
+    for nid, kind, note, text in rows:
+        v = (" «%s»" % voice_by_nid[nid]) if voice_by_nid else ""
+        print("  [%d] %-12s %s — %s%s" % (nid, kind, note, text, v))
+    print("\nИтого: %d %s на %d %s | подстановок ✓ %d, ✗ %d | asis %d | "
+          "слово каной %d, кандзи %d | пропущено (уже озвучено/нечего "
+          "озвучивать) %d"
+          % (st["ops"], _plural(st["ops"], "операция", "операции",
+                                "операций"),
+             st["cards"], _plural(st["cards"], "карточка", "карточки",
+                                  "карточек"),
+             st["inj_ok"], st["inj_miss"], st["asis"],
+             st["word_kana"], st["word_kanji"], skipped))
+    if st["inj_miss"]:
+        print("⚠ Есть промахи подстановки: у этих карточек термин прочитает "
+              "сам движок. Проверь фуригану и написание термина в "
+              "предложении — или оставь как есть.")
 
 
 def check_target(job):
@@ -4211,6 +4337,31 @@ def main():
     p.add_argument("--deck", default="AnkiVoice_Брак",
                    help="имя колоды (по умолчанию AnkiVoice_Брак)")
 
+    p = sub.add_parser("preview",
+                       help="предпросмотр озвучки без синтеза: что уйдёт в "
+                            "TTS, режим каждой карточки и результат "
+                            "подстановки фуриганы")
+    p.add_argument("--voice")
+    p.add_argument("--voices", default="",
+                   help="показать раскладку ансамбля «a,b,c» — как её "
+                        "сделает реальный прогон")
+    p.add_argument("--deck", default=None)
+    p.add_argument("--ids", nargs="*", default=None)
+    p.add_argument("--limit", type=int, default=None)
+    p.add_argument("--mode", choices=["sentence", "expression", "both"],
+                   default="both")
+    p.add_argument("--new", action="store_true",
+                   help="предпросмотреть только карточки без av_voiced")
+    p.add_argument("--sentence-src", default=None)
+    p.add_argument("--sentence-audio", default=None)
+    p.add_argument("--word-src", default=None)
+    p.add_argument("--word-audio", default=None)
+    p.add_argument("--furigana-src", default=None)
+    p.add_argument("--reading", default="")
+    p.add_argument("--force", action="store_true")
+    p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--tag", default=None)
+
     args = ap.parse_args()
     if not args.cmd:
         menu()
@@ -4224,7 +4375,8 @@ def main():
               "clone": cmd_clone, "voice": cmd_voice, "make-deck": cmd_make_deck,
               "check": cmd_check, "scan": cmd_scan, "qc-deck": cmd_qc_deck,
               "verify": cmd_verify, "verdicts": cmd_verdicts,
-              "selftest": cmd_selftest}[args.cmd](args)
+              "selftest": cmd_selftest,
+              "preview": cmd_preview}[args.cmd](args)
     if args.cmd == "check" and result is False:
         sys.exit(1)
 

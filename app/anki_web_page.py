@@ -514,6 +514,8 @@ select{cursor:pointer}
           <button class="btn danger" id="btnStop" disabled>■&nbsp; Остановить</button>
         </div>
         <div class="row" style="margin-top:10px">
+          <button class="btn" id="btnPreview"
+                  title="Без синтеза и без движка: покажет, какой текст уйдёт в озвучку, режим каждой карточки и сработала ли подстановка фуриганы — включая промахи">Предпросмотр</button>
           <button class="btn" id="btnCheck">Проверить колоду</button>
           <button class="btn" id="btnSelftest">Самопроверка</button>
           <button class="btn" id="btnVerify" title="Распознать уже озвученные карточки и найти те, где модель потеряла кусок фразы">Проверить произношение</button>
@@ -1486,6 +1488,13 @@ $("btnCheck").onclick = ()=>{
     word_audio:fieldVal("word_aud","word_audio")});
 };
 $("btnSelftest").onclick = ()=>runOp({kind:"selftest"});
+$("btnPreview").onclick = ()=>{
+  if(!$("deck").value) return toast("Сначала выбери колоду","bad");
+  // предпросмотр: движок и голос не нужны, синтеза не будет
+  const p = collectVoiceArgs();
+  p.kind = "preview";
+  runOp(p);
+};
 $("btnQCDeck").onclick = async ()=>{
   if(!await askConfirm("Собрать колоду «Брак»?\nВ Anki появится новая колода с копиями сомнительных карточек и полем «Вердикт». Оригиналы не меняются.", "Собрать")) return;
   runOp({kind:"qc-deck"});
@@ -1596,6 +1605,7 @@ function endRunUI(s){
   else if(/Проверка произношения/.test(t))
     done = "Проверка завершена — сомнительные в журнале ниже.";
   else if(/Проверка колоды/.test(t)) done = "Проверка колоды завершена.";
+  else if(/Предпросмотр/.test(t)) done = "Предпросмотр готов — детали в журнале ниже.";
   else if(/Самопроверка/.test(t)) done = "Проверка окружения завершена.";
   else if(/Тест синтеза/.test(t)) done = "Тестовый звук готов.";
   else if(/Сканирование/.test(t)) done = "Сканирование завершено.";
@@ -1613,7 +1623,8 @@ function endRunUI(s){
       "<b>Проверка нашла проблемы.</b> Список карточек — в журнале ниже.");
   }else if(!ok) banner("voiceBanner","bad",
     "<b>Завершилось с ошибкой (код "+(s?s.code:"?")+").</b> Посмотри журнал ниже.");
-  if(!stopped) notifyDone(s);
+  // уведомление — только про озвучку: предпросмотр/проверки не стоят того
+  if(!stopped && /Озвучка|Перепробовать/.test(t)) notifyDone(s);
   else banner("voiceBanner","good", done ? ("<b>Готово.</b> " + done) : "<b>Готово.</b>");
 }
 function showLastRun(s){

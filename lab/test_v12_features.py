@@ -747,6 +747,50 @@ def test_last_run_roundtrip():
         vp.LAST_RUN_FILE = old
 
 
+def test_preview_report():
+    """Предпросмотр: подстановка ✓/✗ и кана слова — без Anki и движка."""
+    def mknote(nid, expr, furi, sent):
+        return {"noteId": nid, "fields": {
+            "Sentence": {"value": sent},
+            "SentenceAudio": {"value": ""},
+            "Expression": {"value": expr},
+            "ExpressionFurigana": {"value": furi},
+            "ExpressionAudio": {"value": ""}}}
+    fields = dict(vp.DEFAULT_FIELDS)
+    notes = [
+        # подстановка попадёт: термин стоит в предложении сам по себе
+        mknote(1, "東京タワー", "東京タワー[とうきょうたわー]",
+               "東京タワーは高さいいね。"),
+        # подстановка промахнётся: 星 (ほし) внутри 火星 — замена запрещена
+        mknote(2, "星", "ほし", "火星には水がなかった。"),
+        # без фуриганы — asis: движок читает сам
+        mknote(3, "難しい", "", "この問題は難しい。"),
+    ]
+    jobs = vp.build_jobs(notes, "both", True, fields=fields)
+    rmode = {n["noteId"]: vp.reading_mode(fields, n, fields.get("reading", ""))
+             for n in notes}
+    src_by_nid = {n["noteId"]: vp.plain(n["fields"]["Sentence"]["value"],
+                                        strip_media=True)
+                  for n in notes}
+    rows, st = vp._preview_report(jobs, fields, rmode, src_by_nid)
+    check(st["cards"] == 3, "три карточки в предпросмотре")
+    by_nid = {}
+    for nid, kind, note, text in rows:
+        by_nid.setdefault(nid, []).append((kind, note, text))
+    sent1 = [r for r in by_nid[1] if r[0] == "звук предложения"][0]
+    check("подстановка чтения ✓" in sent1[1],
+          "東 vignette: подстановка отмечена как успешная")
+    sent2 = [r for r in by_nid[2] if r[0] == "звук предложения"][0]
+    check("НЕ сработала" in sent2[1],
+          "火星: промах подстановки помечен предупреждением")
+    check("火星" in sent2[2], "火星: предложение не испорчено")
+    word3 = [r for r in by_nid[3] if r[0] == "звук слова"][0]
+    check("движок прочитает сам" in word3[1],
+          "без фуриганы слово уходит кандзи (asis)")
+    check(st["inj_ok"] == 1 and st["inj_miss"] == 1,
+          "сводка: 1 подстановка, 1 промах")
+
+
 def main():
     tests = [test_version_tuple, test_release_parse, test_download_sha,
              test_busy_download_no_deadlock, test_installer_ships_runtime_modules,
@@ -761,7 +805,8 @@ def main():
              test_engine_ui_on_main_screen,
              test_qa_first_users_fixes,
              test_setup_status,
-             test_assign_voices, test_last_run_roundtrip]
+             test_assign_voices, test_last_run_roundtrip,
+             test_preview_report]
     failed = 0
     for t in tests:
         try:
