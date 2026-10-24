@@ -1334,6 +1334,14 @@ class Handler(BaseHTTPRequestHandler):
             # поля не заполнены — отвечаем словами, а не падаем в 500
             if not args:
                 return self._err("Сначала выбери голос и колоду")
+        elif kind == "preview":
+            # предпросмотр: та же выборка и разбор карточек, без синтеза
+            args, title, err = self._args_voice(b, kind="preview")
+            if err:
+                return self._err(err)
+            if not args:
+                return self._err("Сначала выбери колоду")
+            title = "Предпросмотр озвучки «%s»" % (b.get("deck") or "").strip()
         elif kind == "check":
             deck = (b.get("deck") or "").strip()
             if not deck:
@@ -1386,10 +1394,17 @@ class Handler(BaseHTTPRequestHandler):
             return self._err(err)
         return self._json({"ok": True, "run": run.snapshot()})
 
-    def _args_voice(self, b):
+    def _args_voice(self, b, kind="voice"):
+        """Аргументы voice/preview: одна логика полей, разный набор флагов.
+
+        kind="preview" — предпросмотр: движок и голос не требуются,
+        синтеза не будет; голоса нужны только чтобы показать раскладку
+        ансамбля.
+        """
+        preview = kind == "preview"
         voice = (b.get("voice") or "").strip()
         deck = (b.get("deck") or "").strip()
-        if not voice:
+        if not preview and not voice:
             return None, None, "Сначала выбери голос"
         if not deck:
             return None, None, "Сначала выбери колоду"
@@ -1406,14 +1421,19 @@ class Handler(BaseHTTPRequestHandler):
                 return v
             return (g.get(guess_key) or "").strip()
 
-        args = ["voice", "--voice", voice, "--deck", deck,
-                "--mode", (b.get("mode") or "both")]
+        args = [kind]
+        if not preview:
+            args += ["--voice", voice]
+        args += ["--deck", deck, "--mode", (b.get("mode") or "both")]
         # ансамбль: выбранные дополнительные голоса — карточки распределятся
-        # случайно и озвучатся партиями (по одному переключению весов на голос)
+        # случайно и озвучатся партиями (по одному переключению весов на голос);
+        # в предпросмотре — та же раскладка, что сделает реальный прогон
         voices = [str(v).strip() for v in (b.get("voices") or [])
                   if str(v).strip() and str(v).strip() != voice]
-        if voices:
+        if voices and (not preview or voice):
             args += ["--voices", ",".join([voice] + voices)]
+        elif preview and len(voices) > 1:
+            args += ["--voices", ",".join(voices)]
         if b.get("only_new"):
             # ежедневный сценарий: только карточки без тега av_voiced
             args.append("--new")
