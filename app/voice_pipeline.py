@@ -100,7 +100,6 @@ PYTHON = None             # ENGINE\runtime\python.exe
 ACTIVE_VOICE_FILE = None  # ENGINE\logs\active_voice.txt
 SERVER_LOG = None         # ENGINE\logs\api_v2_pipeline.log
 
-ANKI_CONNECT = "http://127.0.0.1:8765"
 TTS_HOST, TTS_PORT = "127.0.0.1", 9880
 TTS_URL = "http://%s:%d" % (TTS_HOST, TTS_PORT)
 DEFAULT_START_CONFIG = os.path.join("GPT_SoVITS", "configs", "tts_infer.yaml")
@@ -246,61 +245,13 @@ if ENGINE:
 
 
 # ------------------------------------------------------------ AnkiConnect
-# Все локальные запросы (AnkiConnect и GPT-SoVITS) идут МИМО системного
-# прокси: 127.0.0.1 — это localhost, а прокси-обвязка (корпоративный VPN,
-# PAC-скрипт, настройки «Интернет-свойства») только ломает такие запросы.
-_NO_PROXY = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-
-
-def ac(action, **params):
-    payload = {"action": action, "version": 6, "params": params}
-    data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    for attempt in (1, 2):
-        req = urllib.request.Request(
-            ANKI_CONNECT, data=data,
-            headers={"Content-Type": "application/json", "Origin": "http://localhost"},
-        )
-        try:
-            with _NO_PROXY.open(req, timeout=120) as resp:
-                out = json.loads(resp.read().decode("utf-8"))
-            break
-        except urllib.error.URLError as e:
-            if attempt == 1:
-                time.sleep(1.0)      # Anki мог перезаписывать коллекцию — повтор разок
-                continue
-            raise SystemExit("AnkiConnect недоступен (%s). Открой Anki и повтори." % e)
-    if out.get("error"):
-        raise SystemExit("AnkiConnect: %s" % out["error"])
-    return out["result"]
-
-
-def notes_info(ids, chunk=400):
-    """notesInfo по частям: AnkiConnect на десятках тысяч id отвечает
-    одним огромным JSON — режем на куски, стабильно и быстрее."""
-    out = []
-    for i in range(0, len(ids), chunk):
-        out.extend(ac("notesInfo", notes=ids[i:i + chunk]))
-    return out
-
-
-TAG_RE = re.compile(r"<[^>]+>")
-SOUND_TAG_RE = re.compile(r"\[(?:sound|audio):[^\]]*\]", re.IGNORECASE)
-
-
-def plain(v, strip_media=False):
-    """Поле карточки -> чистый текст.
-
-    strip_media=True — для ТЕКСТОВ, которые уходят на синтез: [sound:...]
-    вырезается, иначе API прочитает «звук двоеточие...» вслух. Для проверки
-    «озвучено ли поле» (check_deck, build_jobs) strip_media=False — тег должен
-    остаться видимым."""
-    s = TAG_RE.sub("", v or "")
-    if strip_media:
-        s = SOUND_TAG_RE.sub(" ", s)
-    s = html.unescape(s).replace("\xa0", " ")
-    return s.strip()
-
-
+# С 1.9.2 живёт в app/anki_api.py; имена переэкспортируются, чтобы
+# все внешние потребители (kana_stress, bench_rohan, тесты) работали
+# как раньше: from voice_pipeline import kanaize, ac, plain, ...
+from anki_api import (  # noqa: F401 — фасад
+    ANKI_CONNECT, SOUND_TAG_RE, TAG_RE, _NO_PROXY,
+    _chunks, ac, notes_info, plain,
+)
 # ----------------------------------------------------------- работа с голосами
 def load_voices():
     if not os.path.exists(VOICES_FILE):
@@ -3244,10 +3195,6 @@ def _pending_notes(ids, limit, fields, mode="both"):
                     return need
     return need
 
-
-def _chunks(seq, n):
-    for i in range(0, len(seq), n):
-        yield seq[i:i + n]
 
 
 def _select_note_ids(args, fields):
