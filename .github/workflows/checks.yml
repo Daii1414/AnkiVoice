@@ -94,6 +94,24 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-ChildItem "dist\*.exe" | Select-Object Name, Length
 
+      - name: Smoke test installer (silent install + first run)
+        shell: pwsh
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          # Установщик ставится тихо в %LOCALAPPDATA%, проверяется состав
+          # файлов и первый запуск чтения — через свежераспакованный pyruntime.
+          # Именно этот класс («свежая установка не работает») раньше
+          # пропускался: pyruntime распаковывался не туда.
+          $setup = Get-ChildItem "dist\AnkiVoice-Setup-*.exe" | Select-Object -First 1
+          $p = Start-Process -FilePath $setup.FullName `
+            -ArgumentList "/VERYSILENT","/SUPPRESSMSGBOXES","/NORESTART","/SP-" `
+            -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "установка вернула код $($p.ExitCode)" }
+          $inst = "$env:LOCALAPPDATA\Programs\AnkiVoice"
+          python lab\smoke_installed.py $inst
+          if ($LASTEXITCODE -ne 0) { throw "smoke-тест не прошёл" }
+
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
