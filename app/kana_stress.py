@@ -9,7 +9,7 @@
                  карточки (это дизайн, а не баг). Прогон информационный,
                  на гейт не влияет.
 """
-import sys, os, re
+import sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from voice_pipeline import kanaize
 

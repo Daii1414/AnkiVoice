@@ -5,7 +5,6 @@
 
     python lab/readme_check.py
 """
-import json
 import os
 import re
 import sys

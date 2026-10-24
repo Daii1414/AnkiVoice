@@ -27,10 +27,8 @@
 # ВНИМАНИЕ: здесь нельзя писать `from __future__ import annotations` —
 # модуль импортируется из замороженного exe (PyInstaller), а `__future__`
 # в сборке нет: это директива компилятора, а не обычный импорт.
-import json
 import os
 import re
-import sys
 
 WILD = "\ue000"          # заглушка: «здесь может быть что угодно»
 LATIN = re.compile(r"([A-Za-z]+|[0-9]+)")

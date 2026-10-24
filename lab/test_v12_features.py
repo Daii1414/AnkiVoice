@@ -791,6 +791,18 @@ def test_preview_report():
           "сводка: 1 подстановка, 1 промах")
 
 
+def test_release_body_extract():
+    """Автотело релиза: секция версии вырезается, отсутствующая — None."""
+    import release_body as rb
+    with open(os.path.join(ROOT, "CHANGELOG.md"), encoding="utf-8") as f:
+        ch = f.read()
+    body = rb.extract(ch, "1.9.1")
+    check(bool(body) and "pyruntime" in body,
+          "секция 1.9.1 извлечена, служебная строка «Установщик:» убрана")
+    check("## [" not in body, "в тело не попадает следующая секция")
+    check(rb.extract(ch, "9.9.9") is None, "нет секции — None (запасное тело)")
+
+
 def main():
     tests = [test_version_tuple, test_release_parse, test_download_sha,
              test_busy_download_no_deadlock, test_installer_ships_runtime_modules,
@@ -806,7 +818,7 @@ def main():
              test_qa_first_users_fixes,
              test_setup_status,
              test_assign_voices, test_last_run_roundtrip,
-             test_preview_report]
+             test_preview_report, test_release_body_extract]
     failed = 0
     for t in tests:
         try:

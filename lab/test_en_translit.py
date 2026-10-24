@@ -6,7 +6,7 @@ import sys
 app_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app")
 sys.path.insert(0, app_dir)
 
-from en_translit import transliterate_en, ACRONYMS, LATIN
+from en_translit import transliterate_en
 
 
 def test_translit():
@@ -28,7 +28,7 @@ def test_translit():
 
     # Проверка слов через e2k (если установлен)
     try:
-        from e2k import C2K
+        import e2k  # noqa: F401 — проба доступности: нет e2k — кейсы пропускаем
         word_cases = [
             ("bus", "バス"),
             ("community", "コミュニティー"),
