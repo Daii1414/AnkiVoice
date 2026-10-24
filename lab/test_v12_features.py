@@ -22,6 +22,7 @@ if LAB not in sys.path:
 import anki_gui as ag
 import anki_web as aw
 import voice_pipeline as vp
+import voicing as vc
 
 
 def check(cond, msg):
@@ -733,7 +734,7 @@ def test_last_run_roundtrip():
         fd, tmp = tempfile.mkstemp(suffix=".json")
         os.close(fd)
         os.remove(tmp)
-        vp.LAST_RUN_FILE = tmp
+        vc.LAST_RUN_FILE = tmp
         info = {"voice": ["a", "b"], "mode": "both", "done": 3, "failed": 1,
                 "failed_ids": [42], "fields": {"reading": ""},
                 "at": "2026-10-24 00:00:00"}
@@ -748,7 +749,7 @@ def test_last_run_roundtrip():
         check(vp.read_last_run() == {}, "битый last_run -> пустой итог")
         os.remove(tmp)
     finally:
-        vp.LAST_RUN_FILE = old
+        vc.LAST_RUN_FILE = old
 
 
 def test_preview_report():
@@ -842,7 +843,7 @@ def test_changed_filter_and_manifest():
         fd, tmp = tempfile.mkstemp(suffix=".json")
         os.close(fd)
         os.remove(tmp)
-        vp.VOICED_MANIFEST_FILE = tmp
+        vc.VOICED_MANIFEST_FILE = tmp
         vp.save_voiced_manifest({"7": {"SentenceAudio": "abc"}})
         check(not os.path.exists(tmp + ".tmp"), "манифест пишется атомарно")
         check(vp.load_voiced_manifest().get("7", {}).get("SentenceAudio")
@@ -852,7 +853,7 @@ def test_changed_filter_and_manifest():
         check(vp.load_voiced_manifest() == {}, "битый манифест -> пустой")
         os.remove(tmp)
     finally:
-        vp.VOICED_MANIFEST_FILE = old
+        vc.VOICED_MANIFEST_FILE = old
 
 
 def main():
