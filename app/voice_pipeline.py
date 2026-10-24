@@ -68,158 +68,79 @@ except Exception:
 # ------------------------------------------------------------------ константы
 # CODE  — папка самого инструмента (этот скрипт, voices.json).
 # ROOT  — корень репозитория (на уровень выше): там lab/ и bundled/.
-# ENGINE — папка установленного GPT-SoVITS (runtime\python.exe, api_v2.py, веса).
-CODE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(CODE)
-VOICES_FILE = os.path.join(CODE, "voices.json")
-ENGINE_LOCAL_FILE = os.path.join(CODE, "gptsovits_path.txt")
+# av_state.ENGINE — папка установленного GPT-SoVITS (runtime\python.exe, api_v2.py, веса).
+# ------------------------------------------------- пути (app/paths.py)
+from paths import (  # noqa: F401 — фасад
+    CODE, ROOT, bundled, lab_dir,
+)
 
 
-def lab_dir():
-    """Папка модулей lab/ — рядом с кодом или на уровень выше (в репозитории)."""
-    for p in (os.path.join(CODE, "lab"), os.path.join(ROOT, "lab")):
-        if os.path.isdir(p):
-            return p
-    return os.path.join(CODE, "lab")
-
-
-def bundled(name):
-    """Файл из bundled/ (встроенный Python, словарь Sudachi).
-
-    В репозитории они лежат в bundled/, в установленном приложении — рядом
-    с кодом. Ищем в обоих местах.
-    """
-    for p in (os.path.join(CODE, name), os.path.join(ROOT, "bundled", name)):
-        if os.path.isfile(p):
-            return p
-    return os.path.join(CODE, name)
-
-
-ENGINE = None             # заполняется resolve_engine() ниже
-PYTHON = None             # ENGINE\runtime\python.exe
-ACTIVE_VOICE_FILE = None  # ENGINE\logs\active_voice.txt
-SERVER_LOG = None         # ENGINE\logs\api_v2_pipeline.log
-
-TTS_HOST, TTS_PORT = "127.0.0.1", 9880
-TTS_URL = "http://%s:%d" % (TTS_HOST, TTS_PORT)
-DEFAULT_START_CONFIG = os.path.join("GPT_SoVITS", "configs", "tts_infer.yaml")
-
-# ------------------------------------------------------------- выбор движка
-# Движков два: GPT-SoVITS (как раньше) и IndexTTS 2.5. Выбор хранится в
-# конфиге приложения (engine), чтобы переключатель в интерфейсе был один
-# на всё приложение.
-ENGINE_GPT = "gpt-sovits"
-ENGINE_INDEX = "indextts"
-INDEXTTS_DEFAULT_URL = "http://127.0.0.1:9881"
-
-
-def engine_kind(cfg=None):
-    """Какой движок выбран: 'gpt-sovits' (по умолчанию) или 'indextts'."""
-    c = cfg if cfg is not None else _read_app_config()
-    kind = str((c or {}).get("engine") or "").strip().lower()
-    if kind in (ENGINE_INDEX, "indextts2", "indextts2.5", "index-tts", "index_tts"):
-        return ENGINE_INDEX
-    return ENGINE_GPT
-
-
-def indextts_url(cfg=None):
-    """Адрес сервиса IndexTTS (он поднимается нашим же скриптом)."""
-    c = cfg if cfg is not None else _read_app_config()
-    url = str((c or {}).get("indextts_url") or "").strip() or INDEXTTS_DEFAULT_URL
-    return url.rstrip("/")
-
-
-def indextts_dir(cfg=None):
-    """Папка с установленным IndexTTS (репозиторий с checkpoints и .venv)."""
-    c = cfg if cfg is not None else _read_app_config()
-    return str((c or {}).get("indextts_path") or "").strip()
-
-
-# Какие поля карточки читать (текст) и куда писать (звук). Можно переопределить
-# на вкладке «Поля колоды» / через CLI — разные колоды называют поля по-разному.
 # ------------------------------------------------- поля карточки (app/fields_config.py)
 from fields_config import (  # noqa: F401 — фасад
     DEFAULT_FIELDS, audio_fields, resolve_fields,
 )
-# --------------------------------------------------- поиск папки GPT-SoVITS
-def _is_engine(p):
-    """Папка похожа на установку GPT-SoVITS: есть интерпретатор и api_v2.py."""
-    return bool(p) and os.path.isfile(os.path.join(p, "runtime", "python.exe")) \
-        and os.path.isfile(os.path.join(p, "api_v2.py"))
+import av_state
+import engines
 
+# ------------------------------------------------- движки (app/engines.py),
+# голоса (app/voices.py): имена переэкспортируются для внешних потребителей.
+from engines import (  # noqa: F401 — фасад
+    DEFAULT_START_CONFIG,
+    ENGINE_GPT,
+    ENGINE_INDEX,
+    INDEXTTS_DEFAULT_URL,
+    TTS_URL,
+    _BAD_ENGINES,
+    _ensure_indextts_service,
+    _get,
+    _indextts_health,
+    _is_engine,
+    _norm,
+    _read_app_config,
+    _read_engine_gui_config,
+    _read_engine_local_file,
+    _resolved,
+    _start_indextts_service,
+    _wait_indextts,
+    active_voice,
+    apply_engine,
+    cmd_indextts_server,
+    engine_kind,
+    ensure_voice,
+    indextts_dir,
+    indextts_url,
+    port_pid,
+    port_process_name,
+    require_engine,
+    resolve_engine,
+    restart_server,
+    set_active_voice,
+    set_weights,
+    start_server,
+    tts_ready,
+    wait_port,
+)
+from voices import (  # noqa: F401 — фасад
+    ENGINE_LOCAL_FILE,
+    VOICES_FILE,
+    _epoch_of,
+    _find_ref_for,
+    _gpt_identity,
+    _other_engine_dir,
+    _pretty_name,
+    _voice_file,
+    get_voice,
+    load_voices,
+    ref_duration,
+    save_voices,
+    scan_engine_voices,
+)
 
-def _read_engine_local_file():
-    try:
-        with open(ENGINE_LOCAL_FILE, encoding="utf-8") as f:
-            s = f.read().strip().strip('"').strip("'")
-        return s or None
-    except OSError:
-        return None
-
-
-def _read_app_config():
-    """Конфиг приложения (%APPDATA%\\AnkiVoice\\config.json) целиком."""
-    for name in ("AnkiVoice", "AnkiTTS"):
-        cfgp = os.path.join(os.environ.get("APPDATA") or "", name, "config.json")
-        try:
-            with open(cfgp, encoding="utf-8") as f:
-                cfg = json.load(f) or {}
-            if cfg:
-                return cfg
-        except Exception:
-            continue
-    return {}
-
-
-def _read_engine_gui_config():
-    cfg = _read_app_config()
-    return cfg.get("gptsovits_path") or None
-
-
-def _norm(p):
-    return os.path.abspath(os.path.expandvars(os.path.expanduser(p)))
-
-
-def resolve_engine():
-    """Папка движка: env -> gptsovits_path.txt -> конфиг AnkiVoice.exe -> своя папка."""
-    for cand in (os.environ.get("GPT_SOVITS_ROOT"),
-                 _read_engine_local_file(),
-                 _read_engine_gui_config(),
-                 CODE):                      # обратная совместимость: лежит внутри GPT-SoVITS
-        if cand:
-            cand = _norm(cand)
-            if _is_engine(cand):
-                return cand
-            if cand != CODE and cand not in _BAD_ENGINES:
-                _BAD_ENGINES.append(cand)   # запоминаем: пользователь указал, но путь битый
-    return None
-
-
-_BAD_ENGINES = []       # указанные, но не похожие на GPT-SoVITS пути
-
-
-def require_engine():
-    if not ENGINE:
-        msg = ("Не найдена папка GPT-SoVITS. Укажи её одним из способов:\n"
-               "  * переменная окружения  GPT_SOVITS_ROOT=C:\\...\\GPT-SoVITS\n"
-               "  * файл gptsovits_path.txt рядом с voice_pipeline.py (одна строка — путь)\n"
-               "  * запусти AnkiVoice.exe и выбери папку в окне (сохранится в конфиг)\n"
-               "В папке должны быть runtime\\python.exe и файл api_v2.py.")
-        if _BAD_ENGINES:
-            msg += ("\n\nУказанные пути НЕ подошли (нет runtime\\python.exe или api_v2.py):"
-                    + "".join("\n  * %s" % p for p in _BAD_ENGINES))
-        raise SystemExit(msg)
-    return ENGINE
-
-
-# сразу резолвим (не бросает исключений: при отсутствии ENGINE останется None,
-# а require_engine() даст понятную ошибку при попытке использовать движок)
-ENGINE = resolve_engine()
-if ENGINE:
-    PYTHON = os.path.join(ENGINE, "runtime", "python.exe")
-    ACTIVE_VOICE_FILE = os.path.join(ENGINE, "logs", "active_voice.txt")
-    SERVER_LOG = os.path.join(ENGINE, "logs", "api_v2_pipeline.log")
-
+# движок резолвим сразу (не бросает исключений: нет движка — av_state.av_state.ENGINE
+# останется None; все обращения к состоянию движка идут через av_state)
+_resolved = engines.resolve_engine()
+if _resolved:
+    engines.apply_engine(_resolved)
 
 # ------------------------------------------------------------ AnkiConnect
 # С 1.9.2 живёт в app/anki_api.py; имена переэкспортируются, чтобы
@@ -229,202 +150,6 @@ from anki_api import (  # noqa: F401 — фасад
     ANKI_CONNECT, SOUND_TAG_RE, TAG_RE, _NO_PROXY,
     _chunks, ac, notes_info, plain,
 )
-# ----------------------------------------------------------- работа с голосами
-def load_voices():
-    if not os.path.exists(VOICES_FILE):
-        return {"start_config": DEFAULT_START_CONFIG, "default_voice": None, "voices": {}}
-    try:
-        with open(VOICES_FILE, encoding="utf-8") as f:
-            cfg = json.load(f)
-    except ValueError as e:
-        raise SystemExit(
-            "voices.json повреждён (сломан JSON): %s\n"
-            "Файл: %s\nПочини его или удали — голоса добавятся заново "
-            "(pipeline.bat scan --apply)." % (e, VOICES_FILE))
-    cfg.setdefault("voices", {})
-    cfg.setdefault("start_config", DEFAULT_START_CONFIG)
-    return cfg
-
-
-def save_voices(cfg):
-    # запись во временный файл + атомарная замена: обрыв/вылет не портит voices.json
-    tmp = VOICES_FILE + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, VOICES_FILE)
-
-
-def get_voice(name=None):
-    if engine_kind() != ENGINE_INDEX:
-        require_engine()          # для IndexTTS движок GPT-SoVITS не нужен
-    cfg = load_voices()
-    name = name or cfg.get("default_voice")
-    if not name:
-        raise SystemExit("Голос не задан. Сделай: voice_pipeline.py list")
-    if name not in cfg["voices"]:
-        raise SystemExit("Голос '%s' не найден. Доступны: %s"
-                         % (name, ", ".join(sorted(cfg["voices"])) or "—"))
-    v = dict(cfg["voices"][name])
-    v["name"] = name
-    base = ENGINE if engine_kind() != ENGINE_INDEX else (indextts_dir() or CODE)
-    for key in ("gpt", "sovits", "ref"):
-        if v.get(key):
-            v[key] = _voice_file(v[key], base)
-    v["aux"] = [_voice_file(a, base) for a in v.get("aux") or []]
-    return v
-
-
-def _voice_file(p, base):
-    """Путь к файлу голоса: относительный ищем в папке движка, а если там
-    нет — в папке другого движка.
-
-    Так сделано, потому что у IndexTTS голос — это референс, а референсы
-    часто лежат в папке GPT-SoVITS (там их и нашли при сканировании).
-    Раньше IndexTTS искал референс только у себя и голос «Мадара» не работал.
-    """
-    if not p:
-        return p
-    p = os.path.expanduser(p)
-    if os.path.isabs(p):
-        return p
-    first = os.path.normpath(os.path.join(base, p))
-    if os.path.exists(first):
-        return first
-    other = _other_engine_dir(base)
-    if other:
-        alt = os.path.normpath(os.path.join(other, p))
-        if os.path.exists(alt):
-            return alt
-    return first
-
-
-def _other_engine_dir(base):
-    """Папка другого движка (IndexTTS ↔ GPT-SoVITS)."""
-    cfg = _read_app_config() or {}
-    if base == indextts_dir(cfg):
-        return str(cfg.get("gptsovits_path") or "").strip()
-    return str(cfg.get("indextts_path") or "").strip()
-
-
-def ref_duration(path):
-    try:
-        import soundfile as sf
-        info = sf.info(path)
-        return info.duration
-    except Exception:
-        return None
-
-
-# ------------------------------------------------------ поиск голосов в движке
-def _epoch_of(name):
-    m = re.search(r"[-_]e(\d+)", name)
-    return int(m.group(1)) if m else -1
-
-
-def _pretty_name(base):
-    """MISHIMA_V2 -> Mishima V2"""
-    parts = [p for p in re.split(r"[_\-\s]+", base) if p]
-    return " ".join(p if p.isdigit() else p[:1].upper() + p[1:].lower()
-                    for p in parts)
-
-
-def _find_ref_for(engine, base):
-    """Референсный файл голоса: ищем в корне движка аудио с именем голоса."""
-    token = re.sub(r"[_\-\s]+", "", base).lower()
-    if not token:
-        return ""
-    try:
-        names = sorted(os.listdir(engine))
-    except OSError:
-        return ""
-    best = None
-    for name in names:
-        p = os.path.join(engine, name)
-        if not os.path.isfile(p):
-            continue
-        low = name.lower()
-        if os.path.splitext(low)[1] not in (".wav", ".mp3", ".flac"):
-            continue
-        hay = re.sub(r"[_\-\s]+", "", os.path.splitext(low)[0])
-        if token not in hay:
-            continue
-        score = (2 if low.startswith("ref_main") else
-                 1 if low.startswith("ref") else 0)
-        if best is None or score > best[0]:
-            best = (score, name)
-    return best[1] if best else ""
-
-
-def scan_engine_voices(engine):
-    """Обходит папки весов движка и собирает пары GPT(.ckpt) + SoVITS(.pth).
-
-    Папки вида GPT_weights* / SoVITS_weights*; имена файлов: Base-eNN.ckpt и
-    Base_eN_sM.pth, base у пары совпадает без учёта регистра. Версии
-    (v2Pro / v2ProPlus) между собой НЕ смешиваются. Из эпох берётся самая
-    свежая. Возвращает словари с путями относительно engine.
-    """
-    gpts, sovits = {}, {}
-    for sub in sorted(os.listdir(engine)):
-        low = sub.lower()
-        if not os.path.isdir(os.path.join(engine, sub)):
-            continue
-        if low.startswith("gpt_weights"):
-            bucket, ext = gpts, ".ckpt"
-        elif low.startswith("sovits_weights"):
-            bucket, ext = sovits, ".pth"
-        else:
-            continue
-        fam = re.sub(r"^(gpt|sovits)_weights", "", low).strip("_") or "default"
-        d = os.path.join(engine, sub)
-        try:
-            names = sorted(os.listdir(d))
-        except OSError:
-            continue
-        for fn in names:
-            if not fn.lower().endswith(ext):
-                continue
-            stem = os.path.splitext(fn)[0]
-            base = re.sub(r"[-_]e\d+(_s\d+)?$", "", stem).strip()
-            if not base:
-                continue
-            bucket.setdefault((fam, base.lower()), []).append(
-                (_epoch_of(fn), os.path.join(sub, fn).replace("\\", "/"), base))
-
-    out, seen = [], set()
-    for key in sorted(gpts):
-        fam, base_key = key
-        if key not in sovits:
-            continue                      # нет парного SoVITS — пропускаем
-        _, gpt_rel, base = max(gpts[key], key=lambda t: t[0])
-        _, sovits_rel, _ = max(sovits[key], key=lambda t: t[0])
-        ver = ("v2Pro+" if "plus" in fam else
-               "v2Pro" if fam == "v2pro" else
-               "" if fam == "default" else fam)
-        name = re.sub(r"[^a-z0-9_]+", "_", base_key).strip("_")
-        if name in seen:
-            name = name + "_" + re.sub(r"[^a-z0-9]+", "", fam)
-        seen.add(name)
-        out.append({
-            "name": name,
-            "display": _pretty_name(base) + (" · " + ver if ver else ""),
-            "gpt": gpt_rel,
-            "sovits": sovits_rel,
-            "ref": _find_ref_for(engine, base),
-        })
-    return out
-
-
-def _gpt_identity(path):
-    """Путь к весам без номера эпохи — для узнавания уже известного голоса.
-
-    'GPT_weights_v2ProPlus/Narator-e45.ckpt' и '.../Narator-e50.ckpt' —
-    это один и тот же голос (просто разные эпохи), а не два разных.
-    Сравнение по точному пути давало дубли с пустым референсом.
-    """
-    p = str(path or "").lower().replace("\\", "/")
-    return re.sub(r"[-_]e\d+(_s\d+)?\.(ckpt|pth)$", r".\2", p)
-
-
 def cmd_scan(args):
     engine = require_engine()
     found = scan_engine_voices(engine)
@@ -472,158 +197,6 @@ def cmd_scan(args):
         elif added:
             print("Добавлено в voices.json: %s" % ", ".join(added))
     return True
-
-
-# --------------------------------------------------------- GPT-SoVITS: сервер
-def tts_ready():
-    try:
-        s = socket.create_connection((TTS_HOST, TTS_PORT), timeout=2)
-        s.close()
-        return True
-    except OSError:
-        return False
-
-
-def active_voice():
-    try:
-        with open(ACTIVE_VOICE_FILE, encoding="utf-8") as f:
-            return f.read().strip()
-    except OSError:
-        return None
-
-
-def set_active_voice(name):
-    os.makedirs(os.path.dirname(ACTIVE_VOICE_FILE), exist_ok=True)
-    with open(ACTIVE_VOICE_FILE, "w", encoding="utf-8") as f:
-        f.write(name)
-
-
-def wait_port(want_up, timeout=300, what="порт"):
-    t0 = time.time()
-    while time.time() - t0 < timeout:
-        if tts_ready() == want_up:
-            return True
-        time.sleep(2)
-    return False
-
-
-def port_pid(port):
-    """PID процесса, слушающего порт (Windows/netstat), либо None."""
-    try:
-        out = subprocess.run(["netstat", "-ano"], capture_output=True,
-                             text=True, timeout=20)
-        for line in out.stdout.splitlines():
-            if "LISTENING" in line and (":%d " % port) in line:
-                return line.split()[-1]
-    except Exception:
-        pass
-    return None
-
-
-def port_process_name(pid):
-    try:
-        out = subprocess.run(["tasklist", "/FI", "PID eq %s" % pid, "/FO", "CSV", "/NH"],
-                             capture_output=True, text=True, timeout=20)
-        line = out.stdout.strip().splitlines()[0]
-        return line.split('","')[0].strip('"')
-    except Exception:
-        return "?"
-
-
-def start_server(start_config, wait=600):
-    require_engine()
-    if tts_ready():
-        # порт открыт — убедимся, что это НАШ сервер, а не чужая программа
-        pid = port_pid(TTS_PORT)
-        name = port_process_name(pid) if pid else ""
-        if pid and "python" not in name.lower():
-            raise SystemExit(
-                "Порт %d занят программой '%s' (PID %s) — это не GPT-SoVITS.\n"
-                "Закрой эту программу и повтори." % (TTS_PORT, name, pid))
-        return
-    os.makedirs(os.path.dirname(SERVER_LOG), exist_ok=True)
-    env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
-    log = open(SERVER_LOG, "a", encoding="utf-8")
-    subprocess.Popen(
-        [PYTHON, "-u", "api_v2.py", "-a", TTS_HOST, "-p", str(TTS_PORT),
-         "-c", os.path.relpath(start_config, ENGINE)],
-        cwd=ENGINE, env=env, stdout=log, stderr=subprocess.STDOUT,
-    )
-    print("Запускаю GPT-SoVITS, ждём до %d с..." % wait)
-    if not wait_port(True, wait):
-        raise SystemExit("Сервер не поднялся за %d с, см. %s" % (wait, SERVER_LOG))
-    time.sleep(1)
-    print("GPT-SoVITS готов.")
-
-
-def restart_server(start_config, wait=600):
-    """Перезапуск через /control: процесс перезапускает сам себя тем же argv."""
-    print("Перезапускаю сервер (нужна свежая память)...")
-    try:
-        _NO_PROXY.open(TTS_URL + "/control?command=restart", timeout=10).read()
-    except Exception:
-        pass                       # сокет обрывается — это ожидаемо
-    wait_port(False, 60)
-    if tts_ready():                # не упал — убиваем по порту (только python!)
-        pid = port_pid(TTS_PORT)
-        name = port_process_name(pid) if pid else ""
-        if pid and "python" not in name.lower():
-            raise SystemExit(
-                "Порт %d держит чужая программа '%s' (PID %s) — не убиваю её.\n"
-                "Закрой её сам и повтори." % (TTS_PORT, name, pid))
-        try:
-            if pid:
-                subprocess.run(["taskkill", "/PID", pid, "/F"],
-                               capture_output=True, timeout=20)
-        except Exception as e:
-            print("не удалось остановить старый процесс:", e)
-        wait_port(False, 60)
-    time.sleep(2)
-    start_server(start_config, wait)
-
-
-def _get(path, params):
-    url = TTS_URL + path + "?" + urllib.parse.urlencode(params)
-    try:
-        with _NO_PROXY.open(url, timeout=300) as r:
-            return r.status == 200
-    except urllib.error.HTTPError:
-        return False
-    except Exception:
-        return False
-
-
-def set_weights(v):
-    ok_gpt = _get("/set_gpt_weights", {"weights_path": v["gpt"]})
-    ok_sov = _get("/set_sovits_weights", {"weights_path": v["sovits"]})
-    return ok_gpt and ok_sov
-
-
-def ensure_voice(v, force=False):
-    """Сервер запущен + веса голоса загружены. При сбое — перезапуск и повтор."""
-    if engine_kind() == ENGINE_INDEX:
-        # У IndexTTS веса голоса общие (модель одна), а голос — это референс.
-        # Переключать нечего: нужен только наш сервис с загруженной моделью.
-        _ensure_indextts_service()
-        return
-    require_engine()
-    cfg = load_voices()
-    start_config = os.path.join(ENGINE, cfg.get("start_config") or DEFAULT_START_CONFIG)
-    if not tts_ready():
-        start_server(start_config)
-    if not force and active_voice() == v["name"]:
-        return
-    print("Переключаю веса на '%s'..." % v["name"])
-    if set_weights(v):
-        set_active_voice(v["name"])
-        return
-    print("Не получилось переключить (обычно нехватка памяти). Перезапуск...")
-    restart_server(start_config)
-    if set_weights(v):
-        set_active_voice(v["name"])
-        return
-    raise SystemExit("Веса '%s' не загрузились. Проверь пути в voices.json:\n  GPT:    %s\n  SoVITS: %s"
-                     % (v["name"], v["gpt"], v["sovits"]))
 
 
 # ------------------------------------------------- чтение (app/kana_reading.py)
@@ -684,7 +257,7 @@ from kana_reading import (  # noqa: F401 - фасад
 # --------------------------------------------------------------- синтез
 def _tts_start_config():
     cfg = load_voices()
-    return os.path.join(ENGINE, cfg.get("start_config") or DEFAULT_START_CONFIG)
+    return os.path.join(av_state.ENGINE, cfg.get("start_config") or DEFAULT_START_CONFIG)
 
 
 _RESURRECT = {"left": 3}      # сколько раз за прогон можно поднять упавший сервер
@@ -712,8 +285,8 @@ def _resurrect(v):
 
 def _ffmpeg_exe():
     """ffmpeg из папки движка (или из PATH) — для проверки качества звука."""
-    if ENGINE:
-        p = os.path.join(ENGINE, "runtime", "ffmpeg.exe")
+    if av_state.ENGINE:
+        p = os.path.join(av_state.ENGINE, "runtime", "ffmpeg.exe")
         if os.path.exists(p):
             return p
     try:
@@ -735,7 +308,7 @@ def audio_stats(blob, ext="ogg"):
     ff = _ffmpeg_exe()
     if not ff:
         if os.environ.get("AV_DEBUG_QC"):
-            print("  [qc] ffmpeg не найден; ENGINE=%r" % (ENGINE,))
+            print("  [qc] ffmpeg не найден; av_state.ENGINE=%r" % (av_state.ENGINE,))
         return 0.0, 0.0
     import subprocess
     cmd = [ff, "-v", "error", "-i", "pipe:0", "-f", "s16le",
@@ -833,7 +406,7 @@ def _check_audio(blob, ext, text):
     if q2 is None:
         dur, snd = audio_stats(blob, ext)
         return ([], True) if _synth_is_sane(text, dur, snd) else (["тишина"], False)
-    ff = q2.ffmpeg_exe(ENGINE)
+    ff = q2.ffmpeg_exe(av_state.ENGINE)
     if not ff:
         return ([], True)                   # некому проверить — не мешаем
     m = q2.analyze(blob, ff)
@@ -1903,7 +1476,7 @@ def acquire_lock():
     сама при выходе процесса (закрытие файла)."""
     global _LOCK_HANDLE
     require_engine()
-    lockp = os.path.join(ENGINE, "logs", "pipeline.lock")
+    lockp = os.path.join(av_state.ENGINE, "logs", "pipeline.lock")
     os.makedirs(os.path.dirname(lockp), exist_ok=True)
     f = open(lockp, "a+")
     try:
@@ -1932,10 +1505,10 @@ def cmd_list(args=None):
     print("Голоса (по умолчанию: %s):" % (cfg.get("default_voice") or "—"))
     for name, v in sorted(cfg["voices"].items()):
         gpt_ok = os.path.exists(v["gpt"]) if os.path.isabs(v.get("gpt", "")) else \
-            os.path.exists(os.path.join(ENGINE, v.get("gpt", "")))
+            os.path.exists(os.path.join(av_state.ENGINE, v.get("gpt", "")))
         sov_ok = os.path.exists(v["sovits"]) if os.path.isabs(v.get("sovits", "")) else \
-            os.path.exists(os.path.join(ENGINE, v.get("sovits", "")))
-        ref = v["ref"] if os.path.isabs(v.get("ref", "")) else os.path.join(ENGINE, v.get("ref", ""))
+            os.path.exists(os.path.join(av_state.ENGINE, v.get("sovits", "")))
+        ref = v["ref"] if os.path.isabs(v.get("ref", "")) else os.path.join(av_state.ENGINE, v.get("ref", ""))
         dur = ref_duration(ref)
         dur_s = ("%.1f с" % dur) if dur else ("НЕ НАЙДЕН" if not os.path.exists(ref) else "? с")
         flags = []
@@ -1961,9 +1534,9 @@ def cmd_add(args):
         raise SystemExit("Референс %.1f с — API требует 3–10 с. Вырежи другой кусок." % dur)
     cfg["voices"][args.name] = {
         "display": args.display or args.name,
-        "gpt": os.path.relpath(args.gpt, ENGINE) if os.path.abspath(args.gpt).startswith(ENGINE) else args.gpt,
-        "sovits": os.path.relpath(args.sovits, ENGINE) if os.path.abspath(args.sovits).startswith(ENGINE) else args.sovits,
-        "ref": os.path.relpath(args.ref, ENGINE) if os.path.abspath(args.ref).startswith(ENGINE) else args.ref,
+        "gpt": os.path.relpath(args.gpt, av_state.ENGINE) if os.path.abspath(args.gpt).startswith(av_state.ENGINE) else args.gpt,
+        "sovits": os.path.relpath(args.sovits, av_state.ENGINE) if os.path.abspath(args.sovits).startswith(av_state.ENGINE) else args.sovits,
+        "ref": os.path.relpath(args.ref, av_state.ENGINE) if os.path.abspath(args.ref).startswith(av_state.ENGINE) else args.ref,
         "aux": args.aux or [],
         "prompt_text": args.prompt_text,
         "prompt_lang": args.prompt_lang,
@@ -1982,91 +1555,6 @@ def cmd_server(args):
     """
     start_server(_tts_start_config(), wait=args.wait)
     print("Сервер GPT-SoVITS готов.")
-
-
-def _start_indextts_service(wait=240):
-    """Поднять сервис IndexTTS (наш мост) и дождаться готовности."""
-    root = indextts_dir()
-    if not root:
-        raise SystemExit("Не указана папка IndexTTS (вкладка «Приложение»).")
-    if not os.path.isdir(root):
-        raise SystemExit("Папки IndexTTS нет: %s" % root)
-    model_dir = os.path.join(root, "checkpoints")
-    cfg = os.path.join(model_dir, "config.yaml")
-    if not os.path.isfile(cfg):
-        raise SystemExit("Нет весов IndexTTS: %s" % cfg)
-    script = os.path.join(lab_dir(), "indextts_service.py")
-    if not os.path.isfile(script):
-        raise SystemExit("Нет сервиса: %s" % script)
-    url = indextts_url()
-    port = 9881
-    m = re.search(r":(\d+)(?:/|$)", url)
-    if m:
-        port = int(m.group(1))
-    if _indextts_health(url):
-        print("Сервис IndexTTS уже работает.")
-        return
-    # .venv — уже готовое окружение IndexTTS; uv оставляем запасным путём
-    # (он может уйти в сеть и зависнуть на проверке зависимостей).
-    venv_py = os.path.join(root, ".venv", "Scripts", "python.exe")
-    if not os.path.isfile(venv_py):
-        venv_py = os.path.join(root, ".venv", "bin", "python")
-    uv = shutil.which("uv")
-    if os.path.isfile(venv_py):
-        cmd = [venv_py, "-u", script, "--model-dir", model_dir,
-               "--port", str(port)]
-    elif uv:
-        cmd = [uv, "run", "--project", root, "python", script,
-               "--model-dir", model_dir, "--port", str(port)]
-    else:
-        raise SystemExit("Не найден .venv и нет uv — поставь IndexTTS "
-                         "(uv sync --extra webui).")
-    env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
-    log_path = os.path.join(CODE, "indextts_service.log")
-    log = open(log_path, "a", encoding="utf-8")
-    subprocess.Popen(cmd, cwd=root, env=env, stdout=log,
-                     stderr=subprocess.STDOUT)
-    print("Запускаю IndexTTS, ждём до %d c (модель грузится долго)..." % wait)
-    if not _wait_indextts(url, wait):
-        raise SystemExit("Сервис IndexTTS не поднялся за %d c, см. %s"
-                         % (wait, log_path))
-    print("IndexTTS готов.")
-
-
-def _ensure_indextts_service(wait=240):
-    """Сервис IndexTTS должен быть живым; если нет — поднимаем."""
-    url = indextts_url()
-    if _indextts_health(url):
-        return True
-    _start_indextts_service(wait=wait)
-    return True
-
-
-def cmd_indextts_server(args):
-    """Поднять сервис IndexTTS: модель грузится один раз и живёт в памяти.
-
-    Синтез идёт по HTTP (POST /tts) — в отличие от GPT-SoVITS, у IndexTTS
-    нет готового HTTP-API, поэтому рядом с приложением лежит наш мост
-    lab/indextts_service.py. Запускаем его в окружении IndexTTS (uv).
-    """
-    _start_indextts_service(wait=getattr(args, "wait", 240) or 240)
-
-
-def _indextts_health(url):
-    try:
-        with _NO_PROXY.open(url + "/health", timeout=3) as r:
-            return bool(json.loads(r.read(512).decode("utf-8")).get("ok"))
-    except Exception:
-        return False
-
-
-def _wait_indextts(url, timeout):
-    t0 = time.time()
-    while time.time() - t0 < timeout:
-        if _indextts_health(url):
-            return True
-        time.sleep(3)
-    return False
 
 
 def cmd_serve(args):
@@ -2997,14 +2485,14 @@ def cmd_selftest(args):
 
     print("== Самопроверка пайплайна ==")
     print("  --   код (инструмент): %s" % CODE)
-    if ENGINE:
-        ok("папка GPT-SoVITS найдена: %s" % ENGINE)
+    if av_state.ENGINE:
+        ok("папка GPT-SoVITS найдена: %s" % av_state.ENGINE)
     else:
         fail("папка GPT-SoVITS не найдена (env GPT_SOVITS_ROOT / gptsovits_path.txt / конфиг AnkiVoice.exe)")
-    if PYTHON and os.path.exists(PYTHON):
+    if av_state.PYTHON and os.path.exists(av_state.PYTHON):
         ok("runtime\\python.exe на месте")
     else:
-        fail("нет runtime\\python.exe: %s" % PYTHON)
+        fail("нет runtime\\python.exe: %s" % av_state.PYTHON)
 
     cfg = load_voices()
     voices = cfg.get("voices", {})
@@ -3016,7 +2504,7 @@ def cmd_selftest(args):
                 # голос найден сканером, референс ещё не подобран — не ошибка
                 print("  --   %s: референс не выбран (выбери вкладкой «Голос»)" % name)
                 continue
-            p = p if os.path.isabs(p) else os.path.join(ENGINE or CODE, p)
+            p = p if os.path.isabs(p) else os.path.join(av_state.ENGINE or CODE, p)
             if os.path.exists(p):
                 d = ref_duration(p) if key == "ref" else None
                 if key == "ref" and d is not None and not (3.0 <= d <= 10.0):

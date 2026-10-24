@@ -678,7 +678,11 @@ def test_qa_first_users_fixes():
     check("Лимит карточек должен быть целым числом" in src,
           "сервер не пропускает мусор в лимите")
 
-    pipe = io.open(os.path.join(ROOT, "app", "voice_pipeline.py"), encoding="utf-8").read()
+    # пайплайн после разбивки — фасад + модули; проверяем по всему app/
+    pipe_srcs = [io.open(os.path.join(ROOT, "app", f), encoding="utf-8").read()
+                 for f in os.listdir(os.path.join(ROOT, "app"))
+                 if f.endswith(".py")]
+    pipe = chr(10).join(pipe_srcs)
     check("def _ensure_indextts_service" in pipe,
           "IndexTTS поднимает свой сервис, а не GPT-SoVITS")
     check("ids = ids[:args.limit]" in pipe,
