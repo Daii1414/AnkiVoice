@@ -566,8 +566,9 @@ def cmd_voice(args):
     ids = _select_note_ids(args, fields)
     if not ids:
         return
-    extra = [x.strip() for x in (getattr(args, "voices", "") or "").split(",")
-             if x.strip()]
+    from voicing import parse_ensemble
+    # «sakura:60,madara:40» -> пул с повторами по весу (пропорции ансамбля)
+    extra = parse_ensemble(getattr(args, "voices", "") or "")
     # голос из профиля колоды (его пишет интерфейс при запуске озвучки)
     voice = args.voice
     if not voice and args.deck:
@@ -697,8 +698,8 @@ def cmd_preview(args):
         return
     # ансамбль: та же раскладка, что сделает реальный прогон
     voice_by_nid = None
-    extra = [x.strip() for x in (getattr(args, "voices", "") or "").split(",")
-             if x.strip()]
+    from voicing import parse_ensemble
+    extra = parse_ensemble(getattr(args, "voices", "") or "")
     names = []
     for n in ([args.voice] if args.voice else []) + extra:
         if n and n not in names:

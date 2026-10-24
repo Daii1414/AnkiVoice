@@ -1,0 +1,18 @@
+version: 2
+updates:
+  # зависимости тестов/CI (requirements.txt): haqumei, numpy, e2k, sudachipy
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: monthly
+    labels: [ "dependencies" ]
+    commit-message:
+      prefix: chore
+  # экшены CI: checkout, setup-python, upload-artifact, action-gh-release
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: monthly
+    labels: [ "dependencies", "ci" ]
+    commit-message:
+      prefix: ci

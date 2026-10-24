@@ -356,6 +356,52 @@ def write_voices_file(cfg):
         json.dump(cfg, f, ensure_ascii=False, indent=2)
 
 
+def _history_dir():
+    return os.path.join(os.environ.get("APPDATA") or "",
+                        "AnkiVoice", "reports")
+
+
+def history_list():
+    """Сводки прошлых прогонов из отчётов run_*.md (новые сверху)."""
+    d = _history_dir()
+    out = []
+    try:
+        names = sorted((f for f in os.listdir(d)
+                        if re.fullmatch(r"run_\d{8}_\d{6}\.md", f)),
+                       reverse=True)
+    except OSError:
+        return out
+    for f in names[:60]:
+        try:
+            with open(os.path.join(d, f), encoding="utf-8") as fh:
+                head = fh.read(600)
+        except OSError:
+            continue
+        m = re.search(r"# Прогон (.+)", head)
+        at = m.group(1).strip() if m else f
+        m = re.search(r"Голос\(а\): (.+?) \| режим: (.+?) \| готово: (\d+), ошибок: (\d+)",
+                      head)
+        if m:
+            out.append({"file": f, "at": at, "voices": m.group(1).strip(),
+                        "mode": m.group(2).strip(), "done": int(m.group(3)),
+                        "failed": int(m.group(4))})
+        else:
+            out.append({"file": f, "at": at, "voices": "?", "mode": "?",
+                        "done": -1, "failed": -1})
+    return out
+
+
+def history_content(name):
+    """Текст отчёта по имени файла (только run_*.md — без traversal)."""
+    if not re.fullmatch(r"run_\d{8}_\d{6}\.md", name or ""):
+        return None
+    try:
+        with open(os.path.join(_history_dir(), name), encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
 def store_path(p, eng):
     """Относительный путь, если файл лежит внутри папки движка (как в GUI)."""
     if not p:
@@ -930,6 +976,13 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/log":
             self._stream(q)
             return
+        if path == "/api/history":
+            if q.get("file"):
+                content = history_content(q["file"])
+                return self._err("Отчёт не найден", 404) if content is None                     else self._send(200, content, "text/markdown; charset=utf-8")
+            self._json({"runs": history_list(),
+                        "last_run": _read_last_run()})
+            return
         self._err("Нет такого адреса", 404)
 
     # ------------------------------------------------------------- POST
@@ -1452,14 +1505,21 @@ class Handler(BaseHTTPRequestHandler):
         if b.get("changed"):
             # пересборка только изменившихся: сверка с voiced_manifest.json
             args.append("--changed")
-        # голос запоминаем в профиль колоды: переключил колоду — подставился
-        # её голос (в интерфейсе выбор обновится при следующем открытии)
+        # голос и состав ансамбля запоминаем в профиль колоды: переключил
+        # колоду — подставились её голос и её «актёрский состав»
         if not preview and deck:
             try:
                 cfg = ag.load_config()
                 prof = cfg.setdefault("profiles", {}).setdefault(deck, {})
+                changed_prof = False
                 if prof.get("voice") != voice:
                     prof["voice"] = voice
+                    changed_prof = True
+                ens = ",".join(voices) if voices else ""
+                if ens and prof.get("ensemble") != ens:
+                    prof["ensemble"] = ens
+                    changed_prof = True
+                if changed_prof:
                     ag.save_config(cfg)
             except Exception:
                 pass
