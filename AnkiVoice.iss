@@ -71,6 +71,7 @@ Source: "app\anki_gui.py";        DestDir: "{app}\app"; Flags: ignoreversion
 Source: "app\sudachi_g2p.py";     DestDir: "{app}\app"; Flags: ignoreversion
 Source: "app\g2p_core.py";        DestDir: "{app}\app"; Flags: ignoreversion
 Source: "app\kana_stress.py";     DestDir: "{app}\app"; Flags: ignoreversion
+Source: "app\en_translit.py";     DestDir: "{app}\app"; Flags: ignoreversion
 ; QC v2 и проверка произношения — без них в установленном приложении
 ; молча отключается многосигнальная проверка качества звука
 ; (бывшая «система чтения» — provenance/доменный словарь/резолвер —

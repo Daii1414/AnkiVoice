@@ -21,10 +21,10 @@ The steps of `kanaize()`:
 3. **katakana → hiragana** (greetings コンニチハ/コンバンハ stay katakana —
    otherwise MeCab reads them as a particle; the repetition marks ヽゝゞヾ are
    expanded contextually — repeat of the previous syllable);
-4. **g2p only for the kanji that are left**: Haqumei reads every word in the
-   context of the sentence (sandhi, neighbouring katakana), with Sudachi over
-   the UniDic dictionary and pyopenjtalk (MeCab) as fallbacks; digits always go
-   through MeCab, because Sudachi reads numbers as dates (2024 → 二月二日);
+4. **g2p for the kanji and digits that are left**: Haqumei reads every word
+   in the context of the sentence (sandhi, neighbouring katakana) and numbers
+   by numeral rules (2024年 → にせんにじゅうよねん); Sudachi over the UniDic
+   dictionary and pyopenjtalk (MeCab) remain as fallbacks;
 5. **one more katakana → hiragana pass** — and the API receives pure hiragana.
 
 What the pipeline **does not touch**: the note in Anki itself (a copy of the
