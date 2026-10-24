@@ -495,6 +495,10 @@ select{cursor:pointer}
             <input type="checkbox" id="force"> Пересобрать всё заново
           </label>
           <label class="switch" style="align-self:center;padding-bottom:12px"
+                 title="Как «Пересобрать всё заново», но молча пропускает карточки, чей текст и голос не менялись с прошлой озвучки (сверка по манифесту). Удобно после правок нескольких карточек">
+            <input type="checkbox" id="changed"> Только изменённые
+          </label>
+          <label class="switch" style="align-self:center;padding-bottom:12px"
                  title="Распознаёт каждую озвученную карточку и сверяет с текстом. Озвучка идёт примерно в 10 раз дольше: первая карточка — минуты вместо секунд">
             <input type="checkbox" id="verifyPron"> Проверять произношение (в 10 раз дольше)
           </label>
@@ -517,6 +521,8 @@ select{cursor:pointer}
           <button class="btn" id="btnPreview"
                   title="Без синтеза и без движка: покажет, какой текст уйдёт в озвучку, режим каждой карточки и сработала ли подстановка фуриганы — включая промахи">Предпросмотр</button>
           <button class="btn" id="btnCheck">Проверить колоду</button>
+          <button class="btn" id="btnMediaCheck"
+                  title="Отчёт: файлы tts_*.ogg/wav в медиа Anki, на которые больше не ссылается ни одна карточка. Удаление — из CLI (cleanup-media --apply)">Медиа: мусор</button>
           <button class="btn" id="btnSelftest">Самопроверка</button>
           <button class="btn" id="btnVerify" title="Распознать уже озвученные карточки и найти те, где модель потеряла кусок фразы">Проверить произношение</button>
              <button class="btn" id="btnQCDeck" title="Создаёт в Anki отдельную колоду с копиями сомнительных карточек — оригиналы не меняются">Собрать колоду «Брак»</button>
@@ -1218,6 +1224,9 @@ async function loadFields(){
     // иначе — автоподбор по названиям полей
     const c = ST.cfg || {};
     const prof = ((c.profiles) || {})[deck] || {};
+    // голос на колоду: профиль помнит последний голос этой колоды
+    if (prof.voice && [...$("voice").options].some(o=>o.value===prof.voice))
+      $("voice").value = prof.voice;
     const pick = (key, guess) => {
       if (prof[key] !== undefined && prof[key] !== null && prof[key] !== "")
         return prof[key];
@@ -1440,7 +1449,7 @@ function collectVoiceArgs(){
     limit:(function(){
       const n = parseInt($("limit").value, 10);
       return (Number.isFinite(n) && n > 0) ? String(n) : "";
-    })(), force:$("force").checked
+    })(), force:$("force").checked, changed:$("changed").checked
   };
 }
 $("verifyPron").onchange = ()=>{
@@ -1481,6 +1490,9 @@ $("btnNew").onclick = async ()=>{
 };
 $("btnRetry").onclick = ()=>runOp({kind:"retry"});
 $("limit").onchange = ()=>{ saveCfg({limit:$("limit").value.trim()}); };
+$("btnMediaCheck").onclick = ()=>{
+  runOp({kind:"cleanup-media", deck:$("deck").value || ""});
+};
 $("btnCheck").onclick = ()=>{
   if(!$("deck").value) return toast("Сначала выбери колоду","bad");
   runOp({kind:"check", deck:$("deck").value,

@@ -2588,6 +2588,68 @@ def read_last_run():
         return {}
 
 
+# --------------------------------- манифест озвученного (для «только изменённые»)
+# {nid: {поле: хэш(голос, seed, speed, итоговый текст)}}. Пишется после
+# каждого успешного прогона; по нему работает voice --changed: перезапись
+# трогает только карточки, чей текст или голос изменились с прошлого раза.
+VOICED_MANIFEST_FILE = os.path.join(os.environ.get("APPDATA") or "",
+                                    "AnkiVoice", "voiced_manifest.json")
+
+
+def load_voiced_manifest():
+    try:
+        with open(VOICED_MANIFEST_FILE, encoding="utf-8") as f:
+            return json.load(f) or {}
+    except Exception:
+        return {}
+
+
+def save_voiced_manifest(m):
+    try:
+        d = os.path.dirname(VOICED_MANIFEST_FILE)
+        if d and not os.path.isdir(d):
+            os.makedirs(d, exist_ok=True)
+        tmp = VOICED_MANIFEST_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(m, f, ensure_ascii=False, indent=1)
+        os.replace(tmp, VOICED_MANIFEST_FILE)
+    except Exception as e:
+        print("  (манифест озвученного сохранить не удалось: %r)" % (e,))
+
+
+def _audio_hash(voice_name, seed, speed, text):
+    """Хэш того, что определяет звук: голос + сэмпл + скорость + текст."""
+    return hashlib.sha1(("v1|%s|%s|%s|%s"
+                         % (voice_name, seed, speed, text))
+                        .encode("utf-8")).hexdigest()
+
+
+def _filter_changed_jobs(jobs, notes, fields, manifest, voice_by_nid,
+                         seed=42, speed=1.0):
+    """«Пересобрать только изменённые»: оставить операции, чей звук изменился.
+
+    Операция пропускается, если хэш (голос, seed, speed, итоговый текст)
+    совпадает с манифестом И поле карточки до сих пор озвучено. Чистая
+    функция — тестируется без Anki. Возвращает (kept, skipped).
+    """
+    has_audio = {}
+    for n in notes:
+        for fname in audio_fields(fields):
+            val = plain((n.get("fields") or {}).get(fname, {})
+                        .get("value", ""))
+            has_audio[(n["noteId"], fname)] = bool(val)
+    kept, skipped = [], 0
+    for nid, field, text, src in jobs:
+        vname = voice_by_nid.get(nid) or ""
+        h = _audio_hash(vname, seed, speed, text)
+        m = manifest.get(str(nid)) or {}
+        if m.get(field) == h and has_audio.get((nid, field)):
+            skipped += 1
+            continue
+        kept.append((nid, field, text, src))
+    return kept, skipped
+
+
 def assign_voices(nids, voice_names, seed=42, prior=None):
     """Случайно распределить карточки между голосами ансамбля.
 
@@ -2623,7 +2685,8 @@ def _field_title(field, fields):
 
 
 def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
-                fields=None, verify=None, asr_model=None, extra_voices=None):
+                fields=None, verify=None, asr_model=None, extra_voices=None,
+                only_changed=False):
     """Озвучить карточки.
 
     Голосов может быть несколько (extra_voices): тогда карточки случайно
@@ -2633,7 +2696,9 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
     сохраняет свой прежний голос.
     Успешно озвученным карточкам ставится тег av_voiced — по нему работает
     voice --new. Итог прогона пишется в last_run.json — по нему работает
-    voice --retry.
+    voice --retry. Манифест озвученного (voiced_manifest.json) обновляется
+    после каждого прогона; only_changed=True («Пересобрать только
+    изменённые») пропускает операции, чей голос/текст не изменились.
     """
     names = [voice_name]
     for n in (extra_voices or []):
@@ -2648,7 +2713,6 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
               "(или пустой текст). Переозвучивай ключом --force "
               "(в интерфейсе — «Пересобрать всё заново»).")
         return 0, 0
-    ncards = len({j[0] for j in jobs})
     main_v = voices[names[0]]
     if len(names) > 1:
         prior = {}
@@ -2671,12 +2735,26 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
                                              "карточек")))
     else:
         assign = {j[0]: names[0] for j in jobs}
+    if only_changed:
+        jobs, skipped_same = _filter_changed_jobs(
+            jobs, notes, fields, load_voiced_manifest(), assign,
+            seed=seed, speed=speed)
+        if skipped_same:
+            print("Без изменений с прошлой озвучки: %d %s — пропускаю."
+                  % (skipped_same, _plural(skipped_same, "операция",
+                                           "операции", "операций")))
+        if not jobs:
+            print("Пересобирать нечего: тексты и голоса всех операций "
+                  "совпадают с прошлой озвучкой.")
+            return 0, 0
+    ncards = len({j[0] for j in jobs})
     print("К озвучке: %d %s в %d %s (голос «%s», режим: %s)"
           % (len(jobs), _plural(len(jobs), "операция", "операции", "операций"),
              ncards, _plural(ncards, "карточке", "карточках", "карточках"),
              main_v.get("display") or main_v["name"], _mode_title(mode)))
     done, failed = 0, 0
     failed_jobs = []
+    recs = []              # записи для отчёта run_*.md
     voiced_fields = {}     # nid -> {успешно записанные поля этого прогона}
     cache = {}             # ключ включает голос: один текст у двух голосов
     t0 = time.time()       # — это два разных звука
@@ -2722,6 +2800,8 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
             ac("updateNoteFields", note={"id": nid, "fields": {field: "[sound:%s]" % fname}})
             done += 1
             voiced_fields.setdefault(nid, set()).add(field)
+            recs.append({"nid": nid, "field": field, "voice": name,
+                         "status": "OK", "text": text})
             print("OK   [%d] %-16s %s (%s, %.0f КБ)"
                   % (nid, _field_title(field, fields), text[:40], ext,
                      len(blob) / 1024))
@@ -2734,6 +2814,8 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
         except SystemExit as e:
             failed += 1
             failed_jobs.append((nid, field))
+            recs.append({"nid": nid, "field": field, "voice": name,
+                         "status": "FAIL", "text": text, "error": str(e)})
             print("FAIL [%d] %s: %s" % (nid, field, e))
         except Exception as e:
             failed += 1
@@ -2741,6 +2823,8 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
             msg = str(e)
             if "editor" in msg.lower():
                 msg += "  <- закой карточку в редакторе Anki"
+            recs.append({"nid": nid, "field": field, "voice": name,
+                         "status": "FAIL", "text": text, "error": msg})
             print("FAIL [%d] %s: %s" % (nid, field, msg))
     # теги проставляем пачкой и только ПОЛНОСТЬЮ успешным карточкам этого
     # прогона: у карточки с одной неудавшейся операцией av_voiced не будет —
@@ -2769,6 +2853,39 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
                  % (_PRON_STATE["checked"], _PRON_STATE.get("suspect", 0),
                     _PRON_STATE.get("bad", 0)))
     print("\nГотово: %d, ошибок: %d%s" % (done, failed, extra))
+
+    # манифест озвученного: обновляем по УСПЕШНЫМ операциям этого прогона,
+    # чтобы «Пересобрать только изменённые» знало, что уже звучит так же
+    manifest = load_voiced_manifest()
+    for nid, field, text, _src in jobs:
+        if field not in voiced_fields.get(nid, ()):
+            continue
+        m = manifest.setdefault(str(nid), {})
+        m[field] = _audio_hash(assign.get(nid) or names[0], seed, speed, text)
+    save_voiced_manifest(manifest)
+
+    # человекочитаемый отчёт прогона
+    try:
+        rep_dir = os.path.join(os.environ.get("APPDATA") or "",
+                               "AnkiVoice", "reports")
+        os.makedirs(rep_dir, exist_ok=True)
+        rp = os.path.join(rep_dir, "run_%s.md" % time.strftime("%Y%m%d_%H%M%S"))
+        with open(rp, "w", encoding="utf-8") as f:
+            f.write("# Прогон %s\n\n" % time.strftime("%Y-%m-%d %H:%M:%S"))
+            f.write("Голос(а): %s | режим: %s | готово: %d, ошибок: %d\n\n"
+                    % (", ".join("`%s`" % n for n in names),
+                       _mode_title(mode), done, failed))
+            f.write("| # | карточка | поле | голос | статус | текст | ошибка |\n")
+            f.write("|---|---|---|---|---|---|---|\n")
+            for i, r in enumerate(recs, 1):
+                f.write("| %d | %d | %s | %s | %s | %s | %s |\n"
+                        % (i, r["nid"], _field_title(r["field"], fields),
+                           r["voice"], r["status"],
+                           (r["text"] or "").replace("|", "\|")[:60],
+                           (r.get("error") or "").replace("|", "\|")[:80]))
+        print("Отчёт: %s" % rp)
+    except Exception as e:
+        print("  (отчёт сохранить не удалось: %r)" % (e,))
     _write_last_run({
         "voice": names[0] if len(names) == 1 else names,
         "mode": mode,
@@ -3209,17 +3326,69 @@ def cmd_voice(args):
                     asr_model=getattr(args, "asr_model", None),
                     extra_voices=lr_extra)
         return
+    if getattr(args, "changed", False) and args.force:
+        raise SystemExit("«Пересобрать всё заново» и «Только изменённые» "
+                         "взаимоисключающие — выбери что-то одно.")
     ids = _select_note_ids(args, fields)
     if not ids:
         return
     extra = [x.strip() for x in (getattr(args, "voices", "") or "").split(",")
              if x.strip()]
-    voice_notes(ids, args.voice, mode=args.mode, force=args.force,
+    # голос из профиля колоды (его пишет интерфейс при запуске озвучки)
+    voice = args.voice
+    if not voice and args.deck:
+        voice = profile_for(args.deck).get("voice") or None
+    voice_notes(ids, voice, mode=args.mode, force=args.force,
                 seed=args.seed, speed=args.speed, fields=fields,
                 verify=getattr(args, "verify", None),
                 asr_model=getattr(args, "asr_model", None),
-                extra_voices=extra)
+                extra_voices=extra,
+                only_changed=getattr(args, "changed", False))
 
+
+
+def cmd_cleanup_media(args):
+    """Осиротевшие озвучки в медиа Anki: tts_*.ogg/wav, на которые больше
+    не ссылается ни одна карточка (остаются после переозвучки с изменённым
+    текстом). Без --apply — только отчёт; с --apply — удалить.
+    """
+    query = 'deck:"%s"' % args.deck if args.deck else ""
+    ids = ac("findNotes", query=query)
+    referenced = set()
+    inner = re.compile(r"\[(?:sound|audio):([^\]]+)\]", re.IGNORECASE)
+    for chunk in _chunks(ids, 400):
+        for n in notes_info(chunk):
+            for f in (n.get("fields") or {}).values():
+                for m in inner.finditer(f.get("value", "") or ""):
+                    referenced.add(m.group(1).strip().lower())
+    files = []
+    for pat in ("tts_*.ogg", "tts_*.wav"):
+        try:
+            files.extend(ac("getMediaFilesNames", pattern=pat) or [])
+        except Exception as e:
+            raise SystemExit("getMediaFilesNames недоступен: %s — обнови "
+                             "AnkiConnect." % e)
+    files = sorted(set(files))
+    orphans = [f for f in files if f.lower() not in referenced]
+    print("Файлов tts_* в медиа: %d | на которые есть ссылки: %d | "
+          "мусор: %d" % (len(files), len(files) - len(orphans), len(orphans)))
+    for f in orphans:
+        print("  мусор:", f)
+    if not orphans:
+        print("Чистить нечего.")
+        return
+    if not args.apply:
+        print("Это только отчёт. Удалить: cleanup-media --apply "
+              "(действие необратимо).")
+        return
+    n = 0
+    for f in orphans:
+        try:
+            ac("deleteMediaFile", filename=f)
+            n += 1
+        except Exception as e:
+            print("  не удалось удалить %s: %s" % (f, e))
+    print("Удалено: %d из %d." % (n, len(orphans)))
 
 
 def _preview_report(jobs, fields, rmode_by_nid, src_by_nid=None):
@@ -4236,6 +4405,10 @@ def main():
     p.add_argument("--new", action="store_true",
                    help="только карточки без тега av_voiced (ежедневный "
                         "сценарий: добавил карточки — нажал одну кнопку)")
+    p.add_argument("--changed", action="store_true",
+                   help="«Пересобрать только изменённые»: перезаписать звук "
+                        "лишь там, где текст или голос изменились с прошлой "
+                        "озвучки (сверка с voiced_manifest.json)")
     p.add_argument("--retry", action="store_true",
                    help="перезапустить неудавшиеся операции прошлого "
                         "прогона (из last_run.json)")
@@ -4337,6 +4510,15 @@ def main():
     p.add_argument("--deck", default="AnkiVoice_Брак",
                    help="имя колоды (по умолчанию AnkiVoice_Брак)")
 
+    p = sub.add_parser("cleanup-media",
+                       help="найти (и с --apply удалить) осиротевшие "
+                            "tts_*.ogg/wav в медиа Anki")
+    p.add_argument("--deck", default=None,
+                   help="сверять ссылки только с этой колодой (по умолчанию "
+                        "— со всей коллекцией)")
+    p.add_argument("--apply", action="store_true",
+                   help="удалить найденный мусор (без флага — только отчёт)")
+
     p = sub.add_parser("preview",
                        help="предпросмотр озвучки без синтеза: что уйдёт в "
                             "TTS, режим каждой карточки и результат "
@@ -4376,6 +4558,7 @@ def main():
               "check": cmd_check, "scan": cmd_scan, "qc-deck": cmd_qc_deck,
               "verify": cmd_verify, "verdicts": cmd_verdicts,
               "selftest": cmd_selftest,
+              "cleanup-media": cmd_cleanup_media,
               "preview": cmd_preview}[args.cmd](args)
     if args.cmd == "check" and result is False:
         sys.exit(1)
