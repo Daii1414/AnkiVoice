@@ -4,7 +4,7 @@
 # Отдельно от этого существует bundled/pyruntime.zip — Windows-рантайм
 # Python 3.13 для помощников чтения (haqumei/e2k/sudachipy внутри); он
 # собирается вручную и в pip не входит (см. CONTRIBUTING.md).
-numpy==2.4.6
+numpy==2.5.4
 haqumei==0.12.2
 e2k==0.7.0
 # запасная цепочка чтения (Sudachi по словарю UniDic) — на CI и у разработчика
