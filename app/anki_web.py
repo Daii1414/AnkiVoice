@@ -1371,6 +1371,16 @@ class Handler(BaseHTTPRequestHandler):
             title = "Проверка произношения «%s»" % deck
         elif kind == "selftest":
             args, title = ["selftest"], "Самопроверка пайплайна"
+        elif kind == "cleanup-media":
+            # осиротевшие tts_* в медиа Anki: по умолчанию только отчёт
+            apply_flag = bool(b.get("apply"))
+            if apply_flag:
+                return self._err("Удаление медиа — только из CLI: "
+                                 "cleanup-media --apply (необратимо)")
+            args, title = ["cleanup-media"], "Проверка медиа на мусор"
+            deck = (b.get("deck") or "").strip()
+            if deck:
+                args += ["--deck", deck]
         elif kind == "retry":
             # перезапуск неудавшихся операций прошлого прогона
             lr = _read_last_run()
@@ -1436,6 +1446,23 @@ class Handler(BaseHTTPRequestHandler):
         if b.get("only_new"):
             # ежедневный сценарий: только карточки без тега av_voiced
             args.append("--new")
+        if b.get("force") and b.get("changed"):
+            return None, None, ("«Пересобрать всё заново» и «Только "
+                                "изменённые» взаимоисключающие")
+        if b.get("changed"):
+            # пересборка только изменившихся: сверка с voiced_manifest.json
+            args.append("--changed")
+        # голос запоминаем в профиль колоды: переключил колоду — подставился
+        # её голос (в интерфейсе выбор обновится при следующем открытии)
+        if not preview and deck:
+            try:
+                cfg = ag.load_config()
+                prof = cfg.setdefault("profiles", {}).setdefault(deck, {})
+                if prof.get("voice") != voice:
+                    prof["voice"] = voice
+                    ag.save_config(cfg)
+            except Exception:
+                pass
         if b.get("only_suspect"):
             args += ["--tag", "av_suspect"]
         for flag, key, guess_key in (

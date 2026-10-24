@@ -803,6 +803,54 @@ def test_release_body_extract():
     check(rb.extract(ch, "9.9.9") is None, "нет секции — None (запасное тело)")
 
 
+def test_changed_filter_and_manifest():
+    """«Только изменённые»: пропуск неизменённого, реакция на смену текста,
+    голоса и удалённое аудио; манифест пишется атомарно и читается."""
+    def note(nid, text, audio):
+        return {"noteId": nid, "fields": {
+            "Sentence": {"value": text},
+            "SentenceAudio": {"value": audio}}}
+    fields = dict(vp.DEFAULT_FIELDS)
+    notes = [
+        note(1, "новый текст", "[sound:tts_1.ogg]"),
+        note(2, "без изменений", "[sound:tts_2.ogg]"),
+        note(3, "тот же текст", ""),          # аудио удалено — пересобрать
+    ]
+    jobs = [(1, "SentenceAudio", "новый текст", "x"),
+            (2, "SentenceAudio", "без изменений", "x"),
+            (3, "SentenceAudio", "тот же текст", "x")]
+    manifest = {"2": {"SentenceAudio": vp._audio_hash("v", 42, 1.0,
+                                                     "без изменений")}}
+    vb = {1: "v", 2: "v", 3: "v"}
+    kept, skipped = vp._filter_changed_jobs(jobs, notes, fields, manifest,
+                                            vb, seed=42, speed=1.0)
+    check([j[0] for j in kept] == [1, 3],
+          "неизменённая карточка пропущена, изменённая и беззвучная — нет")
+    check(skipped == 1, "одна операция пропущена")
+    # сменился голос ансамбля -> карточка пересобирается
+    kept2, _ = vp._filter_changed_jobs(jobs, notes, fields, manifest,
+                                       {1: "v", 2: "другой", 3: "v"},
+                                       seed=42, speed=1.0)
+    check(2 in [j[0] for j in kept2], "смена голоса => пересборка")
+    # манифест: атомарная запись и чтение
+    old = vp.VOICED_MANIFEST_FILE
+    try:
+        fd, tmp = tempfile.mkstemp(suffix=".json")
+        os.close(fd)
+        os.remove(tmp)
+        vp.VOICED_MANIFEST_FILE = tmp
+        vp.save_voiced_manifest({"7": {"SentenceAudio": "abc"}})
+        check(not os.path.exists(tmp + ".tmp"), "манифест пишется атомарно")
+        check(vp.load_voiced_manifest().get("7", {}).get("SentenceAudio")
+              == "abc", "манифест читается обратно")
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write("{broken")
+        check(vp.load_voiced_manifest() == {}, "битый манифест -> пустой")
+        os.remove(tmp)
+    finally:
+        vp.VOICED_MANIFEST_FILE = old
+
+
 def main():
     tests = [test_version_tuple, test_release_parse, test_download_sha,
              test_busy_download_no_deadlock, test_installer_ships_runtime_modules,
@@ -818,7 +866,8 @@ def main():
              test_qa_first_users_fixes,
              test_setup_status,
              test_assign_voices, test_last_run_roundtrip,
-             test_preview_report, test_release_body_extract]
+             test_preview_report, test_release_body_extract,
+             test_changed_filter_and_manifest]
     failed = 0
     for t in tests:
         try:
