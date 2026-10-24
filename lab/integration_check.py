@@ -17,6 +17,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.join(ROOT, "app"))
 os.chdir(ROOT)
+import tts
 import voice_pipeline as vp  # noqa: E402
 import numpy as np  # noqa: E402
 
@@ -79,9 +80,10 @@ for name, blob, text, want in CASES:
 
 # путь без lab/quality_v2 (например, собранный .exe без исходников):
 # детектор падает на простой критерий, не мешая работе
-orig_get = vp._qc_v2_module
+orig_get = tts._qc_v2_module
 try:
-    vp._qc_v2_module = lambda: None
+    # после разбивки _check_audio живёт в tts.py и читает _qc_v2_module оттуда
+    tts._qc_v2_module = lambda: None
     sigs, ok = vp._check_audio(b"\x00" * 100, "ogg", "きょうはあめです。")
     print("  %s  %-32s -> %s (сигналы: %s)"
           % ("OK " if ok else "FAIL", "нет quality_v2 -> не мешаем",
@@ -95,7 +97,7 @@ try:
              "брак" if not ok else "годен"))
     bad += bool(ok)
 finally:
-    vp._qc_v2_module = orig_get
+    tts._qc_v2_module = orig_get
 
 print("\nошибок: %d/%d" % (bad, len(CASES) + 2))
 sys.exit(1 if bad else 0)

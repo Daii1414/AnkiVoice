@@ -38,21 +38,12 @@ GitHub), а движок GPT-SoVITS может стоять где угодно.
 import argparse
 import base64
 import hashlib
-import html
 import json
 import os
 import random
 import re
-import shutil
-import unicodedata
-import socket
-import subprocess
 import sys
 import time
-import urllib.error
-import urllib.parse
-import urllib.request
-import zipfile
 
 try:
     if hasattr(sys.stdout, "reconfigure"):
@@ -185,7 +176,7 @@ from jobs import (  # noqa: F401 — фасад
     word_text,
 )
 
-# движок резолвим сразу (не бросает исключений: нет движка — av_state.av_state.ENGINE
+# движок резолвим сразу (не бросает исключений: нет движка — av_state.ENGINE
 # останется None; все обращения к состоянию движка идут через av_state)
 _resolved = engines.resolve_engine()
 if _resolved:

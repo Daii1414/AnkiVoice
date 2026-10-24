@@ -9,8 +9,7 @@ import os
 import re
 
 import av_state
-from engines import (DEFAULT_START_CONFIG, ENGINE_INDEX, _norm,
-                     _read_app_config, engine_kind, indextts_dir,
+from engines import (DEFAULT_START_CONFIG, ENGINE_INDEX, _read_app_config, engine_kind, indextts_dir,
                      require_engine)
 from paths import CODE
 

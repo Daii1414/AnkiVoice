@@ -9,7 +9,6 @@
 import hashlib
 import json
 import os
-import subprocess
 import sys
 import time
 import urllib.error
@@ -28,7 +27,7 @@ from voices import load_voices
 # --------------------------------------------------------------- синтез
 def _tts_start_config():
     cfg = load_voices()
-    return os.path.join(av_state.av_state.ENGINE, cfg.get("start_config") or DEFAULT_START_CONFIG)
+    return os.path.join(av_state.ENGINE, cfg.get("start_config") or DEFAULT_START_CONFIG)
 
 
 _RESURRECT = {"left": 3}      # сколько раз за прогон можно поднять упавший сервер
@@ -56,8 +55,8 @@ def _resurrect(v):
 
 def _ffmpeg_exe():
     """ffmpeg из папки движка (или из PATH) — для проверки качества звука."""
-    if av_state.av_state.ENGINE:
-        p = os.path.join(av_state.av_state.ENGINE, "runtime", "ffmpeg.exe")
+    if av_state.ENGINE:
+        p = os.path.join(av_state.ENGINE, "runtime", "ffmpeg.exe")
         if os.path.exists(p):
             return p
     try:
@@ -79,7 +78,7 @@ def audio_stats(blob, ext="ogg"):
     ff = _ffmpeg_exe()
     if not ff:
         if os.environ.get("AV_DEBUG_QC"):
-            print("  [qc] ffmpeg не найден; av_state.av_state.ENGINE=%r" % (av_state.av_state.ENGINE,))
+            print("  [qc] ffmpeg не найден; av_state.ENGINE=%r" % (av_state.ENGINE,))
         return 0.0, 0.0
     import subprocess
     cmd = [ff, "-v", "error", "-i", "pipe:0", "-f", "s16le",
@@ -177,7 +176,7 @@ def _check_audio(blob, ext, text):
     if q2 is None:
         dur, snd = audio_stats(blob, ext)
         return ([], True) if _synth_is_sane(text, dur, snd) else (["тишина"], False)
-    ff = q2.ffmpeg_exe(av_state.av_state.ENGINE)
+    ff = q2.ffmpeg_exe(av_state.ENGINE)
     if not ff:
         return ([], True)                   # некому проверить — не мешаем
     m = q2.analyze(blob, ff)

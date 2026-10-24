@@ -9,10 +9,8 @@ build_jobs() решает режим чтения карточки (asis/mix), �
 import re
 
 from anki_api import plain
-from fields_config import DEFAULT_FIELDS, audio_fields
-from kana_reading import (KANJI_RE, _parse_furigana, furiga_pair, kanaize,
-                          kanaize_card, inject_reading_lenient, kata2hira,
-                          replace_term)
+from fields_config import DEFAULT_FIELDS
+from kana_reading import (furiga_pair, kanaize_card, inject_reading_lenient)
 from tts import _qc_v2_module
 
 # ----------------------------------------------------- операции с колодами
