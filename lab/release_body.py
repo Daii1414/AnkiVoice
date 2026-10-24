@@ -16,6 +16,13 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+try:
+    if hasattr(sys.stdout, "reconfigure"):
+        # Windows: консоль по умолчанию в cp1252, а тело релиза — кириллица
+        sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
 
 def extract(changelog_text, version):
     """Секция версии без заголовка; None, если секции нет."""
