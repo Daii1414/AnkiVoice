@@ -36,7 +36,7 @@ import traceback
 import urllib.request
 
 APP_NAME = "AnkiVoice"
-APP_VERSION = "1.9.2"
+APP_VERSION = "1.9.3"
 LEGACY_APP_NAME = "AnkiTTS"   # старое имя (до переименования) — конфиг переносим
 ANKI_CONNECT = "http://127.0.0.1:8765"
 TTS_HOST, TTS_PORT = "127.0.0.1", 9880
