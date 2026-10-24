@@ -5,6 +5,7 @@
 
     python lab/readme_check.py
 """
+import io
 import os
 import re
 import sys
@@ -182,9 +183,13 @@ def main():
         fail("в интерфейсе нет режима «только кандзи» (asis)")
     else:
         ok("в интерфейсе есть режим «только кандзи»")
-    pipe = read("app/voice_pipeline.py")
-    if "def reading_mode(" not in pipe:
-        fail("в voice_pipeline.py нет reading_mode() — режим не выбирается по карточке")
+    # пайплайн разбит на модули: функция может жить в любом из app/*.py
+    import glob as _glob
+    pipe_all = chr(10).join(
+        io.open(f, encoding="utf-8").read()
+        for f in _glob.glob(os.path.join(ROOT, "app", "*.py")))
+    if "def reading_mode(" not in pipe_all:
+        fail("в модулях app/ нет reading_mode() — режим не выбирается по карточке")
     else:
         ok("режим выбирается по карточке (reading_mode)")
     for token in ("авто", "asis", "--reading"):

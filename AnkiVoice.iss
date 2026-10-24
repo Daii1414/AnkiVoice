@@ -56,6 +56,17 @@ Source: "PROJECT.md";           DestDir: "{app}"; Flags: ignoreversion
 Source: "LICENSE";              DestDir: "{app}"; Flags: ignoreversion
 ; пайплайн (exe только запускает его — живёт на диске, обновляется git pull)
 Source: "app\voice_pipeline.py";  DestDir: "{app}\app"; Flags: ignoreversion
+; модули пайплайна (разбивка 1.9.2): фасад импортирует их при старте
+Source: "app\paths.py";           DestDir: "{app}\app"; Flags: ignoreversion
+Source: "app\av_state.py";        DestDir: "{app}\app"; Flags: ignoreversion
+Source: "app\fields_config.py";   DestDir: "{app}\app"; Flags: ignoreversion
+Source: "app\anki_api.py";        DestDir: "{app}\app"; Flags: ignoreversion
+Source: "app\engines.py";         DestDir: "{app}\app"; Flags: ignoreversion
+Source: "app\voices.py";          DestDir: "{app}\app"; Flags: ignoreversion
+Source: "app\kana_reading.py";    DestDir: "{app}\app"; Flags: ignoreversion
+Source: "app\tts.py";             DestDir: "{app}\app"; Flags: ignoreversion
+Source: "app\jobs.py";            DestDir: "{app}\app"; Flags: ignoreversion
+Source: "app\voicing.py";         DestDir: "{app}\app"; Flags: ignoreversion
 Source: "app\anki_gui.py";        DestDir: "{app}\app"; Flags: ignoreversion
 Source: "app\sudachi_g2p.py";     DestDir: "{app}\app"; Flags: ignoreversion
 Source: "app\g2p_core.py";        DestDir: "{app}\app"; Flags: ignoreversion
