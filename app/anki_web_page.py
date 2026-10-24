@@ -469,11 +469,17 @@ select{cursor:pointer}
         <div class="spacer"></div>
         <label class="f">Ансамбль (необязательно)</label>
         <select id="voices2" multiple size="3"></select>
+        <div class="row" id="ensWeightsRow" style="display:none;margin-top:6px">
+          <label class="f" style="width:130px">Пропорции</label>
+          <input type="text" id="ensWeights" placeholder="60,40"
+                 style="flex:1" inputmode="numeric">
+        </div>
         <div class="hint">Зажми Ctrl и выбери 2+ голоса: карточки колоды
           распределятся между ними случайно, каждая будет озвучена целиком
           одним голосом, а партии пойдут друг за другом — переключений весов
           будет по одному на голос, не на карточку. Уже озвученные карточки
-          сохраняют свой прежний голос.</div>
+          сохраняют свой прежний голос. Пропорции — числа через запятую в
+          порядке выбранных голосов («60,40» = первый голос чаще).</div>
 
         <div class="spacer"></div>
         <label class="f">Что озвучивать</label>
@@ -1324,6 +1330,11 @@ function markSelected(name){
   document.querySelectorAll(".vcard").forEach(c=>
     c.classList.toggle("on", c.dataset.n === name));
 }
+function refreshEnsWeightsRow(){
+  const row = $("ensWeightsRow");
+  if(!row) return;
+  row.style.display = $("voices2").selectedOptions.length >= 2 ? "" : "none";
+}
 function fillVoiceSelect(prefer){
   const list = voiceEntries();
   const sel = $("voice");
@@ -1341,6 +1352,7 @@ function fillVoiceSelect(prefer){
     sel2.innerHTML = list.map(v=>
       '<option value="'+esc(v.name)+'">'+esc(v.display || v.name)+"</option>").join("");
     [...sel2.options].forEach(o=>{ if(chosen.has(o.value)) o.selected = true; });
+    refreshEnsWeightsRow();
   }
   const selV = list.find(v=>v.name===sel.value);
   $("voiceHint").innerHTML = selV
@@ -1452,7 +1464,17 @@ function fieldVal(id, key){
 function collectVoiceArgs(){
   return {
     kind:"voice", voice:$("voice").value, deck:$("deck").value, mode:mode(),
-    voices:[...$("voices2").selectedOptions].map(o=>o.value),
+    voices:(function(){
+      const picked = [...$("voices2").selectedOptions].map(o=>o.value);
+      if(picked.length < 2) return picked;
+      // пропорции: "60,40" -> спецификация "a:60,b:40" (порядок = выбранный)
+      const raw = ($("ensWeights") && $("ensWeights").value || "").trim();
+      if(!raw) return picked;
+      const parts = raw.split(",").map(x=>parseInt(x, 10));
+      if(picked.some((_,i)=>!Number.isFinite(parts[i]) || parts[i] < 0))
+        return picked;                    // мусор — игнорируем пропорции
+      return picked.map((v,i)=>parts[i] ? (v+":"+parts[i]) : v);
+    })(),
     sentence_src:fieldVal("sent_src","sentence_src"),
     sentence_audio:fieldVal("sent_aud","sentence_audio"),
     word_src:fieldVal("word_src","word_src"),
@@ -1543,6 +1565,7 @@ $("btnStop").onclick = async ()=>{
 };
 $("btnClear").onclick = ()=>{ $("log").innerHTML = ""; };
 $("follow").onchange = ()=>{ if($("follow").checked) scrollLog(); };
+$("voices2") && $("voices2").addEventListener("change", refreshEnsWeightsRow);
 
 async function runOp(payload){
   try{

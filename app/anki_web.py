@@ -1492,6 +1492,7 @@ class Handler(BaseHTTPRequestHandler):
         # в предпросмотре — та же раскладка, что сделает реальный прогон
         voices = [str(v).strip() for v in (b.get("voices") or [])
                   if str(v).strip() and str(v).strip() != voice]
+        # веса ("имя:60") проходят насквозь — разбор на CLI (parse_ensemble)
         if voices and (not preview or voice):
             args += ["--voices", ",".join([voice] + voices)]
         elif preview and len(voices) > 1:
