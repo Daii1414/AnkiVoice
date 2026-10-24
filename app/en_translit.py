@@ -15,9 +15,7 @@
        (bus -> バス, community -> コミュニティー, coffee -> コーヒー, online -> オンライン).
   5. Грациозный fallback на базовую таблицу LATIN, если e2k недоступен.
 """
-import os
 import re
-import sys
 
 # Алфавитное побуквенное чтение латиницы (для аббревиатур)
 LATIN = {

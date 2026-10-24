@@ -98,7 +98,6 @@ def load():
     if not ok:
         return None, None
     try:
-        import torch
         from transformers import AutoModelForCTC, AutoProcessor
         name = model_name()
         proc = AutoProcessor.from_pretrained(name)

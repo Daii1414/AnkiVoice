@@ -25,13 +25,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          # кэш pip: sudachidict-core весит ~200 МБ, качается один раз
+          cache: pip
 
       - name: Install test dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          python -m pip install -r requirements.txt ruff
+
+      - name: "Lint (ruff: syntax errors, undefined names, unused imports)"
+        run: python -m ruff check app lab --select E9,F63,F7,F82,F401
 
       - name: Compile Python
         run: python -m compileall -q app lab
@@ -63,6 +68,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
 
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
@@ -95,6 +101,14 @@ jobs:
           path: dist/AnkiVoice-Setup-*.exe
           retention-days: 14
 
+      - name: Build release body from CHANGELOG
+        shell: pwsh
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          python lab/release_body.py "${{ github.ref_name }}" > release_body.md
+          Get-Content release_body.md -Head 3
+
       - name: Publish to GitHub Release
         # публикация ТОЛЬКО по тегу: каждый push в main не должен
         # перезаписывать ассет релиза (бинарник перестаёт соответствовать
@@ -103,6 +117,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
+          body_path: release_body.md
           files: dist/AnkiVoice-Setup-*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
