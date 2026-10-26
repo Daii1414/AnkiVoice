@@ -295,6 +295,7 @@ var
   Plan, Skip: String;
 begin
   Result := True;
+  if WizardSilent then Exit;
   Plan := '';
   Skip := '';
   for I := 0 to DEP_COUNT - 1 do
@@ -347,7 +348,9 @@ var
   Code: Integer;
   Dest, Target: String;
 begin
-  if DepPage = nil then Exit;
+  // тихая установка (/SILENT, /VERYSILENT — так ставит и CI) проходит
+  // страницы сама: гигабайты без спроса не качаем
+  if (DepPage = nil) or WizardSilent then Exit;
   if DepInstall[DEP_GPU].Checked and (DepFound[DEP_GPU] = '') then
     ShellExec('open', '{#NvidiaUrl}', '', '', SW_SHOWNORMAL, ewNoWait, Code);
   if not (DepWanted(DEP_ANKI) or DepWanted(DEP_CONNECT) or DepWanted(DEP_ENGINE)) then Exit;
