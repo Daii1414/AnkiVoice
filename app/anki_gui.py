@@ -3,7 +3,8 @@
 
 Программа — тонкий интерфейс поверх voice_pipeline.py. Сам exe ничего не
 считает: вся работа (синтез, хирагана, веса, AnkiConnect) выполняется
-вызовом runtime\\python.exe из папки GPT-SoVITS, где уже лежит проверенный
+вызовом Python движка GPT-SoVITS (runtime\\python.exe на Windows,
+gsv-venv на Linux — его собирает install.sh), где уже лежит проверенный
 пайплайн. Поэтому exe лёгкий и не тянет torch.
 
 Основной интерфейс — локальная веб-страница (четыре вкладки: «Озвучка»,
@@ -14,8 +15,8 @@
 AnkiConnect, поднимает сервер и предлагает тестовую фразу.
 Дальше всё подхватывается само: голоса из voices.json, колоды из AnkiConnect.
 
-Конфиг хранится в %APPDATA%\\AnkiVoice\\config.json
-(старый %APPDATA%\\AnkiTTS\\config.json переносится автоматически).
+Конфиг хранится в %APPDATA%\\AnkiVoice\\config.json (Linux:
+~/.config/AnkiVoice/config.json; старый %APPDATA%\\AnkiTTS\\config.json переносится автоматически).
 Логи и аварийные дампы — в той же папке.
 
 Headless-режимы (для отладки и сборки):
@@ -35,6 +36,11 @@ import threading
 import traceback
 import urllib.request
 
+# pyruntime на Windows собран с safe_path=True: папку скрипта в sys.path
+# добавляем сами, иначе соседние модули (oscompat) не импортируются
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import oscompat  # noqa: E402
+
 # Защита от UnicodeEncodeError в консоли Windows (cp1252) при выводе путей
 # с кириллицей (папка проекта содержит русские символы). Делаем это ДО любого
 # print, чтобы перехватить все последующие вызовы.
@@ -50,11 +56,11 @@ if hasattr(sys.stderr, "reconfigure"):
         pass
 
 APP_NAME = "AnkiVoice"
-APP_VERSION = "1.9.3"
+APP_VERSION = "1.10.0"
 LEGACY_APP_NAME = "AnkiTTS"   # старое имя (до переименования) — конфиг переносим
 ANKI_CONNECT = "http://127.0.0.1:8765"
 TTS_HOST, TTS_PORT = "127.0.0.1", 9880
-CREATE_NO_WINDOW = 0x08000000
+CREATE_NO_WINDOW = oscompat.NO_WINDOW
 
 # дефолтные sampling-значения (как в официальном webui GPT-SoVITS — спокойнее,
 # чем «горячие» дефолты чистого API); перезаписываются из voices.json
@@ -62,8 +68,7 @@ DEFAULT_SAMPLING = {"temperature": 0.6, "top_p": 0.6, "top_k": 20}
 
 # маркер старта: пишем ДО всего остального, чтобы было видно даже ранние падения
 try:
-    _boot = os.path.join(os.environ.get("APPDATA") or ".", APP_NAME)
-    os.makedirs(_boot, exist_ok=True)
+    _boot = oscompat.app_dir(create=True)
     with open(os.path.join(_boot, "boot.log"), "a", encoding="utf-8") as _f:
         _f.write("boot ok, argv=%r\n" % (sys.argv,))
 except Exception:
@@ -78,10 +83,7 @@ def version_tuple(s):
 
 
 def appdata_dir():
-    base = os.environ.get("APPDATA") or os.path.expanduser("~")
-    d = os.path.join(base, APP_NAME)
-    os.makedirs(d, exist_ok=True)
-    return d
+    return oscompat.app_dir(create=True)
 
 
 def code_dir():
@@ -125,8 +127,7 @@ CRASH_LOG = os.path.join(appdata_dir(), "gui_crash.log")
 # и тема сохраняются, пользователь ничего не настраивает заново
 try:
     if not os.path.exists(CONFIG_FILE):
-        _legacy = os.path.join(os.environ.get("APPDATA") or "",
-                               LEGACY_APP_NAME, "config.json")
+        _legacy = os.path.join(oscompat.app_dir(LEGACY_APP_NAME), "config.json")
         if os.path.isfile(_legacy):
             shutil.copy2(_legacy, CONFIG_FILE)
 except Exception:
@@ -215,12 +216,16 @@ def validate_gptsovits(path):
         return ["Папка GPT-SoVITS не указана"]
     if not os.path.isdir(path):
         return ["Папка не существует: %s" % path]
-    for rel, what in (
-        ("runtime\\python.exe", "интерпретатор GPT-SoVITS"),
-        ("api_v2.py", "сервер синтеза"),
-    ):
-        if not os.path.exists(os.path.join(path, rel)):
-            problems.append("Нет %s: %s" % (what, os.path.join(path, rel)))
+    if not os.path.exists(os.path.join(path, "api_v2.py")):
+        problems.append("Нет сервера синтеза: %s" % os.path.join(path, "api_v2.py"))
+    if not oscompat.engine_python(path):
+        if oscompat.IS_WIN:
+            problems.append("Нет интерпретатора GPT-SoVITS: %s"
+                            % os.path.join(path, "runtime", "python.exe"))
+        else:
+            problems.append("Нет Python для GPT-SoVITS: запусти install.sh "
+                            "(соберёт ~/.local/share/AnkiVoice/gsv-venv) или "
+                            "задай GPT_SOVITS_PYTHON")
     return problems
 
 
@@ -265,24 +270,18 @@ def validate_indextts(path):
 
 
 def find_indextts_automatic():
-    """Автопоиск папки IndexTTS (обычно D:\\DOWNLOAD\\index-tts)."""
-    import string
-    drives = [d + ":\\" for d in string.ascii_uppercase if os.path.exists(d + ":\\")]
-    drives.sort(key=lambda p: p[0] != "D")
-    for root in drives:
-        for base in (os.path.join(root, "DOWNLOAD"), root):
-            if not os.path.isdir(base):
-                continue
-            try:
-                names = sorted(os.listdir(base))
-            except OSError:
-                continue
-            for name in names:
-                low = name.lower()
-                if "index" in low and "tts" in low:
-                    p = os.path.join(base, name)
-                    if os.path.isdir(os.path.join(p, "checkpoints")):
-                        return p
+    """Автопоиск папки IndexTTS (обычно D:\\DOWNLOAD\\index-tts или ~/index-tts)."""
+    for base in oscompat.search_roots():
+        try:
+            names = sorted(os.listdir(base))
+        except OSError:
+            continue
+        for name in names:
+            low = name.lower()
+            if "index" in low and "tts" in low:
+                p = os.path.join(base, name)
+                if os.path.isdir(os.path.join(p, "checkpoints")):
+                    return p
     return None
 
 
@@ -300,20 +299,11 @@ def validate_local():
 
 
 def find_gptsovits_automatic():
-    """Автопоиск папки GPT-SoVITS на всех дисках (обычно D:\\DOWNLOAD)."""
-    import string
-    drives = [d + ":\\" for d in string.ascii_uppercase if os.path.exists(d + ":\\")]
-    drives.sort(key=lambda p: p[0] != "D")     # D: обычно с движком
-    hints = []
-    for root in drives:
-        dl = os.path.join(root, "DOWNLOAD")
-        if os.path.isdir(dl):
-            hints.append(dl)
-        hints.append(root)
-    for base in hints:
+    """Автопоиск папки GPT-SoVITS (диски Windows; дом, /mnt, /run/media на Linux)."""
+    for base in oscompat.search_roots():
         try:
             for name in sorted(os.listdir(base)):
-                if "GPT-SOVITS" not in name.upper():
+                if "GPT-SOVITS" not in name.upper().replace("_", "-"):
                     continue
                 cand = os.path.join(base, name)
                 if not validate_gptsovits(cand):
@@ -366,23 +356,21 @@ def anki_media_folder():
 
     Профилей бывает несколько, берём тот, чья папка менялась последней.
     """
-    root = os.path.join(os.environ.get("APPDATA", ""), "Anki2")
-    if not os.path.isdir(root):
-        return ""
     best, best_t = "", 0.0
-    try:
-        names = os.listdir(root)
-    except OSError:
-        return ""
-    for name in names:
-        p = os.path.join(root, name, "collection.media")
-        if os.path.isdir(p):
-            try:
-                t = os.path.getmtime(p)
-            except OSError:
-                t = 0.0
-            if t > best_t:
-                best, best_t = p, t
+    for root in oscompat.anki2_dirs():
+        try:
+            names = os.listdir(root)
+        except OSError:
+            continue
+        for name in names:
+            p = os.path.join(root, name, "collection.media")
+            if os.path.isdir(p):
+                try:
+                    t = os.path.getmtime(p)
+                except OSError:
+                    t = 0.0
+                if t > best_t:
+                    best, best_t = p, t
     return best
 
 
@@ -490,10 +478,11 @@ def pipeline_cmd(gpt_path, args, on_line=None, on_done=None):
     дочернему процессу через переменную GPT_SOVITS_ROOT, чтобы резолюция
     совпала.
     """
-    if gpt_path and os.path.isfile(os.path.join(gpt_path, "runtime", "python.exe")):
-        python = os.path.join(gpt_path, "runtime", "python.exe")
-    else:
-        python = os.path.join(repo_root(), "pyruntime", "python.exe")
+    python = oscompat.engine_python(gpt_path) if gpt_path else None
+    if not python:
+        python = oscompat.pyruntime_python(repo_root())
+        if not os.path.isfile(python):
+            python = sys.executable
     script = os.path.join(code_dir(), "voice_pipeline.py")
     env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
     if gpt_path:
@@ -535,7 +524,7 @@ def doctor(gpt_path=None, as_json=False):
         voices, default = load_voices()
         report["voices"] = sorted(voices)
         report["default_voice"] = default
-        python = os.path.join(path, "runtime", "python.exe")
+        python = oscompat.engine_python(path) or ""
         try:
             p = subprocess.run(
                 [python, "-c", "import pyopenjtalk;print('ok')"],
@@ -593,7 +582,7 @@ def _payload_problem():
     d = code_dir()
     missing = [f for f in ("voice_pipeline.py", "sudachi_g2p.py", "voices.json")
                if not os.path.isfile(os.path.join(d, f))]
-    if not (os.path.isfile(os.path.join(d, "pyruntime", "python.exe"))
+    if not (os.path.isfile(oscompat.pyruntime_python(repo_root()))
             or os.path.isfile(bundled("pyruntime.zip"))):
         missing.append("pyruntime.zip")
     _dic = os.path.join(repo_root(), "pyruntime", "Lib", "site-packages",
@@ -624,13 +613,11 @@ def run_gui(open_tab=None):
     if _prob:
         # WinAPI-диалог вместо tkinter: он гарантированно показывается в любой
         # ситуации (в том числе когда exe поднят из временной папки архиватора)
-        import ctypes
-        ctypes.windll.user32.MessageBoxW(0, _prob.replace("\n", "\r\n"),
-                                         "%s — сначала распакуй zip" % APP_NAME,
-                                         0x10)      # MB_ICONERROR
+        oscompat.show_error("%s — сначала распакуй zip" % APP_NAME, _prob)
         sys.exit(1)
 
     LANGS = ["ja", "zh", "en", "ko", "yue", "ru", "de", "fr", "es"]
+    _HOME_DIR = "D:\\" if oscompat.IS_WIN else os.path.expanduser("~")
 
     # ----------------------------------------------------------- дизайн-система
     # Плоский стиль: карточки на холодном фоне, акцент — индиго, шрифты
@@ -1366,7 +1353,7 @@ def run_gui(open_tab=None):
                 self._apply_path()
 
         def browse_path(self):
-            start = self.var_path.get() or "D:\\"
+            start = self.var_path.get() or _HOME_DIR
             chosen = filedialog.askdirectory(title="Папка GPT-SoVITS", initialdir=start)
             if chosen:
                 self.var_path.set(chosen)
@@ -1662,10 +1649,10 @@ def run_gui(open_tab=None):
                 self.lst_aux.insert("end", a)
 
         def browse_ref(self):
-            start = self._resolve(self.var_ref.get()) or self.var_path.get() or "D:\\"
+            start = self._resolve(self.var_ref.get()) or self.var_path.get() or _HOME_DIR
             f = filedialog.askopenfilename(
                 title="Референс (3–10 с)",
-                initialdir=os.path.dirname(start) if start else "D:\\",
+                initialdir=os.path.dirname(start) if start else _HOME_DIR,
                 filetypes=[("Audio", "*.wav *.mp3 *.flac *.ogg"), ("All", "*.*")])
             if f:
                 self.var_ref.set(f)
@@ -1673,7 +1660,7 @@ def run_gui(open_tab=None):
         def play_ref(self):
             p = self._resolve(self.var_ref.get())
             if p and os.path.exists(p):
-                os.startfile(p)
+                oscompat.open_path(p)
             else:
                 messagebox.showerror(APP_NAME, "Файл референса не найден:\n%s" % p)
 
@@ -1840,7 +1827,9 @@ def run_gui(open_tab=None):
             """GUI-значение источника чтения -> аргумент --reading пайплайна."""
             v = self.var_reading.get().strip()
             if not v or v == self.READ_OFF:
-                return "off"
+                # «не подставлять» — режим asis; "off" пайплайн понимает
+                # как «авто» (по фуригане, если она есть)
+                return "asis"
             return v            # пользователь ввёл/выбрал имя поля с чтением
 
         # ------------------------------------------------------------- статус
@@ -2006,7 +1995,7 @@ def run_gui(open_tab=None):
                 p = os.path.join(code_dir(), "test_%s.%s" % (voice, ext))
                 if os.path.exists(p):
                     try:
-                        os.startfile(p)
+                        oscompat.open_path(p)
                     except Exception as e:
                         self.log_line("Не удалось проиграть %s: %r" % (p, e), "err")
                     return
@@ -2072,7 +2061,7 @@ def run_gui(open_tab=None):
         def edit_voices(self):
             f = os.path.join(code_dir(), "voices.json")
             if os.path.exists(f):
-                os.startfile(f)
+                oscompat.open_path(f)
             else:
                 messagebox.showerror(APP_NAME, "Файл не найден:\n%s" % f)
 

@@ -10,6 +10,7 @@
 | `voice_pipeline.py` | фасад + CLI (`pipeline.bat voice ...`), cmd_*, selftest, menu | всё ниже через реэкспорт |
 | `paths.py` | CODE/ROOT/lab_dir/bundled — где код, где словари | — |
 | `av_state.py` | общее состояние движка (ENGINE/PYTHON/...), заполняется `engines.apply_engine()` | — |
+| `oscompat.py` | всё, что зависит от ОС (Windows/Linux): папка настроек, Python движка, ffmpeg, PID на порту, блокировка, открытие файлов, автопоиск | — |
 | `fields_config.py` | имена полей карточки по умолчанию, профили | — |
 | `anki_api.py` | AnkiConnect: `ac()`, `notes_info()`, `plain()` | — |
 | `engines.py` | выбор GPT-SoVITS/IndexTTS, поиск папки, сервер, веса, indextts-сервис | `voices` (лениво) |
@@ -27,6 +28,8 @@
 - Внешние потребители импортируют только `voice_pipeline` (фасад): все имена
   доступны как `from voice_pipeline import kanaize` и т.д.
 - Изменяемое состояние движка — только через `av_state` (никаких копий).
-- Кэш/манифесты/итоги пишутся в `%APPDATA%/AnkiVoice/`.
-- После любого рефакторинга: `ruff check app lab --select E9,F63,F7,F82,F401`,
-  `python lab/test_v12_features.py`, `python app/kana_stress.py`, golden-набор.
+- Кэш/манифесты/итоги пишутся в `oscompat.app_dir()`: `%APPDATA%/AnkiVoice/`
+  на Windows, `~/.config/AnkiVoice/` на Linux. Проверки `os.name`, пути
+  `python.exe`, `msvcrt`/`taskkill`/`os.startfile` — только в `oscompat.py`.
+- После любого рефакторинга: `ruff check app lab linux --select E9,F63,F7,F82,F401`,
+  `python lab/test_v12_features.py`, `python lab/test_oscompat.py`, `python app/kana_stress.py`, golden-набор.

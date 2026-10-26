@@ -1,0 +1,3587 @@
+[
+{
+"id": "u0",
+"ru": "Озвучка",
+"en": "Dubbing"
+},
+{
+"id": "u1",
+"ru": "Поля колоды",
+"en": "Deck fields"
+},
+{
+"id": "u2",
+"ru": "Голос",
+"en": "Voice"
+},
+{
+"id": "u3",
+"ru": "Приложение",
+"en": "App"
+},
+{
+"id": "u4",
+"ru": "◐ Тема",
+"en": "◐ Theme"
+},
+{
+"id": "u5",
+"ru": "Сменить тему",
+"en": "Switch theme"
+},
+{
+"id": "u6",
+"ru": "Anki: подключена",
+"en": "Anki: connected"
+},
+{
+"id": "u7",
+"ru": "Anki: не подключена",
+"en": "Anki: not connected"
+},
+{
+"id": "u8",
+"ru": "Сервер: запущен",
+"en": "Server: running"
+},
+{
+"id": "u9",
+"ru": "Сервер: не запущен",
+"en": "Server: not running"
+},
+{
+"id": "u10",
+"ru": "Выполняется",
+"en": "Running"
+},
+{
+"id": "u11",
+"ru": "Anki: …",
+"en": "Anki: …"
+},
+{
+"id": "u12",
+"ru": "Сервер: …",
+"en": "Server: …"
+},
+{
+"id": "u13",
+"ru": "Программа",
+"en": "Program"
+},
+{
+"id": "u14",
+"ru": "Версия",
+"en": "Version"
+},
+{
+"id": "u15",
+"ru": "Конфиг",
+"en": "Config"
+},
+{
+"id": "u16",
+"ru": "Озвучка колоды",
+"en": "Deck dubbing"
+},
+{
+"id": "u17",
+"ru": "Основное слово читается строго по фуригане, всё остальное — автоматически.",
+"en": "The engine reads the kanji itself, the main word keeps the card's furigana. Reading mode and fields are in “Deck fields”."
+},
+{
+"id": "u18",
+"ru": "Колода",
+"en": "Deck"
+},
+{
+"id": "u19",
+"ru": "⟳ Обновить",
+"en": "⟳ Refresh"
+},
+{
+"id": "u20",
+"ru": "Загружаю колоды из Anki…",
+"en": "Loading decks from Anki…"
+},
+{
+"id": "u21",
+"ru": "Что озвучивать",
+"en": "What to voice"
+},
+{
+"id": "u22",
+"ru": "слово + предложение",
+"en": "word + sentence"
+},
+{
+"id": "u23",
+"ru": "предложение",
+"en": "sentence"
+},
+{
+"id": "u24",
+"ru": "слово",
+"en": "word"
+},
+{
+"id": "u25",
+"ru": "Лимит карточек",
+"en": "Card limit"
+},
+{
+"id": "u26",
+"ru": "0 = все",
+"en": "0 = all"
+},
+{
+"id": "u27",
+"ru": "Пересобрать всё заново",
+"en": "Rebuild everything"
+},
+{
+"id": "u28",
+"ru": "Только изменённые",
+"en": "Only changed"
+},
+{
+"id": "u29",
+"ru": "История прогонов",
+"en": "Run history"
+},
+{
+"id": "u30",
+"ru": "Прогонов пока нет — отчёты появятся после озвучки.",
+"en": "No runs yet - reports appear after dubbing."
+},
+{
+"id": "u31",
+"ru": "Читаю…",
+"en": "Reading…"
+},
+{
+"id": "u32",
+"ru": "Медиа: мусор",
+"en": "Media: junk"
+},
+{
+"id": "u33",
+"ru": "Проверять произношение",
+"en": "Check pronunciation"
+},
+{
+"id": "u34",
+"ru": "Проверять произношение (в 10 раз дольше)",
+"en": "Check pronunciation (10× longer)"
+},
+{
+"id": "u35",
+"ru": "С этой проверкой первая карточка идёт минуты вместо секунд. Приложение не зависает — журнал и полоса прогресса продолжают обновляться.",
+"en": "With this check the first card takes minutes instead of seconds. The app does not freeze — the log and the progress bar keep updating."
+},
+{
+"id": "u36",
+"ru": "▶ Начать озвучку",
+"en": "▶ Start dubbing"
+},
+{
+"id": "u37",
+"ru": "■ Остановить",
+"en": "■ Stop"
+},
+{
+"id": "u38",
+"ru": "✚ Озвучить новые",
+"en": "✚ Voice new cards"
+},
+{
+"id": "u39",
+"ru": "⟳ Перепробовать",
+"en": "⟳ Retry failed"
+},
+{
+"id": "u40",
+"ru": "Предпросмотр",
+"en": "Preview"
+},
+{
+"id": "u41",
+"ru": "Ансамбль (необязательно)",
+"en": "Ensemble (optional)"
+},
+{
+"id": "u42",
+"ru": "Зажми Ctrl и выбери 2+ голоса: карточки колоды распределятся между ними случайно, каждая будет озвучена целиком одним голосом, а партии пойдут друг за другом — переключений весов будет по одному на голос, не на карточку. Уже озвученные карточки сохраняют свой прежний голос. Пропорции — числа через запятую в порядке выбранных голосов («60,40» = первый голос чаще).",
+"en": "Ctrl-click to pick 2+ voices: deck cards are split between them at random, each card is voiced entirely by one voice, and parts run one after another — weights switch once per voice, not per card. Cards already voiced keep their previous voice. Proportions are comma-separated numbers in the order of the picked voices («60,40» = the first voice is used more often)."
+},
+{
+"id": "u43",
+"ru": "Пропорции",
+"en": "Proportions"
+},
+{
+"id": "u44",
+"ru": "Проверить колоду",
+"en": "Check deck"
+},
+{
+"id": "u45",
+"ru": "Самопроверка",
+"en": "Self-test"
+},
+{
+"id": "u46",
+"ru": "Проверить произношение",
+"en": "Check pronunciation"
+},
+{
+"id": "u47",
+"ru": "Переделать подозрительные",
+"en": "Re-do doubtful ones"
+},
+{
+"id": "u48",
+"ru": "Готов к запуску",
+"en": "Ready to run"
+},
+{
+"id": "u49",
+"ru": "Журнал",
+"en": "Log"
+},
+{
+"id": "u50",
+"ru": "Следить",
+"en": "Follow"
+},
+{
+"id": "u51",
+"ru": "Очистить",
+"en": "Clear"
+},
+{
+"id": "u52",
+"ru": "Лог появится после запуска.",
+"en": "The log appears after a run."
+},
+{
+"id": "u53",
+"ru": "Голосов нет — нажми «Добавить голос».",
+"en": "No voices — press “Add voice”."
+},
+{
+"id": "u54",
+"ru": "У голоса не найдены файлы gpt/sovits/ref.",
+"en": "The voice has no gpt/sovits/ref files."
+},
+{
+"id": "u55",
+"ru": "Не запустилось:",
+"en": "Could not start:"
+},
+{
+"id": "u56",
+"ru": "Озвучивать было нечего.",
+"en": "There was nothing to voice."
+},
+{
+"id": "u57",
+"ru": "Остановлено.",
+"en": "Stopped."
+},
+{
+"id": "u58",
+"ru": "Проверка нашла проблемы.",
+"en": "The check found problems."
+},
+{
+"id": "u59",
+"ru": "Завершилось с ошибкой (код ",
+"en": "Finished with an error (code "
+},
+{
+"id": "u60",
+"ru": "Посмотри журнал ниже.",
+"en": "See the log below."
+},
+{
+"id": "u61",
+"ru": "Готово.",
+"en": "Done."
+},
+{
+"id": "u62",
+"ru": "Готово",
+"en": "Done"
+},
+{
+"id": "u63",
+"ru": "Результат записан в колоду.",
+"en": "The result is in the deck."
+},
+{
+"id": "u64",
+"ru": "Проверка завершена — сомнительные в журнале ниже.",
+"en": "Check finished — the doubtful ones are in the log below."
+},
+{
+"id": "u65",
+"ru": "Проблемы:",
+"en": "Problems:"
+},
+{
+"id": "u66",
+"ru": "Поля выбранной колоды",
+"en": "Fields of the selected deck"
+},
+{
+"id": "u67",
+"ru": "Выбери колоду и нажми «Поля выбранной колоды».",
+"en": "Pick a deck and press “Fields of the selected deck”."
+},
+{
+"id": "u68",
+"ru": "Роль",
+"en": "Role"
+},
+{
+"id": "u69",
+"ru": "Поле карточки",
+"en": "Card field"
+},
+{
+"id": "u70",
+"ru": "Текст предложения",
+"en": "Sentence text"
+},
+{
+"id": "u71",
+"ru": "Звук предложения →",
+"en": "Sentence audio →"
+},
+{
+"id": "u72",
+"ru": "Основное слово",
+"en": "Main word"
+},
+{
+"id": "u73",
+"ru": "Звук слова →",
+"en": "Word audio →"
+},
+{
+"id": "u74",
+"ru": "Фуригана слова ← поле",
+"en": "Word furigana ← field"
+},
+{
+"id": "u75",
+"ru": "основное слово читается строго по нему",
+"en": "the main word is read strictly from it"
+},
+{
+"id": "u76",
+"ru": "Источник чтения",
+"en": "Reading source"
+},
+{
+"id": "u77",
+"ru": "если не «Не подставлять» — переопределяет чтение",
+"en": "if not “Do not substitute” it overrides the reading"
+},
+{
+"id": "u78",
+"ru": "всего предложения",
+"en": "of the whole sentence"
+},
+{
+"id": "u79",
+"ru": "Что чем читается.",
+"en": "What is read from what."
+},
+{
+"id": "u80",
+"ru": "— не используется —",
+"en": "— not used —"
+},
+{
+"id": "u81",
+"ru": "Сохранить настройки полей",
+"en": "Save field settings"
+},
+{
+"id": "u82",
+"ru": "✓ сохранено",
+"en": "✓ saved"
+},
+{
+"id": "u83",
+"ru": "Не удалось прочитать поля:",
+"en": "Could not read the fields:"
+},
+{
+"id": "u84",
+"ru": "Референс, текст промпта и параметры чтения выбранного голоса.",
+"en": "Reference audio, prompt text and reading parameters of the selected voice."
+},
+{
+"id": "u85",
+"ru": "▶ Прослушать тест",
+"en": "▶ Play test"
+},
+{
+"id": "u86",
+"ru": "➕ Добавить голос",
+"en": "➕ Add voice"
+},
+{
+"id": "u87",
+"ru": "Обновить веса в движке",
+"en": "Refresh engine weights"
+},
+{
+"id": "u88",
+"ru": "Тест играет",
+"en": "Playing test"
+},
+{
+"id": "u89",
+"ru": "Без текста референса",
+"en": "Without reference text"
+},
+{
+"id": "u90",
+"ru": "Доп. файлы (aux)",
+"en": "Extra files (aux)"
+},
+{
+"id": "u91",
+"ru": "＋ добавить файл",
+"en": "＋ add file"
+},
+{
+"id": "u92",
+"ru": "Сохранить голос",
+"en": "Save voice"
+},
+{
+"id": "u93",
+"ru": "Новый голос",
+"en": "New voice"
+},
+{
+"id": "u94",
+"ru": "Имя (латиницей)",
+"en": "Name (Latin)"
+},
+{
+"id": "u95",
+"ru": "Как показывать",
+"en": "How to show it"
+},
+{
+"id": "u96",
+"ru": "Добавить",
+"en": "Add"
+},
+{
+"id": "u97",
+"ru": "Отмена",
+"en": "Cancel"
+},
+{
+"id": "u98",
+"ru": "Референс 3–10 с",
+"en": "Reference 3–10 s"
+},
+{
+"id": "u99",
+"ru": "дословно, на языке записи",
+"en": "word for word, in the recording's language"
+},
+{
+"id": "u100",
+"ru": "Текст референса",
+"en": "Reference text"
+},
+{
+"id": "u101",
+"ru": "Язык промпта",
+"en": "Prompt language"
+},
+{
+"id": "u102",
+"ru": "Температура",
+"en": "Temperature"
+},
+{
+"id": "u103",
+"ru": "ниже — ровнее и спокойнее",
+"en": "lower — even and calmer"
+},
+{
+"id": "u104",
+"ru": "широта выбора слов",
+"en": "breadth of word choice"
+},
+{
+"id": "u105",
+"ru": "из скольких слов выбирать",
+"en": "how many words to choose from"
+},
+{
+"id": "u106",
+"ru": "Скорость",
+"en": "Speed"
+},
+{
+"id": "u107",
+"ru": "1.0 — как в оригинале",
+"en": "1.0 — as in the original"
+},
+{
+"id": "u108",
+"ru": "файл .wav/.mp3",
+"en": ".wav/.mp3 file"
+},
+{
+"id": "u109",
+"ru": "Папка движка, диагностика и внешний вид.",
+"en": "Engine folder, diagnostics and appearance."
+},
+{
+"id": "u110",
+"ru": "Проверяю движок, Anki и голоса…",
+"en": "Checking the engine, Anki and voices…"
+},
+{
+"id": "u111",
+"ru": "Мастер настройки",
+"en": "Setup wizard"
+},
+{
+"id": "u112",
+"ru": "Открыть мастер",
+"en": "Open wizard"
+},
+{
+"id": "u113",
+"ru": "Пройти заново",
+"en": "Start over"
+},
+{
+"id": "u114",
+"ru": "Обновление",
+"en": "Update"
+},
+{
+"id": "u115",
+"ru": "Проверить обновления",
+"en": "Check for updates"
+},
+{
+"id": "u116",
+"ru": "Релизы на GitHub",
+"en": "Releases on GitHub"
+},
+{
+"id": "u117",
+"ru": "Нажми «Проверить обновления» — покажу changelog и предложу установщик.",
+"en": "Press “Check for updates” — I will show the changelog and offer the installer."
+},
+{
+"id": "u118",
+"ru": "Проверить",
+"en": "Check"
+},
+{
+"id": "u119",
+"ru": "Сохранить папку",
+"en": "Save folder"
+},
+{
+"id": "u120",
+"ru": "Диагностика",
+"en": "Diagnostics"
+},
+{
+"id": "u121",
+"ru": "Нажми «Запустить диагностику».",
+"en": "Press “Run diagnostics”."
+},
+{
+"id": "u122",
+"ru": "Запустить диагностику",
+"en": "Run diagnostics"
+},
+{
+"id": "u123",
+"ru": "Закрыть AnkiVoice",
+"en": "Quit AnkiVoice"
+},
+{
+"id": "u124",
+"ru": "Где лежат файлы",
+"en": "Where the files are"
+},
+{
+"id": "u125",
+"ru": "Всё в порядке ✓",
+"en": "Everything is fine ✓"
+},
+{
+"id": "u126",
+"ru": "Папка в порядке",
+"en": "The folder is fine"
+},
+{
+"id": "u127",
+"ru": "Папка не подходит",
+"en": "Folder doesn't fit"
+},
+{
+"id": "u128",
+"ru": "Папка сохранена",
+"en": "Folder saved"
+},
+{
+"id": "u129",
+"ru": "Ошибка: ",
+"en": "Error: "
+},
+{
+"id": "u130",
+"ru": "Проверяю настройку…",
+"en": "Checking the setup…"
+},
+{
+"id": "u131",
+"ru": "Назад",
+"en": "Back"
+},
+{
+"id": "u132",
+"ru": "Далее",
+"en": "Next"
+},
+{
+"id": "u133",
+"ru": "1. Движок GPT-SoVITS",
+"en": "1. GPT-SoVITS engine"
+},
+{
+"id": "u134",
+"ru": "2. AnkiConnect",
+"en": "2. AnkiConnect"
+},
+{
+"id": "u135",
+"ru": "3. Сервер GPT-SoVITS",
+"en": "3. GPT-SoVITS server"
+},
+{
+"id": "u136",
+"ru": "4. Тестовая фраза",
+"en": "4. Test phrase"
+},
+{
+"id": "u137",
+"ru": "Что не так:",
+"en": "What is wrong:"
+},
+{
+"id": "u138",
+"ru": "Проверить и сохранить",
+"en": "Check and save"
+},
+{
+"id": "u139",
+"ru": "Подставить найденную",
+"en": "Use the found one"
+},
+{
+"id": "u140",
+"ru": "Скачать GPT-SoVITS",
+"en": "Download GPT-SoVITS"
+},
+{
+"id": "u141",
+"ru": "Куда класть.",
+"en": "Where to put it."
+},
+{
+"id": "u142",
+"ru": "Что сделать:",
+"en": "What to do:"
+},
+{
+"id": "u143",
+"ru": "Открыть AnkiConnect",
+"en": "Open AnkiConnect"
+},
+{
+"id": "u144",
+"ru": "Скачать Anki",
+"en": "Download Anki"
+},
+{
+"id": "u145",
+"ru": "Запускаю…",
+"en": "Starting…"
+},
+{
+"id": "u146",
+"ru": "Запустить сервер",
+"en": "Start the server"
+},
+{
+"id": "u147",
+"ru": "Открыть журнал",
+"en": "Open the log"
+},
+{
+"id": "u148",
+"ru": "Можно пропустить.",
+"en": "You can skip this."
+},
+{
+"id": "u149",
+"ru": "не закрывай мастер, первый старт небыстрый.",
+"en": "do not close the wizard, the first start is slow."
+},
+{
+"id": "u150",
+"ru": "Открыть вкладку «Голос»",
+"en": "Open the «Voice» tab"
+},
+{
+"id": "u151",
+"ru": "Проверим весь путь: голос → сервер → звук. Это последний шаг мастера.",
+"en": "Let us check the whole path: voice → server → sound. This is the last step."
+},
+{
+"id": "u152",
+"ru": "Фраза",
+"en": "Phrase"
+},
+{
+"id": "u153",
+"ru": "Синтезирую…",
+"en": "Synthesizing…"
+},
+{
+"id": "u154",
+"ru": "Синтезировать тестовую фразу",
+"en": "Synthesize the test phrase"
+},
+{
+"id": "u155",
+"ru": "Тестовый звук готов ✓",
+"en": "Test sound ready ✓"
+},
+{
+"id": "u156",
+"ru": "Это тест от прошлого запуска. Синтезируй фразу заново, чтобы завершить настройку.",
+"en": "This is a test from an earlier run. Synthesize the phrase again to finish the setup."
+},
+{
+"id": "u157",
+"ru": "Настройка завершена. Можно закрывать мастер.",
+"en": "The setup is complete. You can close the wizard."
+},
+{
+"id": "u158",
+"ru": "Проверить снова",
+"en": "Check again"
+},
+{
+"id": "u159",
+"ru": "Установлено",
+"en": "Installed"
+},
+{
+"id": "u160",
+"ru": "Страница релиза",
+"en": "Release page"
+},
+{
+"id": "u161",
+"ru": "Открыть релизы",
+"en": "Open releases"
+},
+{
+"id": "u162",
+"ru": "Не удалось проверить обновления: ",
+"en": "Could not check for updates: "
+},
+{
+"id": "u163",
+"ru": "Выбор файла",
+"en": "File picker"
+},
+{
+"id": "u164",
+"ru": "↑ Вверх",
+"en": "↑ Up"
+},
+{
+"id": "u165",
+"ru": "Выбрать",
+"en": "Choose"
+},
+{
+"id": "u166",
+"ru": "Загрузка…",
+"en": "Loading…"
+},
+{
+"id": "u167",
+"ru": "Папка пуста",
+"en": "The folder is empty"
+},
+{
+"id": "u168",
+"ru": "… вверх",
+"en": "… up"
+},
+{
+"id": "u169",
+"ru": "Анки: ",
+"en": "Anki: "
+},
+{
+"id": "u170",
+"ru": "Сервер: ",
+"en": "Server: "
+},
+{
+"id": "u171",
+"ru": "Голосов: ",
+"en": "Voices: "
+},
+{
+"id": "u172",
+"ru": "Проблемы: ':esc(bad.join(\" · \"))+",
+"en": "Problems: ' + esc(bad.join(\" · \")) +"
+},
+{
+"id": "u173",
+"ru": "открой Anki",
+"en": "open Anki"
+},
+{
+"id": "u174",
+"ru": ". Заметок в выбранной:",
+"en": ". Cards in the selected deck:"
+},
+{
+"id": "u175",
+"ru": "Сервер не отвечает:",
+"en": "The server does not respond:"
+},
+{
+"id": "u176",
+"ru": "Папка GPT-SoVITS:",
+"en": "GPT-SoVITS folder:"
+},
+{
+"id": "u177",
+"ru": "не подключена",
+"en": "not connected"
+},
+{
+"id": "u178",
+"ru": "не запущен (поднимется сам)",
+"en": "not running (will start itself)"
+},
+{
+"id": "u179",
+"ru": "подключена",
+"en": "connected"
+},
+{
+"id": "u180",
+"ru": "запущен",
+"en": "running"
+},
+{
+"id": "u181",
+"ru": "АнкиVoice закрыт. Можно закрыть вкладку.",
+"en": "AnkiVoice is closed. You can close the tab."
+},
+{
+"id": "u182",
+"ru": "AnkiVoice закрыт. Можно закрыть вкладку.",
+"en": "AnkiVoice is closed. You can close the tab."
+},
+{
+"id": "u183",
+"ru": "Не удалось прочитать настройку: ",
+"en": "Could not read the setup: "
+},
+{
+"id": "u184",
+"ru": "Папка проверена:",
+"en": "Folder checked:"
+},
+{
+"id": "u185",
+"ru": "Папка не найдена или в ней не хватает файлов",
+"en": "Folder not found or files are missing"
+},
+{
+"id": "u186",
+"ru": "AnkiConnect отвечает — Anki запущена.",
+"en": "AnkiConnect answers — Anki is running."
+},
+{
+"id": "u187",
+"ru": "AnkiConnect не отвечает.",
+"en": "AnkiConnect does not answer."
+},
+{
+"id": "u188",
+"ru": "Сервер уже запущен и отвечает.",
+"en": "The server is already running."
+},
+{
+"id": "u189",
+"ru": "Сервер пока не запущен.",
+"en": "The server is not running yet."
+},
+{
+"id": "u190",
+"ru": "Нет ни одного голоса с полным набором файлов.",
+"en": "Not a single voice has the full set of files."
+},
+{
+"id": "u191",
+"ru": "Файлы весов на месте.",
+"en": "The weight files are in place."
+},
+{
+"id": "u192",
+"ru": "Сначала выбери колоду",
+"en": "Pick a deck first"
+},
+{
+"id": "u193",
+"ru": "Сначала выбери голос",
+"en": "Pick a voice first"
+},
+{
+"id": "u194",
+"ru": "Скачиваем установщик…",
+"en": "Downloading the installer…"
+},
+{
+"id": "u195",
+"ru": "Папка в порядке ✓",
+"en": "Folder is fine ✓"
+},
+{
+"id": "u196",
+"ru": "нет — слово прочитается автоматически",
+"en": "none - the word is read automatically"
+},
+{
+"id": "u197",
+"ru": "✓ файлы на месте",
+"en": "✓ files in place"
+},
+{
+"id": "u198",
+"ru": "✗ нет gpt/sovits/ref",
+"en": "✗ no gpt/sovits/ref"
+},
+{
+"id": "u199",
+"ru": "Внутри должны быть",
+"en": "It must contain"
+},
+{
+"id": "u200",
+"ru": "Фуригана:",
+"en": "Furigana:"
+},
+{
+"id": "u201",
+"ru": "Конфиг:",
+"en": "Config:"
+},
+{
+"id": "u202",
+"ru": "Сервер:",
+"en": "Server:"
+},
+{
+"id": "u203",
+"ru": "Голосов:",
+"en": "Voices:"
+},
+{
+"id": "u204",
+"ru": "Не подставлять",
+"en": "Do not substitute"
+},
+{
+"id": "u205",
+"ru": "Как есть (кандзи, без фуриганы)",
+"en": "As is (kanji, no furigana)"
+},
+{
+"id": "u206",
+"ru": "Авто: есть фуригана — чтение по ней, нет — кандзи",
+"en": "Auto: furigana present - use it, otherwise kanji"
+},
+{
+"id": "u207",
+"ru": "Только кандзи (движок читает сам)",
+"en": "Kanji only (the engine reads it)"
+},
+{
+"id": "u208",
+"ru": "Собрать колоду «Брак»",
+"en": "Build the “Брак” deck"
+},
+{
+"id": "u209",
+"ru": "Сводка по вердиктам",
+"en": "Verdict summary"
+},
+{
+"id": "u210",
+"ru": "Первый запуск грузит веса и CUDA — это может занять 1–2 минуты.",
+"en": "The first start loads the weights and CUDA — it may take 1-2 minutes."
+},
+{
+"id": "u211",
+"ru": "SHA256 будет проверен после скачивания.",
+"en": "The SHA256 will be checked after the download."
+},
+{
+"id": "u212",
+"ru": "Проверяю SHA256…",
+"en": "Checking the SHA256…"
+},
+{
+"id": "u213",
+"ru": "Проверяю релиз на GitHub…",
+"en": "Checking the release on GitHub…"
+},
+{
+"id": "u214",
+"ru": "Начинаю скачивание…",
+"en": "Starting the download…"
+},
+{
+"id": "u215",
+"ru": "Новых версий нет.",
+"en": "No new versions."
+},
+{
+"id": "u216",
+"ru": "Доступно обновление ",
+"en": "Update available "
+},
+{
+"id": "u217",
+"ru": "Скачай вручную со страницы релиза.",
+"en": "Download it manually from the release page."
+},
+{
+"id": "u218",
+"ru": "В релизе нет установщика или SHA256. ",
+"en": "The release has no installer or SHA256. "
+},
+{
+"id": "u219",
+"ru": "Вставь код",
+"en": "Paste the code"
+},
+{
+"id": "u220",
+"ru": "Запустить установщик",
+"en": "Run the installer"
+},
+{
+"id": "u221",
+"ru": "Инструменты → Дополнения → Получить дополнения",
+"en": "Tools → Add-ons → Get Add-ons"
+},
+{
+"id": "u222",
+"ru": "Если Anki не установлена — сначала скачай её.",
+"en": "If Anki is not installed, download it first."
+},
+{
+"id": "u223",
+"ru": "Открой Anki.",
+"en": "Open Anki."
+},
+{
+"id": "u224",
+"ru": "Перезапусти Anki и вернись сюда.",
+"en": "Restart Anki and come back here."
+},
+{
+"id": "u225",
+"ru": "Попробовать снова",
+"en": "Try again"
+},
+{
+"id": "u226",
+"ru": "Пустой выбор в колонке «→» = звук не записывать.",
+"en": "An empty choice in the «→» column means: do not record the sound."
+},
+{
+"id": "u227",
+"ru": "Распознать уже озвученные карточки и найти те, где модель потеряла кусок фразы",
+"en": "Recognize the cards you have already voiced and find the ones where the model lost a chunk of the sentence"
+},
+{
+"id": "u228",
+"ru": "Распознаём собственный звук и сверяем с текстом: ловим «модель потеряла кусок фразы»",
+"en": "We recognize our own sound and compare it with the text: this catches «the model lost a chunk of the sentence»"
+},
+{
+"id": "u229",
+"ru": "Переделать только те карточки, которые проверка признала подозрительными (тег av_suspect)",
+"en": "Re-do only the cards the check called doubtful (tag av_suspect)"
+},
+{
+"id": "u230",
+"ru": "Открой вкладку «Голос»: добавь голос (GPT .ckpt, SoVITS .pth и запись-образец) ",
+"en": "Open the «Voice» tab: add a voice (GPT .ckpt, SoVITS .pth and a reference) "
+},
+{
+"id": "u231",
+"ru": "или нажми «Новый голос».",
+"en": "or press «New voice»."
+},
+{
+"id": "u232",
+"ru": "Обзор…",
+"en": "Browse…"
+},
+{
+"id": "u233",
+"ru": "Подставить найденную: ",
+"en": "Use the found one: "
+},
+{
+"id": "u234",
+"ru": "АнкиConnect не отвечает.",
+"en": "AnkiConnect does not answer."
+},
+{
+"id": "u235",
+"ru": "Проблемы: ",
+"en": "Problems: "
+},
+{
+"id": "u236",
+"ru": "· последний релиз",
+"en": "· latest release"
+},
+{
+"id": "u237",
+"ru": "Не подключена",
+"en": "Not connected"
+},
+{
+"id": "u238",
+"ru": "НЕ подключена",
+"en": "NOT connected"
+},
+{
+"id": "u239",
+"ru": "не запущен",
+"en": "not running"
+},
+{
+"id": "u240",
+"ru": "Английский интерфейс",
+"en": "English interface"
+},
+{
+"id": "u241",
+"ru": "Русский интерфейс",
+"en": "Russian interface"
+},
+{
+"id": "u242",
+"ru": "не подключена ",
+"en": "not connected "
+},
+{
+"id": "u243",
+"ru": "Подключена ",
+"en": "Connected "
+},
+{
+"id": "u244",
+"ru": "Файл: ",
+"en": "File: "
+},
+{
+"id": "u245",
+"ru": "Причина: ",
+"en": "Reason: "
+},
+{
+"id": "u246",
+"ru": "Стратегия: ",
+"en": "Strategy: "
+},
+{
+"id": "u247",
+"ru": "Карточка: ",
+"en": "Card: "
+},
+{
+"id": "u248",
+"ru": "Покрытие: ",
+"en": "Coverage: "
+},
+{
+"id": "u249",
+"ru": "Проблемный участок: ",
+"en": "Problem span: "
+},
+{
+"id": "u250",
+"ru": "Вердикт: ",
+"en": "Verdict: "
+},
+{
+"id": "u251",
+"ru": "Как было: ",
+"en": "As it was: "
+},
+{
+"id": "u252",
+"ru": "Вариант ",
+"en": "Variant "
+},
+{
+"id": "u253",
+"ru": "Можно пропустить",
+"en": "You can skip this"
+},
+{
+"id": "u254",
+"ru": "Колод в Anki: ",
+"en": "Decks in Anki: "
+},
+{
+"id": "u255",
+"ru": "Голос по умолчанию: ",
+"en": "Default voice: "
+},
+{
+"id": "u256",
+"ru": "Доступна: ",
+"en": "Available: "
+},
+{
+"id": "u257",
+"ru": ". Каждый кусок распознаём и сверяем с текстом — мусор переделаем сами.",
+"en": ". Every chunk is recognized and compared with the text — we redo the rubbish ourselves."
+},
+{
+"id": "u258",
+"ru": "Движок",
+"en": "Engine"
+},
+{
+"id": "u259",
+"ru": "Сервер",
+"en": "Server"
+},
+{
+"id": "u260",
+"ru": "Тест голоса",
+"en": "Voice test"
+},
+{
+"id": "u261",
+"ru": "голос: ",
+"en": "voice: "
+},
+{
+"id": "u262",
+"ru": "Закрыть",
+"en": "Close"
+},
+{
+"id": "u263",
+"ru": "Установлено ",
+"en": "Installed "
+},
+{
+"id": "u264",
+"ru": "Папка в порядке.",
+"en": "The folder is fine."
+},
+{
+"id": "u265",
+"ru": "Движок читает иероглифы сам, а чтение слова — ровно по фуригане карточки. Режим чтения и поля — в «Полях колоды».",
+"en": "The engine reads the kanji itself, and the main word follows the card's furigana. The reading mode and the fields are in “Deck fields”."
+},
+{
+"id": "u266",
+"ru": "Что каким полем читать и куда класть звук. Значения подставляются автоматически — поправь, если колода называет поля иначе.",
+"en": "Which field to read from and where to put the audio. The values are filled in automatically - fix them if your deck names its fields differently."
+},
+{
+"id": "u267",
+"ru": "Как это читается.",
+"en": "How this is read."
+},
+{
+"id": "u268",
+"ru": "Движок читает иероглифы сам, в контексте предложения. Режим",
+"en": "The engine reads the kanji itself, in the context of the sentence. The"
+},
+{
+"id": "u269",
+"ru": "«Авто»",
+"en": "“Auto”"
+},
+{
+"id": "u270",
+"ru": "(по умолчанию) читает основное слово строго по строке «Фуригана слова»; если фуриганы нет — кандзи, как есть. Режим",
+"en": "(by default) reads the main term strictly from the “Furigana” field; with no furigana it is read as kanji, as it is. The"
+},
+{
+"id": "u271",
+"ru": "«Только кандзи»",
+"en": "“Kanji only”"
+},
+{
+"id": "u272",
+"ru": "— всегда кандзи: чтение движок подбирает сам.",
+"en": "- always kanji: the engine picks the reading itself."
+},
+{
+"id": "u273",
+"ru": "Режим сохраняется в профиле колоды — у каждой колоды свой.",
+"en": "The mode is stored in the deck profile - every deck has its own."
+},
+{
+"id": "u274",
+"ru": "как читать основное слово: по фуригане, если она есть; нет фуриганы — кандзи",
+"en": "how the main term is read: from the furigana if there is one; without a furigana - kanji"
+},
+{
+"id": "u275",
+"ru": "Папка GPT-SoVITS",
+"en": "GPT-SoVITS folder"
+},
+{
+"id": "u276",
+"ru": "Закрывает приложение и локальный сервер. Карточки в Anki не трогаются.",
+"en": "Closes the app and the local server. Your Anki cards are not touched."
+},
+{
+"id": "u277",
+"ru": "Полей в колоде:",
+"en": "Fields in the deck:"
+},
+{
+"id": "u278",
+"ru": "Готово ✓",
+"en": "Ready ✓"
+},
+{
+"id": "u279",
+"ru": "Кубота Хитоси",
+"en": "Hitoshi Kubota"
+},
+{
+"id": "u280",
+"ru": "и",
+"en": "and"
+},
+{
+"id": "u281",
+"ru": "Движок синтеза",
+"en": "Synthesis engine"
+},
+{
+"id": "u282",
+"ru": "GPT-SoVITS — голос из весов .ckpt и .pth",
+"en": "GPT-SoVITS — a voice from .ckpt and .pth weights"
+},
+{
+"id": "u283",
+"ru": "IndexTTS 2.5 — голос из одного референса",
+"en": "IndexTTS 2.5 — a voice from a single reference"
+},
+{
+"id": "u284",
+"ru": "Папка IndexTTS 2.5",
+"en": "IndexTTS 2.5 folder"
+},
+{
+"id": "u285",
+"ru": "Папка IndexTTS",
+"en": "IndexTTS folder"
+},
+{
+"id": "u286",
+"ru": "Движок с весами: у каждого голоса свои файлы .ckpt и .pth.",
+"en": "Engine with weights: every voice has its own .ckpt and .pth files."
+},
+{
+"id": "u287",
+"ru": "Голосу нужна только запись-образец: отдельные веса не нужны, модель общая.",
+"en": "Zero-shot engine: a voice is a single reference, the weights are shared."
+},
+{
+"id": "u288",
+"ru": "Движок: IndexTTS 2.5",
+"en": "Engine: IndexTTS 2.5"
+},
+{
+"id": "u289",
+"ru": "Движок: GPT-SoVITS",
+"en": "Engine: GPT-SoVITS"
+},
+{
+"id": "u290",
+"ru": "Голос задаётся весами .ckpt и .pth. Синтез быстрее, голосов можно много.",
+"en": "A voice is defined by .ckpt and .pth weights. Synthesis is faster, you can have many voices."
+},
+{
+"id": "u291",
+"ru": "Голос — это одна запись-образец. Японские термины читает точнее, но синтез медленнее.",
+"en": "A voice is a single reference. Japanese terms are read more accurately, but synthesis is slower."
+},
+{
+"id": "u292",
+"ru": "Папка движка",
+"en": "Engine folder"
+},
+{
+"id": "u293",
+"ru": "Сохранить",
+"en": "Save"
+},
+{
+"id": "u294",
+"ru": "папка в порядке ✓",
+"en": "folder is fine ✓"
+},
+{
+"id": "u295",
+"ru": "папка не указана",
+"en": "folder is not set"
+},
+{
+"id": "u296",
+"ru": "папка не подходит",
+"en": "folder doesn't fit"
+},
+{
+"id": "u297",
+"ru": "Готовых голосов: ",
+"en": "Voices ready: "
+},
+{
+"id": "u298",
+"ru": "Сервис синтеза на 127.0.0.1:9881",
+"en": "Synthesis service on 127.0.0.1:9881"
+},
+{
+"id": "u299",
+"ru": "Сервер синтеза на 127.0.0.1:9880",
+"en": "Synthesis server on 127.0.0.1:9880"
+},
+{
+"id": "u300",
+"ru": "Кто будет читать текст. Движок можно поменять в любой момент — такие же кнопки есть на главном экране, вверху.",
+"en": "Who will read the text. You can switch the engine at any time — the same buttons are on the main screen, at the top."
+},
+{
+"id": "u301",
+"ru": "✓ выбран",
+"en": "✓ selected"
+},
+{
+"id": "u302",
+"ru": "Скачать движок",
+"en": "Download the engine"
+},
+{
+"id": "u303",
+"ru": "Укажи папку движка",
+"en": "Point to the engine folder"
+},
+{
+"id": "u304",
+"ru": "Сервер синтеза",
+"en": "Synthesis server"
+},
+{
+"id": "u305",
+"ru": "Сервис IndexTTS слушает только",
+"en": "The IndexTTS service listens only on"
+},
+{
+"id": "u306",
+"ru": "Мастер настройки, обновление, диагностика и файлы. Движок синтеза выбирается на главном экране.",
+"en": "Setup wizard, updates, diagnostics and files. The synthesis engine is chosen on the main screen."
+},
+{
+"id": "u307",
+"ru": "пусто — вся колода",
+"en": "empty — the whole deck"
+},
+{
+"id": "u308",
+"ru": "Пропустить",
+"en": "Skip"
+},
+{
+"id": "u309",
+"ru": "Медиа Anki (куда падает звук)",
+"en": "Anki media (where the audio lands)"
+},
+{
+"id": "u310",
+"ru": "Журнал и отчёт о сбоях",
+"en": "Log and crash report"
+},
+{
+"id": "u311",
+"ru": "Подтверждение",
+"en": "Confirm"
+},
+{
+"id": "u312",
+"ru": "Да",
+"en": "Yes"
+},
+{
+"id": "u313",
+"ru": "Озвучить всё",
+"en": "Voice everything"
+},
+{
+"id": "u314",
+"ru": "Переозвучить",
+"en": "Re-record"
+},
+{
+"id": "u315",
+"ru": "Собрать",
+"en": "Build"
+},
+{
+"id": "u316",
+"ru": "Сбросить",
+"en": "Reset"
+},
+{
+"id": "u317",
+"ru": "Перезаписывает звук в выбранных карточках заново. Старые файлы останутся в папке медиа, отмены нет",
+"en": "Re-records the audio in the selected cards. The old files stay in the media folder, there is no undo"
+},
+{
+"id": "u318",
+"ru": "Внимание: проверка замедляет озвучку примерно в 10 раз.",
+"en": "Note: the check makes the dubbing about 10 times slower."
+},
+{
+"id": "u319",
+"ru": "Звук пишется прямо в поля карточек Anki:",
+"en": "The audio is written straight into the Anki card fields:"
+},
+{
+"id": "u320",
+"ru": "готовый звук перезаписывается",
+"en": "an existing sound is overwritten"
+},
+{
+"id": "u321",
+"ru": ", старые файлы остаются в папке медиа коллекции. Отмены нет — переозвучить можно через «Пересобрать всё заново». Всё считается на этом компьютере, карточки никуда не отправляются.",
+"en": ", the old files stay in the collection's media folder. There is no undo — you can re-record with “Rebuild everything”. Everything runs on this computer; your cards are never sent anywhere."
+},
+{
+"id": "u322",
+"ru": "Закрывает приложение и локальный сервер. Карточки и звук в Anki остаются как есть.",
+"en": "Closes the app and the local server. Your cards and their audio stay as they are."
+},
+{
+"id": "u323",
+"ru": "Папка не подходит — не сохранил",
+"en": "Folder doesn't fit — not saved"
+},
+{
+"id": "u324",
+"ru": "не нашли",
+"en": "not found"
+},
+{
+"id": "u325",
+"ru": "Лимит карточек должен быть целым числом больше нуля. Чтобы озвучить всю колоду, оставь поле пустым",
+"en": "The card limit must be a whole number greater than zero. Leave it empty to voice the whole deck"
+},
+{
+"id": "u326",
+"ru": "Лимит карточек — целое число не меньше нуля. Пусто или 0 — вся колода",
+"en": "The card limit must be a whole number not below zero. Empty or 0 means the whole deck"
+},
+{
+"id": "u327",
+"ru": "Лимит карточек должен быть целым числом не меньше нуля.",
+"en": "The card limit must be a whole number not below zero."
+},
+{
+"id": "u328",
+"ru": "Лимит карточек должен быть не меньше нуля. Пусто или 0 — вся колода.",
+"en": "The card limit must not be below zero. Empty or 0 means the whole deck."
+},
+{
+"id": "u329",
+"ru": "Лимит карточек должен быть больше нуля. Чтобы озвучить всю колоду, оставь поле пустым и подтверди запуск.",
+"en": "The card limit must be greater than zero. Leave it empty and confirm to voice the whole deck."
+},
+{
+"id": "u330",
+"ru": "■ остановлено",
+"en": "■ stopped"
+},
+{
+"id": "u331",
+"ru": "Начинаю озвучку: колода",
+"en": "Starting dubbing: deck"
+},
+{
+"id": "u332",
+"ru": "Сходит в сеть на GitHub и покажет changelog",
+"en": "Goes online to GitHub and shows the changelog"
+},
+{
+"id": "u333",
+"ru": "Нажми «Проверить обновления» — покажу changelog и предложу установщик. Эта кнопка ходит в интернет на GitHub; сама озвучка работает офлайн.",
+"en": "Press \"Check for updates\" and I will show the changelog and offer the installer. This button goes online to GitHub; the dubbing itself works offline."
+},
+{
+"id": "u334",
+"ru": ". Фуригана:",
+"en": ". Furigana:"
+},
+{
+"id": "u335",
+"ru": "движок",
+"en": "engine"
+},
+{
+"id": "u336",
+"ru": "сервер",
+"en": "server"
+},
+{
+"id": "u337",
+"ru": "голоса",
+"en": "voices"
+},
+{
+"id": "u338",
+"ru": "тест",
+"en": "test"
+},
+{
+"id": "u339",
+"ru": "(необязательно)",
+"en": "(optional)"
+},
+{
+"id": "u340",
+"ru": "AnkiConnect",
+"en": "AnkiConnect"
+},
+{
+"id": "u341",
+"ru": "AnkiVoice — оболочка. Синтез делает отдельный движок GPT-SoVITS; он весит несколько гигабайт и ставится один раз.",
+"en": "AnkiVoice is a shell. A separate GPT-SoVITS engine does the synthesis; it weighs several gigabytes and is installed once."
+},
+{
+"id": "u342",
+"ru": "Скачай Windows-пакет GPT-SoVITS v2Pro, распакуй в папку без кириллицы (например,",
+"en": "Download the Windows package of GPT-SoVITS v2Pro and unpack it into a folder without Cyrillic (for example,"
+},
+{
+"id": "u343",
+"ru": ") и укажи её здесь. Внутри должны быть",
+"en": ") and point to it here. Inside there must be"
+},
+{
+"id": "u344",
+"ru": "Через AnkiConnect программа читает колоды и записывает звук в карточки. Без него озвучка не начнётся.",
+"en": "Through AnkiConnect the app reads the decks and writes the audio into the cards. Without it the dubbing will not start."
+},
+{
+"id": "u345",
+"ru": "и нажми «ОК».",
+"en": "and press “OK”."
+},
+{
+"id": "u346",
+"ru": "Сервер слушает только",
+"en": "The server listens only on"
+},
+{
+"id": "u347",
+"ru": ". Первый запуск грузит веса и CUDA — это может занять 1–2 минуты.",
+"en": ". The first start loads the weights and CUDA - it may take 1-2 minutes."
+},
+{
+"id": "u348",
+"ru": "Если сервер ещё не поднят, тестовая фраза запустит его автоматически. Этот шаг нужен, чтобы заранее увидеть ошибки движка.",
+"en": "If the server is not up yet, the test phrase starts it automatically. This step lets you see the engine problems in advance."
+},
+{
+"id": "u349",
+"ru": "Открой вкладку «Голос»: добавь голос (GPT .ckpt, SoVITS .pth и запись-образец) или нажми «Обновить веса в движке».",
+"en": "Open the “Voice” tab: add a voice (GPT .ckpt, SoVITS .pth and a reference) or press “Update the weights in the engine”."
+},
+{
+"id": "u350",
+"ru": "Колода в Anki: ",
+"en": "Decks in Anki: "
+},
+{
+"id": "u351",
+"ru": "Выбери колоду и голос, нажми «Начать озвучку» — звук сам ляжет в карточки Anki. Какие поля читать и куда писать звук — во вкладке «Поля колоды».",
+"en": "Pick a deck and a voice, press “Start dubbing” — the audio goes straight into your Anki cards. Which fields to read and where to write audio is set on the “Deck fields” tab."
+},
+{
+"id": "u352",
+"ru": "Карточек за раз",
+"en": "Cards per run"
+},
+{
+"id": "u353",
+"ru": "Что озвучить",
+"en": "What to voice"
+},
+{
+"id": "u354",
+"ru": "0 или пусто — вся колода. Уже озвученные карточки пропускаются.",
+"en": "0 or empty — the whole deck. Cards that already have audio are skipped."
+},
+{
+"id": "u355",
+"ru": "▶ Послушать",
+"en": "▶ Listen"
+},
+{
+"id": "u356",
+"ru": "Синтезировать тестовую фразу выбранным голосом и проиграть её",
+"en": "Synthesize a test phrase with the selected voice and play it"
+},
+{
+"id": "u357",
+"ru": "Перечитать список колод из Anki",
+"en": "Reload the deck list from Anki"
+},
+{
+"id": "u358",
+"ru": "✚ Озвучить только новые",
+"en": "✚ Voice new cards only"
+},
+{
+"id": "u359",
+"ru": "Дополнительные настройки",
+"en": "Advanced settings"
+},
+{
+"id": "u360",
+"ru": "несколько голосов, пересборка, проверка произношения",
+"en": "several voices, re-voicing, pronunciation check"
+},
+{
+"id": "u361",
+"ru": "Несколько голосов (ансамбль)",
+"en": "Several voices (ensemble)"
+},
+{
+"id": "u362",
+"ru": "Зажми Ctrl и выбери 2+ голоса — карточки поделятся между ними случайно (каждая целиком одним голосом). Пропорции — числа через запятую: «60,40» = первый голос чаще.",
+"en": "Hold Ctrl and pick 2+ voices — cards are split between them at random (each card fully in one voice). Proportions are comma-separated numbers: “60,40” = the first voice more often."
+},
+{
+"id": "u363",
+"ru": "Перезапишет звук и в уже озвученных карточках. Отмены нет.",
+"en": "Overwrites audio in cards that are already voiced too. No undo."
+},
+{
+"id": "u364",
+"ru": "Переозвучит только карточки, у которых с прошлого раза поменялся текст или голос.",
+"en": "Re-voices only cards whose text or voice changed since last time."
+},
+{
+"id": "u365",
+"ru": "Инструменты и проверки",
+"en": "Tools and checks"
+},
+{
+"id": "u366",
+"ru": "предпросмотр, проверка колоды, диагностика",
+"en": "preview, deck check, diagnostics"
+},
+{
+"id": "u367",
+"ru": "Покажет, какой текст уйдёт в озвучку, — без синтеза, ничего не меняет.",
+"en": "Shows what text will be voiced — no synthesis, changes nothing."
+},
+{
+"id": "u368",
+"ru": "Проверит, что у карточек есть звук и файлы лежат в медиа Anki.",
+"en": "Checks that cards have audio and the files are in Anki's media."
+},
+{
+"id": "u369",
+"ru": "Проверит программу, движок, голоса и связь с Anki.",
+"en": "Checks the app, the engine, voices and the Anki connection."
+},
+{
+"id": "u370",
+"ru": "Найдёт старые файлы озвучки, на которые больше не ссылается ни одна карточка.",
+"en": "Finds old audio files that no card refers to any more."
+},
+{
+"id": "u371",
+"ru": "Распознает уже озвученные карточки и найдёт, где голос ошибся.",
+"en": "Transcribes voiced cards and finds where the voice made mistakes."
+},
+{
+"id": "u372",
+"ru": "Создаст в Anki колоду с копиями сомнительных карточек — оригиналы не меняются.",
+"en": "Creates an Anki deck with copies of doubtful cards — originals are untouched."
+},
+{
+"id": "u373",
+"ru": "Посчитает ваши отметки из колоды «Брак».",
+"en": "Summarizes your verdicts from the “Brak” deck."
+},
+{
+"id": "u374",
+"ru": "не указан",
+"en": "not set"
+},
+{
+"id": "u375",
+"ru": "не отвечает",
+"en": "not responding"
+},
+{
+"id": "u376",
+"ru": "не выбран",
+"en": "not selected"
+},
+{
+"id": "u377",
+"ru": "не выбрана",
+"en": "not selected"
+},
+{
+"id": "u378",
+"ru": "Настроить движок",
+"en": "Set up the engine"
+},
+{
+"id": "u379",
+"ru": "Открыть «Голос»",
+"en": "Open “Voice”"
+},
+{
+"id": "u380",
+"ru": "Не настроен движок синтеза: укажи папку GPT-SoVITS (в ней лежит api_v2.py).",
+"en": "The synthesis engine is not set up: point to the GPT-SoVITS folder (it contains api_v2.py)."
+},
+{
+"id": "u381",
+"ru": "Anki не отвечает: открой Anki с дополнением AnkiConnect (код 2055492159).",
+"en": "Anki is not responding: open Anki with the AnkiConnect add-on (code 2055492159)."
+},
+{
+"id": "u382",
+"ru": "Нет ни одного готового голоса: голосу нужны веса и запись-образец.",
+"en": "No voice is ready: a voice needs weights and a reference recording."
+},
+{
+"id": "u383",
+"ru": "У выбранного голоса не хватает файлов — выбери голос без пометки ✗ в шаге 2.",
+"en": "The selected voice is missing files — pick a voice without ✗ in step 2."
+},
+{
+"id": "u384",
+"ru": "Выбери колоду в шаге 1.",
+"en": "Pick a deck in step 1."
+},
+{
+"id": "u385",
+"ru": "В этой колоде нет карточек — выбери другую (число карточек — в скобках).",
+"en": "This deck has no cards — pick another one (the card count is in brackets)."
+},
+{
+"id": "u386",
+"ru": "Всё готово: проверь шаги ниже и нажми «Начать озвучку». Первый запуск грузит модель 1–2 минуты.",
+"en": "All set: check the steps below and press “Start dubbing”. The first run loads the model for 1–2 minutes."
+},
+{
+"id": "u387",
+"ru": "Выбери колоду и голос — здесь будет видно, что именно озвучится.",
+"en": "Pick a deck and a voice — this line will show exactly what gets voiced."
+},
+{
+"id": "u388",
+"ru": "Будет озвучено:",
+"en": "Will be voiced:"
+},
+{
+"id": "u389",
+"ru": "до",
+"en": "up to"
+},
+{
+"id": "u390",
+"ru": "карточек",
+"en": "cards"
+},
+{
+"id": "u391",
+"ru": "вся колода",
+"en": "the whole deck"
+},
+{
+"id": "u392",
+"ru": "Звук будет перезаписан и у уже озвученных.",
+"en": "Audio will be overwritten in voiced cards too."
+},
+{
+"id": "u393",
+"ru": "Только карточки, изменённые с прошлого раза.",
+"en": "Only cards changed since last time."
+},
+{
+"id": "u394",
+"ru": "Уже озвученные карточки пропускаются.",
+"en": "Cards that already have audio are skipped."
+},
+{
+"id": "u395",
+"ru": "Готовлю пробную фразу… В первый раз движок загружается 1–2 минуты.",
+"en": "Preparing a test phrase… The first time the engine loads for 1–2 minutes."
+},
+{
+"id": "u396",
+"ru": "У голоса не хватает файлов — открой вкладку «Голос»",
+"en": "The voice is missing files — open the “Voice” tab"
+},
+{
+"id": "u397",
+"ru": "Звук готов, но браузер не дал его проиграть — нажми ещё раз",
+"en": "The audio is ready, but the browser blocked playback — press again"
+},
+{
+"id": "u398",
+"ru": "Голос — это три файла: GPT-веса (.ckpt), SoVITS-веса (.pth) и запись-образец на 3–10 секунд с её текстом. Голос с пометкой ✗ озвучивать не сможет — нажми на него, и ниже будет видно, какого файла не хватает.",
+"en": "A voice is three files: GPT weights (.ckpt), SoVITS weights (.pth) and a 3–10 s reference recording with its transcript. A voice marked ✗ cannot voice cards — click it to see which file is missing."
+},
+{
+"id": "u399",
+"ru": "GPT-веса (.ckpt)",
+"en": "GPT weights (.ckpt)"
+},
+{
+"id": "u400",
+"ru": "SoVITS-веса (.pth)",
+"en": "SoVITS weights (.pth)"
+},
+{
+"id": "u401",
+"ru": "запись-образец",
+"en": "reference recording"
+},
+{
+"id": "u402",
+"ru": "Выбери запись-образец ниже и сохрани голос.",
+"en": "Pick a reference recording below and save the voice."
+},
+{
+"id": "u403",
+"ru": "Положи недостающие файлы в папку движка (веса — в GPT_weights*/SoVITS_weights*) и нажми «Обновить веса в движке», либо добавь голос заново кнопкой «Добавить голос».",
+"en": "Put the missing files into the engine folder (weights go to GPT_weights*/SoVITS_weights*) and press “Refresh engine weights”, or re-add the voice with “Add voice”."
+},
+{
+"id": "u404",
+"ru": "Файлы ищутся в папке движка:",
+"en": "Files are looked up in the engine folder:"
+},
+{
+"id": "u405",
+"ru": "Эти файлы лежат в другом движке — переключись на него:",
+"en": "These files are in another engine — switch to it:"
+},
+{
+"id": "u406",
+"ru": "Встроенная тема оформления",
+"en": "Built-in theme"
+},
+{
+"id": "u407",
+"ru": "Высота строк, вкладок и заголовков панелей.",
+"en": "Height of rows, tabs and panel headers."
+},
+{
+"id": "u408",
+"ru": "Добавить голос",
+"en": "Add voice"
+},
+{
+"id": "u409",
+"ru": "Заголовки разделов, строка состояния и метки — моноширинным шрифтом заглавными.",
+"en": "Section headings, status bar and labels in monospace capitals."
+},
+{
+"id": "u410",
+"ru": "Как в новой iOS: полупрозрачные панели",
+"en": "Like the latest iOS: translucent panels"
+},
+{
+"id": "u411",
+"ru": "Классический",
+"en": "Classic"
+},
+{
+"id": "u412",
+"ru": "Компактная",
+"en": "Compact"
+},
+{
+"id": "u413",
+"ru": "Компоновка и форма интерфейса. Цветовая тема и акцент работают с любым типом.",
+"en": "Layout and shape of the interface. Colour themes and the accent work with any type."
+},
+{
+"id": "u414",
+"ru": "Моноширинные подписи",
+"en": "Monospace labels"
+},
+{
+"id": "u415",
+"ru": "Мягкие скругления и плавающие панели, как раньше",
+"en": "Soft corners and floating panels, as before"
+},
+{
+"id": "u416",
+"ru": "Начать озвучку",
+"en": "Start dubbing"
+},
+{
+"id": "u417",
+"ru": "Обновить",
+"en": "Refresh"
+},
+{
+"id": "u418",
+"ru": "Обычная",
+"en": "Regular"
+},
+{
+"id": "u419",
+"ru": "Озвучить только новые",
+"en": "Voice new cards only"
+},
+{
+"id": "u420",
+"ru": "Основной: прямые углы, ясные границы блоков, плотная сетка",
+"en": "Default: square corners, clear block borders, tight grid"
+},
+{
+"id": "u421",
+"ru": "Остановить",
+"en": "Stop"
+},
+{
+"id": "u422",
+"ru": "Оформление",
+"en": "Appearance"
+},
+{
+"id": "u423",
+"ru": "Оформление, мастер настройки, обновление, диагностика и где лежат файлы. Движок синтеза выбирается на главном экране.",
+"en": "Appearance, setup wizard, updates, diagnostics and where files live. The synthesis engine is chosen on the main screen."
+},
+{
+"id": "u424",
+"ru": "Панели станут непрозрачными: проще читать и легче для слабых компьютеров. Включается само, если так настроена система.",
+"en": "Panels become opaque: easier to read and lighter for slow computers. Turns on by itself if the system asks for it."
+},
+{
+"id": "u425",
+"ru": "Перепробовать",
+"en": "Retry"
+},
+{
+"id": "u426",
+"ru": "Плотность",
+"en": "Density"
+},
+{
+"id": "u427",
+"ru": "Послушать",
+"en": "Listen"
+},
+{
+"id": "u428",
+"ru": "Прослушать тест",
+"en": "Play test"
+},
+{
+"id": "u429",
+"ru": "Просторная",
+"en": "Comfortable"
+},
+{
+"id": "u430",
+"ru": "Стекло",
+"en": "Glass"
+},
+{
+"id": "u431",
+"ru": "Тип дизайна",
+"en": "Design type"
+},
+{
+"id": "u432",
+"ru": "Уменьшить прозрачность",
+"en": "Reduce transparency"
+},
+{
+"id": "u433",
+"ru": "Цвет акцента",
+"en": "Accent colour"
+},
+{
+"id": "u434",
+"ru": "Цвет ссылок, кнопок и выделений. Свой цвет перекрывает акцент темы.",
+"en": "Colour of links, buttons and highlights. Your colour overrides the theme's accent."
+},
+{
+"id": "u435",
+"ru": "Чёткий",
+"en": "Sharp"
+},
+{
+"id": "u436",
+"ru": "выбрать колоду и озвучить",
+"en": "pick a deck and voice it"
+},
+{
+"id": "u437",
+"ru": "голоса, тест и настройки",
+"en": "voices, test and settings"
+},
+{
+"id": "u438",
+"ru": "движок, вид, обновления",
+"en": "engine, look, updates"
+},
+{
+"id": "u439",
+"ru": "откуда текст, куда звук",
+"en": "where text comes from, where audio goes"
+},
+{
+"id": "u440",
+"ru": "Тёмная",
+"en": "Dark"
+},
+{
+"id": "u441",
+"ru": "Светлая",
+"en": "Light"
+},
+{
+"id": "u442",
+"ru": "Системная",
+"en": "System"
+},
+{
+"id": "u443",
+"ru": "Стандартная тема",
+"en": "Standard theme"
+},
+{
+"id": "u444",
+"ru": "Стандартная тема: тёмная, светлая или как в системе.",
+"en": "Standard theme: dark, light or as in the system."
+},
+{
+"id": "u445",
+"ru": "Тема, цвета и тип интерфейса",
+"en": "Theme, colours and interface type"
+},
+{
+"id": "u446",
+"ru": "Озвучить выбранную колоду: звук ляжет прямо в карточки Anki",
+"en": "Voice the selected deck: audio goes straight into your Anki cards"
+},
+{
+"id": "u447",
+"ru": "Остановить текущую операцию: уже озвученное сохранится",
+"en": "Stop the current operation: what is already voiced stays"
+},
+{
+"id": "u448",
+"ru": "Синтезировать тестовую фразу выбранным голосом",
+"en": "Synthesize a test phrase with the selected voice"
+},
+{
+"id": "u449",
+"ru": "Новый голос: GPT-веса, SoVITS-веса и запись-образец",
+"en": "New voice: GPT weights, SoVITS weights and a reference recording"
+},
+{
+"id": "u450",
+"ru": "1.0 — как в записи-образце",
+"en": "1.0 — as in the sample recording"
+},
+{
+"id": "u451",
+"ru": "Варианты на шаг (top_k)",
+"en": "Choices per step (top_k)"
+},
+{
+"id": "u452",
+"ru": "Движок подстроится по одному звучанию. С текстом записи голос получается точнее.",
+"en": "The engine adapts to the sound alone. With the transcript the voice comes out closer."
+},
+{
+"id": "u453",
+"ru": "Доп. записи для тембра (необязательно)",
+"en": "Extra recordings for timbre (optional)"
+},
+{
+"id": "u454",
+"ru": "Ещё записи этого же голоса: движок усредняет тембр, звучание стабильнее. Лучше несколько коротких (до 10 с), чем одна длинная: длинную движок разбирает на каждой фразе заново, и видеопамяти может не хватить.",
+"en": "More recordings of the same voice: the engine averages the timbre, the sound is steadier. Several short ones (up to 10 s) beat one long one: the engine re-reads a long one for every phrase and may run out of video memory."
+},
+{
+"id": "u455",
+"ru": "Живость (temperature)",
+"en": "Liveliness (temperature)"
+},
+{
+"id": "u456",
+"ru": "Заменит звук во всех выбранных карточках. Отменить нельзя.",
+"en": "Replaces audio in all selected cards. Cannot be undone."
+},
+{
+"id": "u457",
+"ru": "Запись-образец голоса (3–10 с)",
+"en": "Voice sample recording (3–10 s)"
+},
+{
+"id": "u458",
+"ru": "Карточки, у которых звук уже есть",
+"en": "Cards that already have audio"
+},
+{
+"id": "u459",
+"ru": "Не знаю, что сказано в записи",
+"en": "I don't know what the recording says"
+},
+{
+"id": "u460",
+"ru": "Несколько голосов",
+"en": "Several voices"
+},
+{
+"id": "u461",
+"ru": "Обновить изменённые",
+"en": "Update changed"
+},
+{
+"id": "u462",
+"ru": "Обычно трогать не нужно. Двигай по чуть-чуть и слушай тест.",
+"en": "Usually no need to touch. Move a little and listen to the test."
+},
+{
+"id": "u463",
+"ru": "Озвучиваются только карточки без звука. Самый безопасный вариант.",
+"en": "Only cards without audio are voiced. The safest option."
+},
+{
+"id": "u464",
+"ru": "Отметь голоса — карточки разделятся между ними случайно, и каждая озвучится одним голосом целиком. Основной голос из шага 2 участвует всегда.",
+"en": "Tick voices — cards are split between them at random, each card fully in one voice. The main voice from step 2 always takes part."
+},
+{
+"id": "u465",
+"ru": "Переозвучит только те, где с прошлого раза поменялся текст или голос.",
+"en": "Re-voices only cards whose text or voice changed since last time."
+},
+{
+"id": "u466",
+"ru": "Переозвучить все",
+"en": "Re-voice all"
+},
+{
+"id": "u467",
+"ru": "Повтор (seed)",
+"en": "Repeat (seed)"
+},
+{
+"id": "u468",
+"ru": "После синтеза каждая карточка распознаётся и сверяется с текстом: сомнительные помечаются, решение за тобой. Озвучка идёт примерно в 10 раз дольше.",
+"en": "After synthesis each card is transcribed and compared with the text: doubtful ones are flagged, you decide. Dubbing takes about 10 times longer."
+},
+{
+"id": "u469",
+"ru": "Проверка произношения",
+"en": "Pronunciation check"
+},
+{
+"id": "u470",
+"ru": "Проверять каждую озвученную карточку",
+"en": "Check every voiced card"
+},
+{
+"id": "u471",
+"ru": "Пропускать",
+"en": "Skip"
+},
+{
+"id": "u472",
+"ru": "Свобода выбора (top_p)",
+"en": "Freedom of choice (top_p)"
+},
+{
+"id": "u473",
+"ru": "Скачать модель распознавания (~1,5 ГБ)",
+"en": "Download the recognition model (~1.5 GB)"
+},
+{
+"id": "u474",
+"ru": "Характер речи",
+"en": "Speech character"
+},
+{
+"id": "u475",
+"ru": "Что делать с ними при запуске. По умолчанию их не трогаем.",
+"en": "What to do with them on start. By default they are left alone."
+},
+{
+"id": "u476",
+"ru": "Что сказано в записи",
+"en": "What the recording says"
+},
+{
+"id": "u477",
+"ru": "Язык записи",
+"en": "Recording language"
+},
+{
+"id": "u478",
+"ru": "меньше — предсказуемее интонация",
+"en": "lower — more predictable intonation"
+},
+{
+"id": "u479",
+"ru": "меньше — стабильнее, больше — разнообразнее",
+"en": "lower — steadier, higher — more varied"
+},
+{
+"id": "u480",
+"ru": "ниже — ровнее и спокойнее, выше — живее, но больше ошибок",
+"en": "lower — calmer and smoother, higher — livelier but more mistakes"
+},
+{
+"id": "u481",
+"ru": "повторная озвучка, несколько голосов, проверка произношения",
+"en": "re-voicing, several voices, pronunciation check"
+},
+{
+"id": "u482",
+"ru": "Одинаковое число — одинаковый результат при повторной озвучке",
+"en": "Same number — same result when voicing again"
+},
+{
+"id": "u483",
+"ru": "нет файлов",
+"en": "no files"
+},
+{
+"id": "u484",
+"ru": "основной",
+"en": "main"
+},
+{
+"id": "u485",
+"ru": "участвует",
+"en": "included"
+},
+{
+"id": "u486",
+"ru": "не участвует",
+"en": "not included"
+},
+{
+"id": "u487",
+"ru": "Сейчас все карточки озвучит основной голос. Нажми на другой голос, чтобы добавить его.",
+"en": "Right now the main voice voices every card. Click another voice to add it."
+},
+{
+"id": "u488",
+"ru": "Число рядом с голосом — его доля: 2 и 1 = первый вдвое чаще.",
+"en": "The number next to a voice is its share: 2 and 1 = the first one twice as often."
+},
+{
+"id": "u489",
+"ru": "Готово к работе, модель: ",
+"en": "Ready, model: "
+},
+{
+"id": "u490",
+"ru": "Сейчас недоступна: ",
+"en": "Unavailable right now: "
+},
+{
+"id": "u491",
+"ru": "Нажми кнопку ниже — модель скачается один раз. Без неё озвучка работает как обычно.",
+"en": "Press the button below — the model downloads once. Dubbing works as usual without it."
+},
+{
+"id": "u492",
+"ru": "Без неё озвучка работает как обычно.",
+"en": "Dubbing works as usual without it."
+},
+{
+"id": "u493",
+"ru": "Скачать",
+"en": "Download"
+},
+{
+"id": "u494",
+"ru": "Скачивание модели распознавания",
+"en": "Downloading the recognition model"
+},
+{
+"id": "u495",
+"ru": "Что",
+"en": "What"
+},
+{
+"id": "u496",
+"ru": "Откуда брать предложение",
+"en": "Where the sentence comes from"
+},
+{
+"id": "u497",
+"ru": "текст, который озвучится целиком",
+"en": "the text voiced as a whole"
+},
+{
+"id": "u498",
+"ru": "Куда записать звук предложения",
+"en": "Where to write the sentence audio"
+},
+{
+"id": "u499",
+"ru": "пусто — не записывать",
+"en": "empty — don't write"
+},
+{
+"id": "u500",
+"ru": "Откуда брать слово",
+"en": "Where the word comes from"
+},
+{
+"id": "u501",
+"ru": "изучаемое слово карточки",
+"en": "the card's study word"
+},
+{
+"id": "u502",
+"ru": "Куда записать звук слова",
+"en": "Where to write the word audio"
+},
+{
+"id": "u503",
+"ru": "Поле с фуриганой слова",
+"en": "Field with the word's furigana"
+},
+{
+"id": "u504",
+"ru": "по нему слово читается точно, как в карточке",
+"en": "the word is read exactly as in the card"
+},
+{
+"id": "u505",
+"ru": "Как читать слово",
+"en": "How to read the word"
+},
+{
+"id": "u506",
+"ru": "«Авто»: по фуригане, если она есть, иначе движок читает кандзи сам",
+"en": "“Auto”: by the furigana if present, otherwise the engine reads the kanji itself"
+},
+{
+"id": "u507",
+"ru": ", но уже озвученные карточки по умолчанию не трогаются (это меняется в «Дополнительных настройках»). Всё считается на этом компьютере, карточки никуда не отправляются.",
+"en": ", but cards that already have audio are left alone by default (you can change this in “Advanced settings”). Everything is computed on this computer, cards are not sent anywhere."
+},
+{
+"id": "u508",
+"ru": "1. Найти ошибки произношения",
+"en": "1. Find pronunciation errors"
+},
+{
+"id": "u509",
+"ru": "2. Собрать колоду «Брак»",
+"en": "2. Build the “Brak” deck"
+},
+{
+"id": "u510",
+"ru": "3. Итоги проверки",
+"en": "3. Review summary"
+},
+{
+"id": "u511",
+"ru": "Быстрая проверка без синтеза: папка движка и его Python, связь с Anki, голоса и медиатека Anki. Если что-то не так — здесь будет сказано, что именно и как исправить.",
+"en": "A quick check without synthesis: the engine folder and its Python, the Anki connection, voices and Anki's media folder. If something is wrong, it says what and how to fix it."
+},
+{
+"id": "u512",
+"ru": "Двигай по чуть-чуть и слушай тест после каждого изменения.",
+"en": "Move in small steps and listen to the test after each change."
+},
+{
+"id": "u513",
+"ru": "Движок: …",
+"en": "Engine: …"
+},
+{
+"id": "u514",
+"ru": "Если в строке «Куда записать звук…» выбрать пустое значение — этот звук не записывается.",
+"en": "If a “Where to write … audio” row is left empty, that audio is not written."
+},
+{
+"id": "u515",
+"ru": "Если что-то не работает",
+"en": "If something doesn't work"
+},
+{
+"id": "u516",
+"ru": "Загрузить поля из Anki",
+"en": "Load fields from Anki"
+},
+{
+"id": "u517",
+"ru": "Закрыть мастер",
+"en": "Close the wizard"
+},
+{
+"id": "u518",
+"ru": "Найдёт старые файлы озвучки, на которые больше не ссылается ни одна карточка. Только отчёт, ничего не удаляет.",
+"en": "Finds old audio files no card refers to any more. Report only, nothing is deleted."
+},
+{
+"id": "u519",
+"ru": "Найти лишние аудиофайлы",
+"en": "Find unused audio files"
+},
+{
+"id": "u520",
+"ru": "Найти новые голоса в движке",
+"en": "Find new voices in the engine"
+},
+{
+"id": "u521",
+"ru": "Настраиваем поля для колоды",
+"en": "Configuring fields for deck"
+},
+{
+"id": "u522",
+"ru": "Новый звук записывается прямо в поля карточек Anki —",
+"en": "New audio is written straight into the fields of your Anki cards —"
+},
+{
+"id": "u523",
+"ru": "Озвучить новые карточки",
+"en": "Voice new cards"
+},
+{
+"id": "u524",
+"ru": "Перед озвучкой",
+"en": "Before dubbing"
+},
+{
+"id": "u525",
+"ru": "Повторить неудачные",
+"en": "Retry failed"
+},
+{
+"id": "u526",
+"ru": "Повторить неудачные: ",
+"en": "Retry failed: "
+},
+{
+"id": "u527",
+"ru": "Полная самопроверка",
+"en": "Full self-test"
+},
+{
+"id": "u528",
+"ru": "После озвучки",
+"en": "After dubbing"
+},
+{
+"id": "u529",
+"ru": "Посчитает твои вердикты из колоды «Брак» и подскажет, какие пороги подправить.",
+"en": "Counts your verdicts from the “Brak” deck and suggests which thresholds to adjust."
+},
+{
+"id": "u530",
+"ru": "Проверит программу, движок, голоса, чтение японского и связь с Anki — без синтеза. Итог — в журнале ниже.",
+"en": "Checks the app, the engine, voices, Japanese reading and the Anki connection — without synthesis. The result is in the log below."
+},
+{
+"id": "u531",
+"ru": "Проверить, всё ли работает",
+"en": "Check that everything works"
+},
+{
+"id": "u532",
+"ru": "Проверка качества — по шагам",
+"en": "Quality check — step by step"
+},
+{
+"id": "u533",
+"ru": "Пусто или 0 — все карточки колоды. Считаются только те, что ещё без звука.",
+"en": "Empty or 0 — all cards of the deck. Only cards without audio count."
+},
+{
+"id": "u534",
+"ru": "Распознает уже озвученные карточки и найдёт, где голос ошибся. Нужна модель распознавания (см. «Дополнительные настройки»).",
+"en": "Transcribes already voiced cards and finds where the voice made mistakes. Needs the recognition model (see “Advanced settings”)."
+},
+{
+"id": "u535",
+"ru": "Сколько карточек озвучить",
+"en": "How many cards to voice"
+},
+{
+"id": "u536",
+"ru": "Создаст в Anki колоду «AnkiVoice_Брак» с копиями сомнительных карточек — оригиналы не меняются. Послушай их и в поле «Вердикт» напиши «верно» (звук плохой) или «ложное» (звук нормальный).",
+"en": "Creates an “AnkiVoice_Брак” deck in Anki with copies of doubtful cards — originals are untouched. Listen to them and write “верно” (bad audio) or “ложное” (audio is fine) in the “Вердикт” field."
+},
+{
+"id": "u537",
+"ru": "Только карточки, добавленные после прошлой озвучки (без тега av_voiced), без ограничения по количеству.",
+"en": "Only cards added after the last dubbing (without the av_voiced tag), with no limit on the number."
+},
+{
+"id": "u538",
+"ru": "Тонкая настройка характера речи",
+"en": "Fine-tuning of speech character"
+},
+{
+"id": "u539",
+"ru": "Это та же колода, что на главном экране. Поля подставляются сами — проверь их в таблице ниже.",
+"en": "This is the same deck as on the main screen. Fields are filled in automatically — check them in the table below."
+},
+{
+"id": "u540",
+"ru": "английский",
+"en": "English"
+},
+{
+"id": "u541",
+"ru": "кантонский",
+"en": "Cantonese"
+},
+{
+"id": "u542",
+"ru": "китайский",
+"en": "Chinese"
+},
+{
+"id": "u543",
+"ru": "корейский",
+"en": "Korean"
+},
+{
+"id": "u544",
+"ru": "японский",
+"en": "Japanese"
+},
+{
+"id": "u545",
+"ru": "для опытных — обычно трогать не нужно",
+"en": "for experienced users — usually no need to touch"
+},
+{
+"id": "u546",
+"ru": "отменить это нельзя",
+"en": "this cannot be undone"
+},
+{
+"id": "u547",
+"ru": "предпросмотр, новые карточки, проверка качества, самопроверка",
+"en": "preview, new cards, quality check, self-test"
+},
+{
+"id": "u548",
+"ru": "тип интерфейса, тема, акцент, плотность",
+"en": "interface type, theme, accent, density"
+},
+{
+"id": "u549",
+"ru": "Движок: запущен",
+"en": "Engine: running"
+},
+{
+"id": "u550",
+"ru": "Движок: не запущен (запустится сам)",
+"en": "Engine: not running (starts by itself)"
+},
+{
+"id": "u551",
+"ru": "Прослушать: ",
+"en": "Play: "
+},
+{
+"id": "u552",
+"ru": "✗ нет: ",
+"en": "✗ missing: "
+},
+{
+"id": "u553",
+"ru": "Ещё раз озвучить карточки, на которых прошлый запуск закончился ошибкой",
+"en": "Voice again the cards where the last run ended with an error"
+},
+{
+"id": "u554",
+"ru": "Перечитать из Anki список полей этой колоды",
+"en": "Reload this deck's field list from Anki"
+},
+{
+"id": "u555",
+"ru": "Найти в папке движка веса, которых ещё нет в списке голосов",
+"en": "Find weights in the engine folder that are not in the voice list yet"
+},
+{
+"id": "u556",
+"ru": "Закрыть мастер — его можно открыть снова во вкладке «Приложение»",
+"en": "Close the wizard — you can open it again on the “App” tab"
+},
+{
+"id": "u557",
+"ru": "Связь с Anki",
+"en": "Anki connection"
+},
+{
+"id": "u558",
+"ru": "в движке нет модуля распознавания речи (faster-whisper)",
+"en": "the engine has no speech recognition module (faster-whisper)"
+},
+{
+"id": "u559",
+"ru": "не скачана модель распознавания речи",
+"en": "the speech recognition model is not downloaded"
+},
+{
+"id": "u560",
+"ru": "«Прослушать» синтезирует тестовую фразу выбранным голосом и сразу её проигрывает.",
+"en": "“Play” synthesizes a test phrase with the selected voice and plays it right away."
+},
+{
+"id": "u561",
+"ru": "Автопрокрутка",
+"en": "Auto-scroll"
+},
+{
+"id": "u562",
+"ru": "История озвучек",
+"en": "Dubbing history"
+},
+{
+"id": "u563",
+"ru": "Обновить список голосов из папки движка",
+"en": "Refresh the voice list from the engine folder"
+},
+{
+"id": "u564",
+"ru": "Подробная проверка",
+"en": "Detailed check"
+},
+{
+"id": "u565",
+"ru": "Посчитает твои вердикты из колоды «Брак»: как часто проверка права и где она ошибается.",
+"en": "Counts your verdicts from the “Brak” deck: how often the check is right and where it is wrong."
+},
+{
+"id": "u566",
+"ru": "Проверить звук в карточках",
+"en": "Check audio in cards"
+},
+{
+"id": "u567",
+"ru": "Создаст в Anki колоду «AnkiVoice_Брак» с копиями сомнительных карточек — оригиналы не меняются. Послушай их и в поле «Вердикт» напиши «плохо» (звук испорчен) или «хорошо» (звук в порядке).",
+"en": "Creates an “AnkiVoice_Брак” deck in Anki with copies of doubtful cards — originals are untouched. Listen to them and write “плохо” (audio is broken) or “хорошо” (audio is fine) in the “Вердикт” field."
+},
+{
+"id": "u568",
+"ru": "Это та же колода, что на главном экране. Поля подставляются сами — проверь их в таблице ниже. «Загрузить поля из Anki» нужна, только если ты добавил поля в Anki уже после открытия программы.",
+"en": "This is the same deck as on the main screen. Fields are filled in automatically — check them in the table below. “Load fields from Anki” is only needed if you added fields in Anki after opening the app."
+},
+{
+"id": "u569",
+"ru": "вид, мастер, обновления",
+"en": "look, wizard, updates"
+},
+{
+"id": "u570",
+"ru": "одинаковое число — одинаковое звучание при повторной озвучке",
+"en": "same number — same sound when voicing again"
+},
+{
+"id": "u571",
+"ru": "предпросмотр, новые карточки, проверка качества",
+"en": "preview, new cards, quality check"
+},
+{
+"id": "u572",
+"ru": "Без звука:",
+"en": "Without audio:"
+},
+{
+"id": "u573",
+"ru": "из",
+"en": "of"
+},
+{
+"id": "u574",
+"ru": "Будет переозвучено:",
+"en": "Will be re-voiced:"
+},
+{
+"id": "u575",
+"ru": "Движок: запустится сам при озвучке",
+"en": "Engine: starts by itself when dubbing"
+},
+{
+"id": "u576",
+"ru": "Подробная проверка с чтением японского; итог — в журнале на вкладке «Озвучка»",
+"en": "Detailed check including Japanese reading; the result is in the log on the “Dubbing” tab"
+},
+{
+"id": "u577",
+"ru": "Держать журнал прокрученным к последней строке",
+"en": "Keep the log scrolled to the last line"
+},
+{
+"id": "u578",
+"ru": "Озвучка этой колоды возьмёт поля из этой таблицы",
+"en": "Dubbing this deck uses the fields from this table"
+},
+{
+"id": "u579",
+"ru": "Нет движка?",
+"en": "No engine?"
+},
+{
+"id": "u580",
+"ru": "1. Проверить уже озвученные",
+"en": "1. Check already voiced cards"
+},
+{
+"id": "u581",
+"ru": "Голос — файлы обученной модели. Синтез быстрее, голосов можно много.",
+"en": "A voice is a trained model's files. Faster synthesis, any number of voices."
+},
+{
+"id": "u582",
+"ru": "Двигай по чуть-чуть: «Сохранить голос», затем «Прослушать» — тест звучит с сохранёнными настройками.",
+"en": "Move in small steps: “Save voice”, then “Play” — the test uses the saved settings."
+},
+{
+"id": "u583",
+"ru": "Журнал появится после запуска.",
+"en": "The log appears after a run starts."
+},
+{
+"id": "u584",
+"ru": "Зерно случайности (seed)",
+"en": "Random seed"
+},
+{
+"id": "u585",
+"ru": "Карточки, которые AnkiVoice ещё ни разу не озвучивал, — даже если в них уже есть звук из другого источника (например, AwesomeTTS). Без ограничения по количеству.",
+"en": "Cards AnkiVoice has never voiced — even if they already have audio from another source (e.g. AwesomeTTS). No limit on the number."
+},
+{
+"id": "u586",
+"ru": "Нажми «Проверить обновления» — покажу список изменений и предложу установщик. Эта кнопка ходит в интернет на GitHub; сама озвучка работает офлайн.",
+"en": "Press “Check for updates” — I'll show the list of changes and offer the installer. This button goes online to GitHub; dubbing itself works offline."
+},
+{
+"id": "u587",
+"ru": "Нажми на голос — откроются его настройки, и он же станет голосом для озвучки на главном экране. Голос — это три файла: GPT-веса (.ckpt), SoVITS-веса (.pth) и запись-образец на 3–10 секунд с её текстом. Голос с пометкой ✗ озвучивать не сможет — нажми на него, и ниже будет видно, какого файла не хватает.",
+"en": "Click a voice to open its settings — it also becomes the voice used for dubbing on the main screen. A voice is three files: GPT weights (.ckpt), SoVITS weights (.pth) and a 3–10 s sample recording with its transcript. A voice marked ✗ cannot voice cards — click it to see which file is missing."
+},
+{
+"id": "u588",
+"ru": "Не больше карточек за запуск",
+"en": "At most this many cards per run"
+},
+{
+"id": "u589",
+"ru": "Перечитать поля из Anki",
+"en": "Reload fields from Anki"
+},
+{
+"id": "u590",
+"ru": "Проверять во время озвучки",
+"en": "Check during dubbing"
+},
+{
+"id": "u591",
+"ru": "Сбросить к стандартным",
+"en": "Reset to defaults"
+},
+{
+"id": "u592",
+"ru": "Это та же колода, что на главном экране: выбор здесь меняет и её. Поля подставляются сами — проверь их в таблице ниже. «Перечитать поля из Anki» нужна, только если ты добавил поля в Anki уже после открытия программы.",
+"en": "This is the same deck as on the main screen: changing it here changes it there too. Fields are filled in automatically — check them in the table below. “Reload fields from Anki” is only needed if you added fields in Anki after opening the app."
+},
+{
+"id": "u593",
+"ru": "Все карточки уже озвучены",
+"en": "All cards are already voiced"
+},
+{
+"id": "u594",
+"ru": "Все карточки этой колоды уже озвучены. Чтобы переозвучить — «Дополнительные настройки» → «Переозвучить все», или выбери другую колоду.",
+"en": "All cards of this deck are already voiced. To re-voice — “Advanced settings” → “Re-voice all”, or pick another deck."
+},
+{
+"id": "u595",
+"ru": "Запуск движка",
+"en": "Engine start"
+},
+{
+"id": "u596",
+"ru": "Стандартные значения подставлены — нажми «Сохранить голос»",
+"en": "Defaults filled in — press “Save voice”"
+},
+{
+"id": "u597",
+"ru": "Недоступно: не скачана модель распознавания речи — кнопка в «Дополнительных настройках».",
+"en": "Unavailable: the speech recognition model is not downloaded — the button is in “Advanced settings”."
+},
+{
+"id": "u598",
+"ru": "Перечитать из Anki список полей этой колоды; твой выбор в таблице сохранится",
+"en": "Reload this deck's field list from Anki; your choices in the table are kept"
+},
+{
+"id": "u599",
+"ru": "создать или подключить",
+"en": "create or connect"
+},
+{
+"id": "u600",
+"ru": "Нажми на способ — ниже появятся шаги.",
+"en": "Pick a way — the steps appear below."
+},
+{
+"id": "u601",
+"ru": "Новый голос…",
+"en": "New voice…"
+},
+{
+"id": "u602",
+"ru": "Создать свой голос или подключить готовые файлы — вкладка «Новый голос»",
+"en": "Create your own voice or connect ready files — “New voice” tab"
+},
+{
+"id": "u603",
+"ru": "Выбери, с чего начать. Способы идут от самого быстрого к самому точному — готовый голос появится во вкладке «Голос» и в списке шага 2 на главном экране.",
+"en": "Pick where to start. The ways go from fastest to most accurate — the finished voice appears in the “Voice” tab and in the step 2 list on the main screen."
+},
+{
+"id": "u604",
+"ru": "Из одной записи",
+"en": "From one recording"
+},
+{
+"id": "u605",
+"ru": "Без обучения, за минуту. Нужна запись голоса на 3–10 секунд и её текст. Тембр похож, но не идеален.",
+"en": "No training, about a minute. You need a 3–10 second recording and its text. The timbre is close but not perfect."
+},
+{
+"id": "u606",
+"ru": "быстро",
+"en": "fast"
+},
+{
+"id": "u607",
+"ru": "Готовые файлы голоса",
+"en": "Ready voice files"
+},
+{
+"id": "u608",
+"ru": "У тебя уже есть веса .ckpt и .pth — скачанные или обученные раньше. Подключаются за минуту.",
+"en": "You already have .ckpt and .pth weights — downloaded or trained earlier. Connected in a minute."
+},
+{
+"id": "u609",
+"ru": "есть файлы",
+"en": "have files"
+},
+{
+"id": "u610",
+"ru": "Обучить свой голос",
+"en": "Train your own voice"
+},
+{
+"id": "u611",
+"ru": "Самое точное сходство. Нужно 1–10 минут чистых записей и 20–60 минут работы видеокарты.",
+"en": "The closest likeness. Needs 1–10 minutes of clean recordings and 20–60 minutes of GPU time."
+},
+{
+"id": "u612",
+"ru": "лучше всего",
+"en": "best"
+},
+{
+"id": "u613",
+"ru": "Голос из одной записи",
+"en": "Voice from one recording"
+},
+{
+"id": "u614",
+"ru": "Как назвать голос",
+"en": "Voice name"
+},
+{
+"id": "u615",
+"ru": "Например: Мой голос",
+"en": "For example: My voice"
+},
+{
+"id": "u616",
+"ru": "Так он будет называться в списках.",
+"en": "This is how it will be named in the lists."
+},
+{
+"id": "u617",
+"ru": "Запись голоса на 3–10 секунд",
+"en": "A 3–10 second voice recording"
+},
+{
+"id": "u618",
+"ru": "файл .wav или .mp3",
+"en": ".wav or .mp3 file"
+},
+{
+"id": "u619",
+"ru": "Одна фраза, один человек, без музыки и шума. Подойдёт кусок из видео или аудиокниги.",
+"en": "One phrase, one person, no music or noise. A clip from a video or an audiobook works."
+},
+{
+"id": "u620",
+"ru": "По тексту движок понимает, где какой звук, — без него сходство хуже.",
+"en": "The text tells the engine which sound is where — without it the likeness is worse."
+},
+{
+"id": "u621",
+"ru": "Создать голос и прослушать",
+"en": "Create the voice and listen"
+},
+{
+"id": "u622",
+"ru": "Голос строится на базовых весах движка. Понравится тембр — для точного сходства обучи голос на этих же записях (третий способ).",
+"en": "The voice is built on the engine's base weights. If you like the timbre, train a voice on the same recordings for a closer likeness (the third way)."
+},
+{
+"id": "u623",
+"ru": "Подключить готовые файлы",
+"en": "Connect ready files"
+},
+{
+"id": "u624",
+"ru": "Файлы уже лежат в папке движка?",
+"en": "Files already in the engine folder?"
+},
+{
+"id": "u625",
+"ru": "В GPT_weights_… и SoVITS_weights_… — например, после обучения. Тогда достаточно поиска.",
+"en": "In GPT_weights_… and SoVITS_weights_… — for example after training. Then a search is enough."
+},
+{
+"id": "u626",
+"ru": "Найти голоса в папке движка",
+"en": "Find voices in the engine folder"
+},
+{
+"id": "u627",
+"ru": "или укажи файлы вручную",
+"en": "or point to the files by hand"
+},
+{
+"id": "u628",
+"ru": "Собери записи.",
+"en": "Collect recordings."
+},
+{
+"id": "u629",
+"ru": "1–10 минут речи одного человека: без музыки, эха и чужих голосов — чем чище, тем точнее голос. Сложи файлы (.wav, .mp3) в одну папку.",
+"en": "1–10 minutes of one person's speech: no music, echo or other voices — the cleaner, the more accurate the voice. Put the files (.wav, .mp3) in one folder."
+},
+{
+"id": "u630",
+"ru": "Открой студию обучения.",
+"en": "Open the training studio."
+},
+{
+"id": "u631",
+"ru": "Это интерфейс самого GPT-SoVITS, он откроется в браузере.",
+"en": "This is GPT-SoVITS's own interface; it opens in the browser."
+},
+{
+"id": "u632",
+"ru": "Открыть студию обучения",
+"en": "Open the training studio"
+},
+{
+"id": "u633",
+"ru": "Открыть студию ещё раз",
+"en": "Open the studio again"
+},
+{
+"id": "u634",
+"ru": "Закрыть студию",
+"en": "Close the studio"
+},
+{
+"id": "u635",
+"ru": "Первый запуск один раз докачает ~250 МБ файлов для обучения. Пока идёт обучение, озвучку лучше не запускать: обоим нужна видеокарта.",
+"en": "The first start downloads ~250 MB of training files once. Better not to voice cards while training: both need the GPU."
+},
+{
+"id": "u636",
+"ru": "Пройди в студии вкладки по порядку.",
+"en": "Go through the studio tabs in order."
+},
+{
+"id": "u637",
+"ru": "подготовка записей: нарежь их на фразы (0b), распознай текст (0c, язык — как в записях), при желании поправь ошибки (0d).",
+"en": "prepare recordings: slice them into phrases (0b), recognise the text (0c, language as in the recordings), fix mistakes if you like (0d)."
+},
+{
+"id": "u638",
+"ru": "придумай имя голоса латиницей и подготовь данные одной кнопкой.",
+"en": "pick a Latin name for the voice and prepare the data with one button."
+},
+{
+"id": "u639",
+"ru": "обучи сначала SoVITS, потом GPT — значения по умолчанию подходят.",
+"en": "train SoVITS first, then GPT — the defaults are fine."
+},
+{
+"id": "u640",
+"ru": "Подключи результат.",
+"en": "Connect the result."
+},
+{
+"id": "u641",
+"ru": "Обученные веса появятся в папке движка — найди их, и голос встанет в список.",
+"en": "The trained weights appear in the engine folder — find them and the voice joins the list."
+},
+{
+"id": "u642",
+"ru": "Найти обученные голоса",
+"en": "Find trained voices"
+},
+{
+"id": "u643",
+"ru": "Студия работает:",
+"en": "The studio is running:"
+},
+{
+"id": "u644",
+"ru": "Не запустилась:",
+"en": "Did not start:"
+},
+{
+"id": "u645",
+"ru": "Скачиваю файлы для обучения (~250 МБ, один раз)…",
+"en": "Downloading training files (~250 MB, once)…"
+},
+{
+"id": "u646",
+"ru": "Запускаю студию — первый раз до минуты…",
+"en": "Starting the studio — up to a minute the first time…"
+},
+{
+"id": "u647",
+"ru": "Запускаю студию…",
+"en": "Starting the studio…"
+},
+{
+"id": "u648",
+"ru": "повторная озвучка, проверка произношения",
+"en": "re-voicing, pronunciation check"
+},
+{
+"id": "u649",
+"ru": "Ансамбль: какие голоса участвуют",
+"en": "Ensemble: which voices take part"
+},
+{
+"id": "u650",
+"ru": "Каждая карточка целиком озвучивается одним голосом, голоса чередуются случайно. Отметь хотя бы два.",
+"en": "Each card is voiced entirely by one voice; voices alternate at random. Tick at least two."
+},
+{
+"id": "u651",
+"ru": "Ансамбль — несколько голосов вперемешку",
+"en": "Ensemble — several voices mixed"
+},
+{
+"id": "u652",
+"ru": "Ансамбль — несколько голосов вперемешку (нужно 2 готовых голоса)",
+"en": "Ensemble — several voices mixed (needs 2 ready voices)"
+},
+{
+"id": "u653",
+"ru": "Число у голоса — его доля: 2 и 1 = первый звучит вдвое чаще.",
+"en": "The number by a voice is its share: 2 and 1 = the first sounds twice as often."
+},
+{
+"id": "u654",
+"ru": "Отметь ещё хотя бы один голос — пока все карточки озвучит один.",
+"en": "Tick at least one more voice — for now one voice will do every card."
+},
+{
+"id": "u655",
+"ru": "Доля голоса: 2 у одного и 1 у другого — первый звучит вдвое чаще",
+"en": "Voice share: 2 for one and 1 for another — the first sounds twice as often"
+},
+{
+"id": "u656",
+"ru": "ансамбль: ",
+"en": "ensemble: "
+},
+{
+"id": "u657",
+"ru": "голоса не отмечены",
+"en": "no voices ticked"
+},
+{
+"id": "u658",
+"ru": "В ансамбле отмечен только один голос — отметь в шаге 2 ещё хотя бы один.",
+"en": "Only one voice is ticked in the ensemble — tick at least one more in step 2."
+},
+{
+"id": "u659",
+"ru": "В ансамбле нужно отметить хотя бы два голоса",
+"en": "Tick at least two voices for the ensemble"
+},
+{
+"id": "u660",
+"ru": "Ищу голоса в папке движка — найденные появятся во вкладке «Голос»",
+"en": "Searching the engine folder — found voices appear in the “Voice” tab"
+},
+{
+"id": "u661",
+"ru": "Голос создан — слушаем пробу",
+"en": "Voice created — playing a sample"
+},
+{
+"id": "u662",
+"ru": "Голос добавлен",
+"en": "Voice added"
+},
+{
+"id": "u663",
+"ru": "Студия обучения закрыта",
+"en": "Training studio closed"
+},
+{
+"id": "u664",
+"ru": "Как получить голос",
+"en": "How to get a voice"
+},
+{
+"id": "u665",
+"ru": "Сжать звук колоды в .ogg",
+"en": "Compress the deck's audio to .ogg"
+},
+{
+"id": "u666",
+"ru": "Пережмёт уже записанные .wav-озвучки выбранной колоды в .ogg — примерно в 10 раз легче, на слух разницы нет. Ссылки в карточках поправятся сами, старые .wav уйдут в корзину медиа Anki.",
+"en": "Re-encodes the selected deck's recorded .wav audio to .ogg — about 10 times lighter, no audible difference. Card links are fixed automatically; old .wav files go to Anki's media trash."
+},
+{
+"id": "u667",
+"ru": "Сжать",
+"en": "Compress"
+},
+{
+"id": "u668",
+"ru": "Язык интерфейса",
+"en": "Interface language"
+},
+{
+"id": "u669",
+"ru": "Найти язык",
+"en": "Find a language"
+},
+{
+"id": "u670",
+"ru": "Перевод сделан автоматически — если заметишь ошибку, напиши нам.",
+"en": "This translation was made automatically — if you spot a mistake, let us know."
+},
+{
+"id": "t:shikkoku",
+"ru": "Тотал блэк: чистый чёрный, акцент как в настройках",
+"en": "Total black: pure black, your accent"
+},
+{
+"id": "t:budo",
+"ru": "Черничная ночь и мятный акцент",
+"en": "Blueberry night with mint"
+},
+{
+"id": "t:denno",
+"ru": "Кибер: королевский фиолетовый и неоновая мята",
+"en": "Cyber: royal purple and neon mint"
+},
+{
+"id": "t:sorai",
+"ru": "Синяя молния и вольтовый лайм, светлая",
+"en": "Blue thunder and volt lime, light"
+},
+{
+"id": "t:yako",
+"ru": "Ночное свечение: фиолет и лайм на чёрном",
+"en": "Night glow: violet and lime on black"
+},
+{
+"id": "t:chikurin",
+"ru": "Бамбуковая роща: неоновая зелень",
+"en": "Bamboo grove: neon green"
+},
+{
+"id": "t:momiji",
+"ru": "Осенние клёны: ваниль, медь и бордо, светлая",
+"en": "Autumn maples: vanilla, amber, auburn, light"
+},
+{
+"id": "t:kokeniwa",
+"ru": "Моховой сад: шалфей, олива и золото",
+"en": "Moss garden: sage, olive and gold"
+},
+{
+"id": "t:kirisame",
+"ru": "Морось: оксфордский синий и сланцевый шалфей",
+"en": "Drizzle: Oxford blue and schist sage"
+},
+{
+"id": "t:matcha",
+"ru": "Матча, молочная пенка и мокко, светлая",
+"en": "Matcha, milk foam and mocha, light"
+},
+{
+"id": "t:wagashi",
+"ru": "Сладости: масляный жёлтый, небо и шоколад, светлая",
+"en": "Sweets: butter, sky and chocolate, light"
+},
+{
+"id": "t:kintsugi",
+"ru": "Золотой шов: тёмно-синий, беж и мягкое золото",
+"en": "Golden repair: navy, beige and soft gold"
+},
+{
+"id": "t:tsubaki",
+"ru": "Камелия: ванильный крем, туманный шалфей и гранат, светлая",
+"en": "Camellia: custard, misty sage and bloodstone, light"
+},
+{
+"id": "t:yuyake",
+"ru": "Закат: эспрессо и яркий оранжевый",
+"en": "Sunset: espresso and vivid orange"
+},
+{
+"id": "t:hotaru",
+"ru": "Светлячки: глубокая ночь и мягкая мята",
+"en": "Fireflies: deep night and soft mint"
+},
+{
+"id": "t:nami",
+"ru": "Волна: белый и морская лазурь, светлая",
+"en": "Wave: white and sea azure, light"
+},
+{
+"id": "t:fuji",
+"ru": "Глициния: сиреневый на графите",
+"en": "Wisteria: lilac on graphite"
+},
+{
+"id": "t:kurenai",
+"ru": "Багрянец: винно-красный на угольном",
+"en": "Crimson: wine red on charcoal"
+},
+{
+"id": "t:arasaka",
+"ru": "Корпорация: чёрный и красный, как в Arasaka OS",
+"en": "Corporation: black and red, like Arasaka OS"
+},
+{
+"id": "i:DepTitle",
+"ru": "Что нужно для работы",
+"en": "What AnkiVoice needs"
+},
+{
+"id": "i:DepSub",
+"ru": "Установщик проверил компьютер. Отметь, что скачать и установить, — или укажи папку, если программа уже стоит в другом месте (например, на другом диске).",
+"en": "Setup has checked this computer. Tick what to download and install — or point to a folder if the program is already installed elsewhere (for example, on another drive)."
+},
+{
+"id": "i:DepFound",
+"ru": "Найдено: %1",
+"en": "Found: %1"
+},
+{
+"id": "i:DepMissing",
+"ru": "Не найдено",
+"en": "Not found"
+},
+{
+"id": "i:DepOptional",
+"ru": "необязательно",
+"en": "optional"
+},
+{
+"id": "i:DepInstall",
+"ru": "Скачать и установить",
+"en": "Download and install"
+},
+{
+"id": "i:DepHaveDir",
+"ru": "Уже установлено — папка:",
+"en": "Already installed — folder:"
+},
+{
+"id": "i:DepBrowse",
+"ru": "Обзор…",
+"en": "Browse…"
+},
+{
+"id": "i:DepAnki",
+"ru": "Anki — программа с карточками",
+"en": "Anki — the flashcard program"
+},
+{
+"id": "i:DepAnkiHint",
+"ru": "AnkiVoice записывает звук прямо в карточки Anki. Папка — та, где лежит anki.exe.",
+"en": "AnkiVoice writes audio straight into Anki cards. The folder is the one with anki.exe."
+},
+{
+"id": "i:DepConnect",
+"ru": "AnkiConnect — дополнение Anki (код 2055492159)",
+"en": "AnkiConnect — Anki add-on (code 2055492159)"
+},
+{
+"id": "i:DepConnectHint",
+"ru": "Через него AnkiVoice разговаривает с Anki. Папка — данные Anki (Anki2, внутри addons21).",
+"en": "AnkiVoice talks to Anki through it. The folder is Anki's data folder (Anki2, with addons21 inside)."
+},
+{
+"id": "i:DepEngine",
+"ru": "GPT-SoVITS — движок синтеза голоса",
+"en": "GPT-SoVITS — the voice synthesis engine"
+},
+{
+"id": "i:DepEngineHint",
+"ru": "Около 7 ГБ на диске. Папка — та, где лежит api_v2.py.",
+"en": "About 7 GB on disk. The folder is the one with api_v2.py."
+},
+{
+"id": "i:DepGpu",
+"ru": "Драйвер видеокарты NVIDIA",
+"en": "NVIDIA graphics driver"
+},
+{
+"id": "i:DepGpuHint",
+"ru": "Необязательно: без видеокарты NVIDIA голос синтезируется на процессоре, в несколько раз медленнее.",
+"en": "Optional: without an NVIDIA GPU the voice is synthesized on the CPU, several times slower."
+},
+{
+"id": "i:DepGpuOpen",
+"ru": "Открыть страницу драйверов NVIDIA",
+"en": "Open the NVIDIA driver page"
+},
+{
+"id": "i:DepBadDir",
+"ru": "В папке «%1» нет нужных файлов (%2). Выбери другую папку или отметь «Скачать и установить».",
+"en": "The folder “%1” lacks the required files (%2). Pick another folder or tick “Download and install”."
+},
+{
+"id": "i:DepEmptyDir",
+"ru": "Укажи папку для «%1» или отметь «Скачать и установить».",
+"en": "Choose a folder for “%1” or tick “Download and install”."
+},
+{
+"id": "i:DepPlanTitle",
+"ru": "Перед установкой",
+"en": "Before installing"
+},
+{
+"id": "i:DepPlan",
+"ru": "Будет скачано и установлено:",
+"en": "Will be downloaded and installed:"
+},
+{
+"id": "i:DepPlanNone",
+"ru": "Ничего докачивать не нужно — всё найдено.",
+"en": "Nothing to download — everything was found."
+},
+{
+"id": "i:DepPlanSkip",
+"ru": "Пропущено (можно поставить позже, AnkiVoice подскажет как):",
+"en": "Skipped (can be installed later, AnkiVoice will explain how):"
+},
+{
+"id": "i:DepRunning",
+"ru": "Запускаю установщик «%1» — заверши его, затем установка продолжится.",
+"en": "Starting the “%1” installer — finish it and setup will continue."
+},
+{
+"id": "i:DepExtracting",
+"ru": "Распаковываю «%1» — это может занять несколько минут…",
+"en": "Extracting “%1” — this may take a few minutes…"
+},
+{
+"id": "i:DepFailed",
+"ru": "Не удалось установить «%1»: %2. Его можно поставить позже — AnkiVoice подскажет, как.",
+"en": "Could not install “%1”: %2. It can be installed later — AnkiVoice will explain how."
+},
+{
+"id": "i:DepNeedTar",
+"ru": "Не удалось распаковать архив движка. Распакуй его вручную 7-Zip'ом в «%1».",
+"en": "Could not extract the engine archive. Extract it manually with 7-Zip into “%1”."
+}
+]

@@ -14,12 +14,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app"))
 from anki_web_page import HTML  # noqa: E402
 
-m = re.search(r"<script>(.*?)</script>", HTML, re.S)
-if not m:
+scripts = re.findall(r"<script>(.*?)</script>", HTML, re.S)
+if not scripts:
     print("FAIL: <script> не найден")
     sys.exit(1)
 
-js = m.group(1)
+# все скрипты страницы, по порядку, одним файлом: так проверяется и
+# ранний скрипт в <head> (оформление до отрисовки), и основной код
+js = "\n;\n".join(scripts)
 fd, path = tempfile.mkstemp(suffix=".js")
 os.close(fd)
 with open(path, "w", encoding="utf-8") as f:
@@ -30,7 +32,7 @@ p = subprocess.run(["node", "--check", path],
 os.unlink(path)
 
 if p.returncode == 0:
-    print("JS syntax OK (%d строк)" % js.count("\n"))
+    print("JS syntax OK (%d скриптов, %d строк)" % (len(scripts), js.count("\n")))
 else:
     print("FAIL:")
     print(p.stderr)

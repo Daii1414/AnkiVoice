@@ -48,13 +48,29 @@ def run_py(code, env=ENV):
                           text=True, timeout=120)
 
 
-BOOT = "import sys; sys.path.insert(0, r'%s'); import voice_pipeline as vp;" % ROOT
+# модули пайплайна живут в app/ (с разбивки 1.9.2)
+BOOT = ("import sys; sys.path.insert(0, r'%s'); import voice_pipeline as vp;"
+        % os.path.join(ROOT, "app"))
+
+try:
+    vp.ac("version")
+    ANKI = True
+except SystemExit:
+    ANKI = False
+    print("-- Anki не запущен: проверки с AnkiConnect пропускаются")
+
+
+def skip(name):
+    print("SKIP %s (нужен Anki)" % name)
 
 # 1. прокси: мёртвый прокси в окружении не мешает локальным запросам
 env = dict(ENV, HTTP_PROXY="http://127.0.0.1:9", HTTPS_PROXY="http://127.0.0.1:9")
-r = run_py(BOOT + "print(vp.ac('version'))", env=env)
-check("прокси в окружении не ломает AnkiConnect",
-      r.returncode == 0 and r.stdout.strip().isdigit(), r.stdout.strip()[:60])
+if ANKI:
+    r = run_py(BOOT + "print(vp.ac('version'))", env=env)
+    check("прокси в окружении не ломает AnkiConnect",
+          r.returncode == 0 and r.stdout.strip().isdigit(), r.stdout.strip()[:60])
+else:
+    skip("прокси в окружении не ломает AnkiConnect")
 
 # 2. plain(): чистка поля (strip_media=True — для текстов на синтез)
 cases = [
@@ -91,11 +107,14 @@ b = vp.kanaize("圧縮応力")
 check("kanaize-кэш: повтор идентичен", a == b and bool(a), a)
 
 # 6. notes_info (чанкинг) == notesInfo целиком
-ids = vp.ac("findNotes", query='deck:"Тест100"')[:9]
-whole = vp.ac("notesInfo", notes=ids)
-chunked = vp.notes_info(ids, chunk=4)
-check("notes_info (чанки по 4) == notesInfo целиком",
-      [n["noteId"] for n in whole] == [n["noteId"] for n in chunked])
+if ANKI:
+    ids = vp.ac("findNotes", query='deck:"Тест100"')[:9]
+    whole = vp.ac("notesInfo", notes=ids)
+    chunked = vp.notes_info(ids, chunk=4)
+    check("notes_info (чанки по 4) == notesInfo целиком",
+          [n["noteId"] for n in whole] == [n["noteId"] for n in chunked])
+else:
+    skip("notes_info (чанки по 4) == notesInfo целиком")
 
 # 7. port_pid
 closed = vp.port_pid(18880)
@@ -114,14 +133,16 @@ r = run_py(BOOT + "vp.acquire_lock(); print('LOCKED-OK')")
 check("второй экземпляр получает ошибку блокировки",
       r.returncode != 0 and "уже запущен" in (r.stdout + r.stderr)
       and "LOCKED-OK" not in r.stdout, (r.stdout or "").strip()[:60])
-vp._LOCK_HANDLE.close()
+import voicing  # noqa: E402 — фасад хранит копию None, ручка живёт в voicing
+voicing._LOCK_HANDLE.close()
 
 # 9. неверный путь движка -> ошибка перечисляет путь
 env = dict(ENV, GPT_SOVITS_ROOT=r"C:\НеСуществует\GPT-SoVITS")
 r = run_py(BOOT +
-           "vp._read_engine_local_file = lambda: None;"
-           "vp._read_engine_gui_config = lambda: None;\n"
-           "vp.ENGINE = vp.resolve_engine();\n"
+           "import engines, av_state;"
+           "engines._read_engine_local_file = lambda: None;"
+           "engines._read_engine_gui_config = lambda: None;\n"
+           "av_state.ENGINE = engines.resolve_engine();\n"
            "try:\n    vp.require_engine()\n"
            "except SystemExit as e:\n    print(e)", env=env)
 check("битый путь движка -> ошибка перечисляет указанный путь",
@@ -129,6 +150,11 @@ check("битый путь движка -> ошибка перечисляет �
       r.stdout.strip()[:100])
 
 # 10. check --fast
+if not ANKI:
+    skip("check --fast выполняется")
+    print("\n%s" % ("ВСЁ ХОРОШО" if not fails
+                    else "ПРОВАЛОВ: %d -> %s" % (len(fails), fails)))
+    sys.exit(1 if fails else 0)
 r = subprocess.run([PY, os.path.join(ROOT, "app", "voice_pipeline.py"), "check",
                     "--deck", "Тест100", "--fast"],
                    env=ENV, capture_output=True, text=True, timeout=300)

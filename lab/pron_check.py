@@ -333,7 +333,9 @@ class Verifier(object):
         """path -> (текст, слова, метаданные)."""
         model = self.load()
         if model is None:
-            return "", [], {}
+            # не «ничего не услышали», а «слушать нечем»: иначе каждая фраза
+            # получит покрытие 0 и синтез переберёт все девять вариантов
+            return "", [], {"unavailable": self.error or "модель не загрузилась"}
         segs, info = model.transcribe(path, language="ja", beam_size=1,
                                       vad_filter=False,
                                       condition_on_previous_text=False,
@@ -389,6 +391,10 @@ class Verifier(object):
         path = self._write_temp(blob, ext)
         try:
             raw, words, meta = self._transcribe_path(path)
+            if meta.get("unavailable"):
+                return {"ok": True, "unavailable": True, "coverage": None,
+                        "cer": None, "fail": False, "suspect": False,
+                        "verdict": "проверка недоступна: %s" % meta["unavailable"]}
             return self._judge(expected, wild, raw, words, meta, path,
                                kanaize, n_jp)
         finally:

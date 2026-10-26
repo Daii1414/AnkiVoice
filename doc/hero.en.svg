@@ -97,7 +97,7 @@
   <g>
     <rect x="64" y="158" width="160" height="36" rx="10" fill="#101927" stroke="#22344d" stroke-width="1.2"/>
     <use href="#icoWin" x="80" y="176" color="#58a6ff"/>
-    <text x="104" y="182" font-size="14" font-weight="600" fill="#C7D2E4">Windows 10/11</text>
+    <text x="104" y="182" font-size="14" font-weight="600" fill="#C7D2E4">Windows · Linux</text>
 
     <rect x="236" y="158" width="192" height="36" rx="10" fill="#101927" stroke="#22344d" stroke-width="1.2"/>
     <use href="#icoChip" x="252" y="176" color="#58a6ff"/>
@@ -128,16 +128,16 @@
     <circle cx="70" cy="464" r="4" fill="#58a6ff"/>
     <text x="90" y="470">Quality is checked by several independent signals — bad takes are redone automatically</text>
     <circle cx="70" cy="500" r="4" fill="#58a6ff"/>
-    <text x="90" y="506">The app listens to its own sound and compares it with the text — advice, your call</text>
+    <text x="90" y="506">24 interface languages, your own voice from one recording, voice ensembles</text>
   </g>
 
   <!-- ============ кнопка ============ -->
   <rect x="64" y="530" width="372" height="62" rx="12" fill="url(#btnGrad)"/>
   <use href="#icoDownload" x="100" y="561" color="#06121f"/>
   <text x="126" y="556" font-size="20" font-weight="700" fill="#06121f">Download AnkiVoice</text>
-  <text x="126" y="578" font-size="13" font-weight="600" fill="#06121f" fill-opacity="0.72">Windows · 125 MB · installer</text>
+  <text x="126" y="578" font-size="13" font-weight="600" fill="#06121f" fill-opacity="0.72">Windows — installer · Linux — one command</text>
   <text x="456" y="556" font-size="16" font-weight="600" fill="#8FB8E8">What you need first →</text>
-  <text x="456" y="578" font-size="13" fill="#6F7B8D">the 6–10 GB engine installs separately — the wizard points the way</text>
+  <text x="456" y="578" font-size="13" fill="#6F7B8D">setup checks what is missing and asks first</text>
 
   <text x="64" y="622" font-size="14" fill="#6F7B8D">Cards never leave your machine: no telemetry, no accounts, the network is only used to download.</text>
 

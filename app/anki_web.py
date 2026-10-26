@@ -38,6 +38,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import anki_gui as ag          # переиспользуем конфиг, AnkiConnect, запуск пайплайна
+import oscompat
+import locales
+import studio
 from anki_web_page import HTML
 
 # Ключ этого запуска: страница приложения его знает, чужие страницы — нет.
@@ -46,9 +49,98 @@ from anki_web_page import HTML
 TOKEN = secrets.token_hex(16)
 
 
+def appearance_cfg(cfg=None):
+    """Оформление из config.json (дизайн Fragile) с переносом старой «темы».
+
+    До 1.10 тема была одним ключом theme = dark|light — он становится
+    цветовой схемой, чтобы у пользователя ничего не поменялось.
+    """
+    cfg = cfg if cfg is not None else ag.load_config()
+    a = dict(cfg.get("appearance") or {})
+    if "colorScheme" not in a and cfg.get("theme") in ("dark", "light"):
+        a["colorScheme"] = cfg["theme"]
+    return a
+
+
+_APPEARANCE_ENUMS = {
+    "colorScheme": ("system", "dark", "light"),
+    "designType": ("sharp", "classic", "glass"),
+    "density": ("compact", "regular", "comfortable"),
+    "builtinScheme": ("", "dark", "light"),
+}
+
+
+def clean_appearance(a):
+    """Только известные ключи и допустимые значения (страница → config.json)."""
+    if not isinstance(a, dict):
+        return {}
+    out = {}
+    for k, allowed in _APPEARANCE_ENUMS.items():
+        if a.get(k) in allowed:
+            out[k] = a[k]
+    t = a.get("builtinTheme")
+    if isinstance(t, str) and re.fullmatch(r"[a-z0-9_-]{0,40}", t):
+        out["builtinTheme"] = t
+    c = a.get("accentColor")
+    if isinstance(c, str) and re.fullmatch(r"(#[0-9a-fA-F]{6})?", c):
+        out["accentColor"] = c
+    for k in ("monoLabels", "reduceTransparency"):
+        if isinstance(a.get(k), bool):
+            out[k] = a[k]
+    return out
+
+
+def ui_lang(cfg=None):
+    """Язык интерфейса: выбранный, иначе выбранный в установщике, иначе
+    язык системы, иначе русский."""
+    cfg = ag.load_config() if cfg is None else cfg
+    code = locales.normalize(cfg.get("lang"))
+    if code:
+        return code
+    try:
+        # пишет установщик Windows: язык, выбранный при установке
+        with open(os.path.join(ag.code_dir(), "default_lang.txt"),
+                  encoding="utf-8") as f:
+            code = locales.normalize(f.read().strip())
+    except OSError:
+        code = ""
+    if not code:
+        import locale
+        for v in (os.environ.get("LC_ALL"), os.environ.get("LC_MESSAGES"),
+                  os.environ.get("LANG"), (locale.getlocale()[0] or "")):
+            code = locales.normalize(v)
+            if code:
+                break
+    return code or "ru"
+
+
+def i18n_json(code):
+    """Словарь языка для страницы (null для русского) — безопасно в <script>."""
+    t = locales.table(code)
+    return (json.dumps(t, ensure_ascii=False) if t else "null").replace("</", "<\\/")
+
+
 def page_html():
-    """Страница с подставленным ключом запуска."""
-    return HTML.replace("__AVTOKEN__", TOKEN)
+    """Страница с подставленным ключом запуска, языком и оформлением."""
+    html = HTML.replace("__AVTOKEN__", TOKEN)
+    lang = ui_lang()
+    html = html.replace("/*__I18N__*/",
+                        "let I18N = %s; const AV_LANG0 = %s; const AV_LANGS = %s;"
+                        % (i18n_json(lang), json.dumps(lang),
+                           json.dumps([{"code": c, "name": n, "en": e}
+                                       for c, n, e, _s in locales.LANGS],
+                                      ensure_ascii=False)))
+    # json безопасен внутри <script>: «</» экранируем
+    html = html.replace("/*__APPEARANCE__*/{}",
+                        json.dumps(appearance_cfg(), ensure_ascii=False)
+                        .replace("</", "<\\/"))
+    if not oscompat.IS_WIN:
+        # подсказки путей в полях — в привычном для Linux виде
+        for win, nix in ((r"D:\DOWNLOAD\GPT-SoVITS-…", "~/GPT-SoVITS-…"),
+                         (r"D:\\DOWNLOAD\\GPT-SoVITS-…", "~/GPT-SoVITS-…"),
+                         (r"D:\\DOWNLOAD\\index-tts", "~/index-tts")):
+            html = html.replace(win, nix)
+    return html
 
 CREATE_NO_WINDOW = ag.CREATE_NO_WINDOW
 
@@ -176,7 +268,7 @@ def start_run(title, args, on_line=None):
             return None, ("Папка IndexTTS не подходит:\n  • "
                           + "\n  • ".join(problems))
         gpt_path = (cfg.get("gptsovits_path") or "").strip()
-        if not os.path.isfile(os.path.join(gpt_path, "runtime", "python.exe")):
+        if not gpt_path or not oscompat.engine_python(gpt_path):
             gpt_path = ""
     else:
         path = (cfg.get("gptsovits_path") or "").strip()
@@ -284,6 +376,39 @@ def deck_fields(deck):
     return fl, (guess_fields(fl) if fl else {})
 
 
+def _engine_site_dirs(eng):
+    """site-packages Python'а движка: Windows-рантайм или venv (Linux)."""
+    dirs = [os.path.join(eng, "runtime", "Lib", "site-packages")]
+    py = oscompat.engine_python(eng)
+    if py:
+        venv = os.path.dirname(os.path.dirname(py))
+        try:
+            for n in os.listdir(os.path.join(venv, "lib")):
+                dirs.append(os.path.join(venv, "lib", n, "site-packages"))
+        except OSError:
+            pass
+    return [d for d in dirs if os.path.isdir(d)]
+
+
+def _engine_has_package(eng, name):
+    for site in _engine_site_dirs(eng):
+        try:
+            if any(n.lower().startswith(name) for n in os.listdir(site)):
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def pron_view():
+    """Состояние проверки произношения для страницы (+ можно ли докачать модель)."""
+    ok, msg = pron_status()
+    eng = (ag.load_config().get("gptsovits_path") or "").strip()
+    can_fetch = (not ok and bool(eng) and _engine_has_package(eng, "faster_whisper")
+                 and _engine_has_package(eng, "huggingface_hub"))
+    return {"ok": ok, "msg": msg, "can_fetch": can_fetch}
+
+
 def pron_status():
     """(доступно ли, описание) — проверка произношения через faster-whisper.
 
@@ -312,18 +437,45 @@ def pron_status():
     eng = (cfg.get("gptsovits_path") or "").strip()
     if not eng:
         return False, "не указана папка GPT-SoVITS"
-    site = os.path.join(eng, "runtime", "Lib", "site-packages")
-    try:
-        has_fw = any(n.lower().startswith("faster_whisper")
-                     for n in os.listdir(site))
-    except OSError:
-        has_fw = False
+    has_fw = _engine_has_package(eng, "faster_whisper")
     if not has_fw:
-        return False, "в питоне движка нет faster-whisper"
+        return False, "в движке нет модуля распознавания речи (faster-whisper)"
     models = pron_check.cached_models()
     if not models:
-        return False, "нет скачанной модели faster-whisper"
+        return False, "не скачана модель распознавания речи"
     return True, models[0][0]
+
+
+_TRANSLIT = dict(zip("абвгдеёжзийклмнопрстуфхцчшщъыьэюя",
+                     ["a", "b", "v", "g", "d", "e", "e", "zh", "z", "i", "y", "k", "l",
+                      "m", "n", "o", "p", "r", "s", "t", "u", "f", "h", "ts", "ch",
+                      "sh", "sch", "", "y", "", "e", "yu", "ya"]))
+
+
+def audio_seconds(path, eng=None):
+    """Длительность звукового файла (ffmpeg) или None, если узнать нельзя."""
+    ff = oscompat.ffmpeg_path(eng)
+    if not ff or not os.path.isfile(path):
+        return None
+    import subprocess
+    try:
+        r = subprocess.run([ff, "-hide_banner", "-i", path], capture_output=True,
+                           text=True, timeout=30, creationflags=oscompat.NO_WINDOW)
+    except Exception:
+        return None
+    m = re.search(r"Duration: (\d+):(\d+):([\d.]+)", r.stderr or "")
+    return int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3)) if m else None
+
+
+def voice_slug(display, taken):
+    """Внутреннее имя голоса из названия: «Мой голос» -> moy_golos (уникально)."""
+    s = "".join(_TRANSLIT.get(c, c) for c in (display or "").lower())
+    s = re.sub(r"[^a-z0-9]+", "_", s).strip("_")[:32] or "voice"
+    name, i = s, 2
+    while name in taken:
+        name = "%s_%d" % (s, i)
+        i += 1
+    return name
 
 
 def read_voices_file():
@@ -336,13 +488,12 @@ def read_voices_file():
 
 
 def _read_last_run():
-    """Итог последнего прогона (пишет voice_pipeline в %APPDATA%/AnkiVoice).
+    """Итог последнего прогона (пишет voice_pipeline в папку настроек AnkiVoice).
 
     Путь дублируется намеренно: веб-слой не импортирует voice_pipeline
     (тяжёлый и не нужен ему целиком), а файл — простой JSON.
     """
-    p = os.path.join(os.environ.get("APPDATA") or "",
-                     "AnkiVoice", "last_run.json")
+    p = os.path.join(oscompat.app_dir(), "last_run.json")
     try:
         with open(p, encoding="utf-8") as f:
             return json.load(f) or {}
@@ -357,8 +508,7 @@ def write_voices_file(cfg):
 
 
 def _history_dir():
-    return os.path.join(os.environ.get("APPDATA") or "",
-                        "AnkiVoice", "reports")
+    return os.path.join(oscompat.app_dir(), "reports")
 
 
 def history_list():
@@ -442,26 +592,57 @@ def resolve_path(p, eng):
     return first
 
 
-def voice_files_ok(v, eng):
-    # У IndexTTS голос — это один референс: весов модели (.ckpt/.pth) у
-    # голоса нет, они общие у движка.
+VOICE_FILE_TITLES = {"gpt": "GPT-веса (.ckpt)", "sovits": "SoVITS-веса (.pth)",
+                     "ref": "запись-образец"}
+
+
+def voice_missing(v, eng):
+    """Каких файлов голоса нет: [(ключ, путь как записан)], пусто — всё на месте.
+
+    Интерфейс показывает этот список, чтобы было понятно, ЧТО именно
+    положить на место, а не только «не хватает файлов».
+    У IndexTTS голос — это один референс: весов модели (.ckpt/.pth) у
+    голоса нет, они общие у движка.
+    """
     keys = ("ref",) if ag.engine_kind() == ag.ENGINE_INDEX else ("gpt", "sovits", "ref")
+    out = []
     for key in keys:
         p = v.get(key, "")
         if not p or not os.path.exists(resolve_path(p, eng)):
-            return False
-    return True
+            out.append((key, p))
+    return out
+
+
+def _found_elsewhere(p, eng):
+    """Папка другого движка, где лежит этот (относительный) файл, или "".
+
+    Частый случай: веса положили в новый движок, а программа ещё смотрит в
+    старый — тогда честнее сказать «переключи движок», чем «нет файла».
+    """
+    if not p or os.path.isabs(p) or re.match(r"^[A-Za-z]:[\\/]", p):
+        return ""
+    cands = [os.path.join(oscompat.data_dir(), "GPT-SoVITS")]
+    cur = os.path.abspath(eng) if eng else ""
+    for d in cands:
+        if os.path.abspath(d) != cur and os.path.exists(os.path.join(d, p)):
+            return d
+    return ""
+
+
+def voice_files_ok(v, eng):
+    return not voice_missing(v, eng)
 
 
 # ================================================================ мастер настройки
 def _test_audio(voice):
     if not voice or not re.match(r"^[\w\-.]+$", voice):
         return ""
-    for ext in ("ogg", "wav"):
-        p = os.path.join(ag.code_dir(), "test_%s.%s" % (voice, ext))
-        if os.path.isfile(p):
-            return p
-    return ""
+    # свежий из двух: старый .ogg не должен заслонять новый .wav (движки
+    # без ogg в обычном режиме отдают wav)
+    found = [os.path.join(ag.code_dir(), "test_%s.%s" % (voice, ext))
+             for ext in ("ogg", "wav")]
+    found = [p for p in found if os.path.isfile(p)]
+    return max(found, key=os.path.getmtime) if found else ""
 
 
 def setup_status():
@@ -539,10 +720,13 @@ def setup_status():
             "path": path,
             "auto": auto,
             "problems": problems,
-            "expected": ("checkpoints\\config.yaml и .venv"
-                         if is_index else "runtime\\python.exe и api_v2.py"),
+            "expected": ("checkpoints/config.yaml и .venv"
+                         if is_index else
+                         ("runtime\\python.exe и api_v2.py" if oscompat.IS_WIN
+                          else "api_v2.py и Python движка (gsv-venv)")),
+            # на Linux движок ставит install.sh — ссылка на Windows-пакеты сбивала бы
             "download_url": (INDEXTTS_RELEASES if is_index
-                             else GPT_SOVITS_RELEASES),
+                             else (GPT_SOVITS_RELEASES if oscompat.IS_WIN else "")),
             "hint": (("Поставь IndexTTS 2.5: git clone "
                       "https://github.com/index-tts/index-tts, затем "
                       "uv sync --extra webui и скачай веса в checkpoints. "
@@ -551,7 +735,11 @@ def setup_status():
                      ("Скачай Windows-пакет GPT-SoVITS v2Pro со страницы релизов, "
                       "распакуй в папку без кириллицы (например, D:\\GPT-SoVITS) "
                       "и укажи её здесь. Внутри должны лежать runtime\\python.exe "
-                      "и api_v2.py.")),
+                      "и api_v2.py.") if oscompat.IS_WIN else
+                     ("Есть папка GPT-SoVITS — укажи её выше (в ней лежит api_v2.py) "
+                      "и выполни в терминале ./install.sh --engine /путь/к/папке: он "
+                      "подготовит её к работе. Движка нет — выполни ./install.sh "
+                      "--download-engine: скачает и настроит всё сам (~6 ГБ).")),
         },
         "anki": {
             "ok": anki_ok,
@@ -686,6 +874,11 @@ def start_update_download():
         # запустить два потока, пишущих в один .part
         UPDATE.update(phase="checking", received=0, total=0, error="",
                       path="", expected="", actual="", tag="", asset="")
+    if not oscompat.IS_WIN:
+        msg = ("На Linux обновление ставится командой в терминале: "
+               "ankivoice update")
+        _update_set(phase="idle")
+        return None, msg
     try:
         info = release_info()
     except Exception as e:
@@ -775,7 +968,7 @@ def launch_update():
     if h.hexdigest().lower() != expected:
         return False, "Файл изменился после скачивания — SHA256 не совпал."
     try:
-        os.startfile(path)
+        oscompat.open_path(path)
     except Exception as e:
         return False, "Не удалось открыть установщик: %r" % (e,)
     return True, None
@@ -792,9 +985,8 @@ FS_EXTS = {
 def fs_list(path, kind, exts):
     path = path or ""
     if not path:
-        # корень: буквы дисков
-        drives = ["%s:\\" % c for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                  if os.path.exists("%s:\\" % c)]
+        # корень: буквы дисков (Windows) или дом, / и подключённые диски
+        drives = oscompat.fs_roots()
         return {"path": "", "parent": "", "drives": drives,
                 "dirs": [], "files": [], "kind": kind}
     path = os.path.abspath(os.path.expanduser(path))
@@ -937,6 +1129,37 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/decks":
             self._json({"decks": self._decks()})
             return
+        if path == "/api/i18n":
+            code = locales.normalize(q.get("lang") or "")
+            self._json({"lang": code or "ru", "dict": locales.table(code) or None})
+            return
+        if path == "/api/studio":
+            eng = (ag.load_config().get("gptsovits_path") or "").strip()
+            st = studio.status(eng) if eng else {"phase": "idle", "running": False,
+                                                 "missing": [], "msg": "", "error": ""}
+            st["base"] = bool(eng and studio.base_weights(eng))
+            self._json(st)
+            return
+        if path == "/api/pending":
+            # сколько карточек колоды ещё без звука — чтобы сводка говорила
+            # реальное число, а не лимит из поля
+            deck = q.get("deck", "")
+            if not deck:
+                return self._err("Не указана колода")
+            parts = []
+            for key in ("sa", "wa"):
+                f = (q.get(key) or "").strip()
+                if f:
+                    fq = '"%s"' % f if re.search(r"[\s:]", f) else f
+                    parts.append("-%s:*sound*" % fq)
+            try:
+                total = len(ag.anki_call("findNotes", query='deck:"%s"' % deck, timeout=60))
+                pend = (len(ag.anki_call("findNotes", timeout=60,
+                                         query='deck:"%s" (%s)' % (deck, " OR ".join(parts))))
+                        if parts else None)       # полей звука нет — число неизвестно
+            except Exception as e:
+                return self._err("Anki не ответила: %s" % (e,))
+            return self._json({"pending": pend, "total": total})
         if path == "/api/fields":
             deck = q.get("deck", "")
             if not deck:
@@ -1036,12 +1259,14 @@ class Handler(BaseHTTPRequestHandler):
             if "engine" in b and (b.get("engine") or "") != (cfg.get("engine") or ""):
                 cfg["setup_done"] = False
             for k in ("gptsovits_path", "indextts_path", "indextts_url", "engine",
-                      "engine_confirmed", "theme", "deck", "voice", "mode",
+                      "engine_confirmed", "theme", "appearance", "deck", "voice", "mode",
                       "sentence_src", "sentence_audio", "word_src",
                       "word_audio", "furigana_src", "reading", "limit",
                       "verify_pronunciation", "asr_model", "lang"):
                 if k in b:
                     v = b[k]
+                    if k == "appearance":
+                        v = clean_appearance(v)
                     if isinstance(v, str):
                         # NUL-байт ломает пайплайн (embedded null character)
                         v = v.replace("\x00", "")
@@ -1075,6 +1300,19 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/voice/add":
             return self._add_voice(b)
+
+        if path == "/api/studio/start":
+            eng = (ag.load_config().get("gptsovits_path") or "").strip()
+            py = oscompat.engine_python(eng) if eng else None
+            if not eng or not py:
+                return self._err("Сначала настрой движок GPT-SoVITS (главный экран → «Движок синтеза»)")
+            studio.start(eng, py, locales.studio_lang(b.get("lang") or "ru"))
+            self._json({"ok": True})
+            return
+
+        if path == "/api/studio/stop":
+            self._json({"ok": studio.stop()})
+            return
 
         if path == "/api/run":
             return self._run(b)
@@ -1127,7 +1365,7 @@ class Handler(BaseHTTPRequestHandler):
             if not st["anki"]["ok"]:
                 return self._err("Сначала подключи AnkiConnect.")
             if not st["voices"]["ok"]:
-                return self._err("Сначала добавь голос с весами и референсом.")
+                return self._err("Сначала добавь голос с весами и записью-образцом.")
             voice = (b.get("voice") or st["test"]["voice"] or "").strip()
             if not voice or not _test_audio(voice):
                 return self._err("Сначала синтезируй тестовую фразу выбранным голосом.")
@@ -1199,7 +1437,11 @@ class Handler(BaseHTTPRequestHandler):
             view = {}
             for name, v in voices.items():
                 d = dict(v)
-                d["ok"] = voice_files_ok(v, eng)
+                miss = voice_missing(v, eng)
+                d["ok"] = not miss
+                d["missing"] = [{"key": k, "what": VOICE_FILE_TITLES.get(k, k),
+                                 "path": p, "elsewhere": _found_elsewhere(p, eng)}
+                                for k, p in miss]
                 view[name] = d
 
             run = current_run()
@@ -1207,7 +1449,7 @@ class Handler(BaseHTTPRequestHandler):
                 "cfg": cfg,
                 "engine": kind,
                 "version": ag.APP_VERSION,
-                "pron": dict(zip(("ok", "msg"), pron_status())),
+                "pron": pron_view(),
                 "setup_done": bool(cfg.get("setup_done")),
                 "path": path,
                 "auto": auto,
@@ -1349,23 +1591,47 @@ class Handler(BaseHTTPRequestHandler):
         self._json({"ok": True, "voice": v})
 
     def _add_voice(self, b):
-        name = (b.get("name") or "").strip()
-        if not name or not re.match(r"^[\w\-.]+$", name):
-            return self._err("Имя голоса — латиница/цифры/«_», без пробелов")
         cfg = read_voices_file()
+        disp = (b.get("display") or "").strip()
+        name = (b.get("name") or "").strip()
+        if not name:
+            # внутреннее имя пользователю не нужно — собираем из названия
+            name = voice_slug(disp, cfg.get("voices", {}))
+        if not re.match(r"^[\w\-.]+$", name):
+            return self._err("Имя голоса — латиница/цифры/«_», без пробелов")
         if name in cfg.get("voices", {}):
             return self._err("Голос «%s» уже есть" % name)
         is_index = ag.engine_kind() == ag.ENGINE_INDEX
+        # конфиг приложения — в отдельную переменную: cfg — это voices.json,
+        # и именно его ниже записываем (раньше сюда попадал config.json и
+        # «Добавить голос» затирал весь реестр голосов)
+        app_cfg = ag.load_config()
+        eng = ((app_cfg.get("indextts_path") or "") if is_index
+               else (app_cfg.get("gptsovits_path") or ""))
+        if b.get("base") and not is_index:
+            # голос без обучения: базовые веса движка + запись-образец
+            base = studio.base_weights(eng) if eng else None
+            if not base:
+                return self._err("В папке движка нет базовых весов "
+                                 "(GPT_SoVITS/pretrained_models) — переустанови движок")
+            b = dict(b, gpt=base[1], sovits=base[2])
+        labels = {"gpt": "GPT-веса (.ckpt)", "sovits": "SoVITS-веса (.pth)",
+                  "ref": "запись-образец", "prompt_text": "что сказано в записи"}
         # У IndexTTS голос — это один референс: весов у голоса нет.
         need = ("ref",) if is_index else ("gpt", "sovits", "ref", "prompt_text")
         for k in need:
             if not (b.get(k) or "").strip():
-                return self._err("Заполни поле: %s" % k)
-        cfg = ag.load_config()
-        eng = ((cfg.get("indextts_path") or "") if is_index
-               else (cfg.get("gptsovits_path") or ""))
+                return self._err("Заполни поле: %s" % labels[k])
+        if not is_index:
+            # движок отвергает образец вне 3-10 с прямо во время озвучки —
+            # лучше сказать сразу, при добавлении
+            sec = audio_seconds(resolve_path(b["ref"].strip(), eng), eng)
+            if sec is not None and not 3.0 <= sec <= 10.0:
+                return self._err("Запись-образец длится %.1f с, а движку нужна "
+                                 "запись от 3 до 10 секунд — вырежи кусок "
+                                 "с одной фразой" % sec)
         entry = {
-            "display": (b.get("display") or name).strip(),
+            "display": disp or name,
             "ref": store_path(b["ref"].strip(), eng),
             "aux": [],
             "prompt_text": (b.get("prompt_text") or "").strip(),
@@ -1429,6 +1695,8 @@ class Handler(BaseHTTPRequestHandler):
             title = "Проверка произношения «%s»" % deck
         elif kind == "selftest":
             args, title = ["selftest"], "Самопроверка пайплайна"
+        elif kind == "fetch-asr":
+            args, title = ["fetch-asr"], "Скачивание модели распознавания"
         elif kind == "cleanup-media":
             # осиротевшие tts_* в медиа Anki: по умолчанию только отчёт
             apply_flag = bool(b.get("apply"))
@@ -1436,6 +1704,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._err("Удаление медиа — только из CLI: "
                                  "cleanup-media --apply (необратимо)")
             args, title = ["cleanup-media"], "Проверка медиа на мусор"
+            deck = (b.get("deck") or "").strip()
+            if deck:
+                args += ["--deck", deck]
+        elif kind == "compress-media":
+            args, title = ["compress-media"], "Сжатие звука в ogg"
             deck = (b.get("deck") or "").strip()
             if deck:
                 args += ["--deck", deck]
@@ -1575,6 +1848,22 @@ class Handler(BaseHTTPRequestHandler):
 
 
 # ================================================================== запуск
+def _open_browser(url):
+    """Открыть страницу в браузере по умолчанию.
+
+    На Linux — через xdg-open с заглушенным выводом: webbrowser оставляет
+    браузеру наш терминал, и Chromium-браузеры сыплют туда служебными
+    ошибками (zygote … Broken pipe), когда ссылка уходит в открытое окно.
+    """
+    if not oscompat.IS_WIN:
+        try:
+            oscompat.open_path(url)
+            return
+        except Exception:
+            pass
+    webbrowser.open(url)
+
+
 def serve(open_browser=True, port=0):
     httpd = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     httpd.daemon_threads = True
@@ -1584,10 +1873,7 @@ def serve(open_browser=True, port=0):
     prob = ag._payload_problem()
     if prob:
         try:
-            import ctypes
-            ctypes.windll.user32.MessageBoxW(
-                0, prob.replace("\n", "\r\n"),
-                "%s — сначала распакуй zip" % ag.APP_NAME, 0x10)
+            oscompat.show_error("%s — сначала распакуй zip" % ag.APP_NAME, prob)
         except Exception:
             print(prob)
         return 1
@@ -1597,7 +1883,7 @@ def serve(open_browser=True, port=0):
     except UnicodeEncodeError:
         print("AnkiVoice — веб-интерфейс: [путь содержит символы, неотображаемые в консоли]")
     if open_browser:
-        threading.Timer(0.6, lambda: webbrowser.open(url)).start()
+        threading.Timer(0.6, lambda: _open_browser(url)).start()
     try:
         httpd.serve_forever(poll_interval=0.3)
     except KeyboardInterrupt:

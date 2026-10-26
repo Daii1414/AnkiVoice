@@ -19,10 +19,17 @@ LAB = os.path.join(ROOT, "lab")
 if LAB not in sys.path:
     sys.path.insert(0, LAB)
 
-import anki_gui as ag
-import anki_web as aw
-import voice_pipeline as vp
-import voicing as vc
+# Тесты не трогают настоящие настройки пользователя: папка настроек —
+# временная. Ставим её ДО импорта: anki_gui и voicing считают пути к
+# config.json/last_run.json при импорте (иначе _args_voice записывал
+# тестовый профиль колоды «D» в настоящий config.json).
+_CFG_ENV = "APPDATA" if os.name == "nt" else "XDG_CONFIG_HOME"
+os.environ[_CFG_ENV] = tempfile.mkdtemp(prefix="av_test_cfg_")
+
+import anki_gui as ag  # noqa: E402
+import anki_web as aw  # noqa: E402
+import voice_pipeline as vp  # noqa: E402
+import voicing as vc  # noqa: E402
 
 
 def check(cond, msg):
@@ -181,6 +188,15 @@ def test_installer_ships_runtime_modules():
     for name in ("quality_v2.py", "pron_check.py", "align_ja.py",
                  "indextts_service.py", "indextts_fast.py", "indextts_norm.py"):
         check(("lab\\" + name) in iss, "installer must ship lab/" + name)
+    # пайплайн запускается с диска: каждый его модуль обязан лежать в app\
+    # (веб-слой — anki_web/anki_web_page/i18n_en — вшит в exe, его не везут)
+    frozen = {"anki_web.py", "anki_web_page.py", "i18n_en.py", "fragile_assets.py",
+              "studio.py"}
+    check("app\\studio_shim\\sitecustomize.py" in iss,
+          "installer must ship the studio shim (it runs in the engine Python)")
+    for name in sorted(os.listdir(os.path.join(ROOT, "app"))):
+        if name.endswith(".py") and name not in frozen:
+            check(("app\\" + name) in iss, "installer must ship app/" + name)
     for name in ("domain_dict.py", "g2p_resolver.py", "g2p_candidates.py",
                  "g2p_provenance.py"):
         check(("lab\\" + name) not in iss,
@@ -237,12 +253,13 @@ def test_voice_args_guess_fallback():
         aw.deck_fields = old
 
 
+
 def test_baseline_relative_limits():
     """Пороги считаются от своей нормы голоса, но не ниже пола."""
     import tempfile as _tf
-    old_appdata = os.environ.get("APPDATA")
+    old_appdata = os.environ.get(_CFG_ENV)
     tmp = _tf.mkdtemp(prefix="av_baseline_")
-    os.environ["APPDATA"] = tmp
+    os.environ[_CFG_ENV] = tmp
     try:
         os.makedirs(os.path.join(tmp, "AnkiVoice"), exist_ok=True)
         with open(os.path.join(tmp, "AnkiVoice", "pron_baseline.json"), "w",
@@ -276,17 +293,17 @@ def test_baseline_relative_limits():
               "норма 1.0 -> абсолютный порог: %r" % lim3)
     finally:
         if old_appdata is None:
-            os.environ.pop("APPDATA", None)
+            os.environ.pop(_CFG_ENV, None)
         else:
-            os.environ["APPDATA"] = old_appdata
+            os.environ[_CFG_ENV] = old_appdata
 
 
 def test_profile_fields_per_deck():
     """У каждой колоды — свои настройки полей."""
     import tempfile as _tf
-    old_appdata = os.environ.get("APPDATA")
+    old_appdata = os.environ.get(_CFG_ENV)
     tmp = _tf.mkdtemp(prefix="av_profile_")
-    os.environ["APPDATA"] = tmp
+    os.environ[_CFG_ENV] = tmp
     try:
         os.makedirs(os.path.join(tmp, "AnkiVoice"), exist_ok=True)
         with open(os.path.join(tmp, "AnkiVoice", "config.json"), "w",
@@ -313,9 +330,9 @@ def test_profile_fields_per_deck():
         check(f2["sentence_src"] == "Sentence", "дефолт без профиля: %r" % f2)
     finally:
         if old_appdata is None:
-            os.environ.pop("APPDATA", None)
+            os.environ.pop(_CFG_ENV, None)
         else:
-            os.environ["APPDATA"] = old_appdata
+            os.environ[_CFG_ENV] = old_appdata
 
 
 def test_check_targets_spoken_text():
@@ -661,7 +678,7 @@ def test_qa_first_users_fixes():
     # 4. мастер можно пропустить
     check('id="wzSkip"' in html, "в мастере есть кнопка «Пропустить»")
     # 5. честные подписи
-    check("перезаписывается" in html, "сказано, что звук перезаписывается")
+    check("отменить это нельзя" in html, "сказано, что запись звука не отменить")
     check("никуда не отправляются" in html, "сказано, что данные не уходят")
     # 6. обратная связь во время работы
     check("осталось ≈" in html, "в прогрессе есть оценка остатка времени")
@@ -878,6 +895,122 @@ def test_parse_ensemble_weights():
           "пропорция 3:1 на 1000 карточках (±6%%): %s" % dict(cnt))
 
 
+def test_engine_placeholder_is_engine_error():
+    """1 с тишины 16 кГц от GPT-SoVITS — сбой движка (OOM), а не брак синтеза."""
+    import io
+    import wave
+
+    import av_state
+    import tts
+
+    def wav(sr, frames):
+        b = io.BytesIO()
+        w = wave.open(b, "wb")
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(sr)
+        w.writeframes(frames)
+        w.close()
+        return b.getvalue()
+    check(tts._engine_placeholder(wav(16000, b"\0" * 32000)), "заглушка не распознана")
+    check(not tts._engine_placeholder(wav(16000, b"\1\0" * 16000)), "звук принят за заглушку")
+    check(not tts._engine_placeholder(wav(32000, b"\0" * 64000)), "тишина 32 кГц — не заглушка")
+    check(not tts._engine_placeholder(b"OggS..."), "ogg принят за заглушку")
+    with tempfile.TemporaryDirectory() as d:
+        log = os.path.join(d, "api.log")
+        with open(log, "w", encoding="utf-8") as f:
+            f.write("old\nRuntimeError: старое\n")
+        old, av_state.SERVER_LOG = av_state.SERVER_LOG, log
+        try:
+            pos = tts._server_log_size()
+            with open(log, "a", encoding="utf-8") as f:
+                f.write("Traceback (most recent call last):\n  File x\n"
+                        "torch.OutOfMemoryError: CUDA out of memory. Tried 470 MiB\n")
+            why = tts._server_error_since(pos)
+        finally:
+            av_state.SERVER_LOG = old
+    check("out of memory" in why.lower() and "старое" not in why, "причина из лога: %r" % why)
+
+
+def test_new_voice_helpers():
+    """«Новый голос»: имя из названия, базовые веса движка, файлы обучения."""
+    import studio
+    check(aw.voice_slug("Мой голос", {}) == "moy_golos", "транслит названия")
+    check(aw.voice_slug("Мой голос", {"moy_golos": {}}) == "moy_golos_2", "имя уникально")
+    check(aw.voice_slug("!!!", {}) == "voice", "пустое название")
+    with tempfile.TemporaryDirectory() as eng:
+        check(studio.base_weights(eng) is None, "нет весов — нет базового голоса")
+        check(studio.missing_train_files(eng) == [], "старому движку обучение v2Pro не нужно")
+        pm = os.path.join(eng, *studio.PM.split("/"))
+        os.makedirs(os.path.join(pm, "v2Pro"))
+        for f in ("s1v3.ckpt", "v2Pro/s2Gv2ProPlus.pth"):
+            open(os.path.join(pm, *f.split("/")), "wb").close()
+        ver, gpt, sov = studio.base_weights(eng)
+        check(ver == "v2ProPlus" and gpt.endswith("s1v3.ckpt"), "базовые веса v2ProPlus: %r" % ver)
+        check(len(studio.missing_train_files(eng)) == 2, "дискриминаторы докачиваются")
+
+
+def test_compress_media_rewrites_links():
+    """compress-media: tts_*.wav -> .ogg, ссылки заменены, старый wav удалён."""
+    import base64
+    import io
+    import types
+    import wave
+
+    import tts
+    b = io.BytesIO()
+    w = wave.open(b, "wb")
+    w.setnchannels(1)
+    w.setsampwidth(2)
+    w.setframerate(32000)
+    import math
+    w.writeframes(b"".join(int(8000 * math.sin(i / 7.0)).to_bytes(2, "little", signed=True)
+                           for i in range(32000)))
+    w.close()
+    wav = b.getvalue()
+    ogg, ext = tts.to_ogg(wav, "wav")
+    if ext != "ogg":
+        print("  (ffmpeg без libvorbis — проверка сжатия пропущена)")
+        return
+    check(len(ogg) * 3 < len(wav), "ogg заметно легче wav: %d vs %d" % (len(ogg), len(wav)))
+    check(tts.to_ogg(ogg, "ogg") == (ogg, "ogg"), "ogg не пережимается повторно")
+    media = {"tts_a_1_s_x.wav": wav, "other.wav": wav}
+    notes = {1: {"noteId": 1, "fields": {
+        "SentenceAudio": {"value": "[sound:tts_a_1_s_x.wav]"},
+        "Other": {"value": "[sound:other.wav]"}}}}
+    calls = []
+
+    def fake_ac(action, **kw):
+        calls.append(action)
+        if action == "findNotes":
+            return [1]
+        if action == "retrieveMediaFile":
+            return base64.b64encode(media[kw["filename"]]).decode()
+        if action == "storeMediaFile":
+            media[kw["filename"]] = base64.b64decode(kw["data"])
+            return kw["filename"]
+        if action == "updateNoteFields":
+            for k, v in kw["note"]["fields"].items():
+                notes[kw["note"]["id"]]["fields"][k]["value"] = v
+            return None
+        if action == "deleteMediaFile":
+            media.pop(kw["filename"])
+            return None
+        raise AssertionError(action)
+    old_ac, old_ni = vp.ac, vp.notes_info
+    vp.ac = fake_ac
+    vp.notes_info = lambda ids: [notes[i] for i in ids]
+    try:
+        vp.cmd_compress_media(types.SimpleNamespace(deck=None, keep=False))
+    finally:
+        vp.ac, vp.notes_info = old_ac, old_ni
+    f = notes[1]["fields"]
+    check(f["SentenceAudio"]["value"] == "[sound:tts_a_1_s_x.ogg]", "ссылка заменена: %r" % f)
+    check(f["Other"]["value"] == "[sound:other.wav]", "чужой wav не тронут")
+    check("tts_a_1_s_x.wav" not in media and "tts_a_1_s_x.ogg" in media, "wav заменён ogg")
+    check(media["tts_a_1_s_x.ogg"][:4] == b"OggS", "в медиа лежит ogg")
+
+
 def main():
     tests = [test_version_tuple, test_release_parse, test_download_sha,
              test_busy_download_no_deadlock, test_installer_ships_runtime_modules,
@@ -894,7 +1027,9 @@ def main():
              test_setup_status,
              test_assign_voices, test_last_run_roundtrip,
              test_preview_report, test_release_body_extract,
-             test_changed_filter_and_manifest, test_parse_ensemble_weights]
+             test_changed_filter_and_manifest, test_parse_ensemble_weights,
+             test_engine_placeholder_is_engine_error, test_new_voice_helpers,
+             test_compress_media_rewrites_links]
     failed = 0
     for t in tests:
         try:

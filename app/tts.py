@@ -9,12 +9,14 @@
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
 import urllib.request
 
 import av_state
+import oscompat
 from anki_api import ac
 from engines import (DEFAULT_START_CONFIG, ENGINE_INDEX, TTS_URL,
                      _ensure_indextts_service, _NO_PROXY, _read_app_config,
@@ -55,15 +57,40 @@ def _resurrect(v):
 
 def _ffmpeg_exe():
     """ffmpeg из папки движка (или из PATH) — для проверки качества звука."""
-    if av_state.ENGINE:
-        p = os.path.join(av_state.ENGINE, "runtime", "ffmpeg.exe")
-        if os.path.exists(p):
-            return p
+    return oscompat.ffmpeg_path(av_state.ENGINE)
+
+
+def to_ogg(blob, ext):
+    """WAV -> OGG Vorbis для колоды: (blob, ext); при неудаче — как было.
+
+    Новые движки (GPT-SoVITS 20250606v2pro, IndexTTS) отдают ogg только
+    потоком, и в колоду шёл несжатый WAV — в 10 раз тяжелее (82 файла
+    WAV весили 19 МБ против 1,9 МБ у 54 ogg). Сжимаем сами: Vorbis — тот же
+    кодек, что давал ogg старых движков, Anki играет его везде.
+    """
+    if ext != "wav" or os.environ.get("AV_KEEP_WAV") == "1":
+        return blob, ext
+    ff = _ffmpeg_exe()
+    if not ff:
+        return blob, ext
+    import subprocess
     try:
-        import shutil
-        return shutil.which("ffmpeg") or ""
+        r = subprocess.run([ff, "-v", "error", "-i", "pipe:0", "-ac", "1",
+                            "-c:a", "libvorbis", "-q:a", "4", "-f", "ogg", "pipe:1"],
+                           input=blob, capture_output=True, timeout=120,
+                           creationflags=oscompat.NO_WINDOW)
     except Exception:
-        return ""
+        return blob, ext
+    if r.returncode != 0 or len(r.stdout) < 256:
+        if not _OGG_WARNED[0]:
+            _OGG_WARNED[0] = True
+            print("  ! не удалось сжать звук в ogg (%s) — сохраняю wav"
+                  % (r.stderr.decode("utf-8", "replace").strip()[:120] or "ffmpeg"))
+        return blob, ext
+    return r.stdout, "ogg"
+
+
+_OGG_WARNED = [False]
 
 
 def audio_stats(blob, ext="ogg"):
@@ -287,6 +314,52 @@ def _synth_once_indextts(v, text, speed=1.0, **overrides):
     return blob, "wav"
 
 
+
+_OGG_UNSUPPORTED = False   # сервер ответил «ogg не поддерживается»
+# голоса, которым в этом прогоне не хватило видеопамяти на доп. записи (aux):
+# дальше синтезируем их только с основным референсом
+_NO_AUX = set()
+
+
+def _engine_placeholder(blob):
+    """Это не звук, а заглушка движка после исключения?
+
+    GPT-SoVITS v2Pro+ ловит ошибку внутри синтеза (например, CUDA out of
+    memory) и вместо HTTP-ошибки отдаёт 1 с тишины 16 кГц с кодом 200.
+    Проверка качества видит в ней «тишину», и стратегии спасения девять раз
+    повторяют тот же запрос — с тем же результатом.
+    """
+    import io
+    import wave
+    try:
+        w = wave.open(io.BytesIO(blob))
+        return (w.getframerate() == 16000 and w.getnframes() == 16000
+                and not w.readframes(16000).strip(b"\0"))
+    except Exception:
+        return False
+
+
+def _server_log_size():
+    try:
+        return os.path.getsize(av_state.SERVER_LOG)
+    except (OSError, TypeError):
+        return None
+
+
+def _server_error_since(pos):
+    """Последняя строка вида «XxxError: ...» в логе сервера после позиции pos."""
+    if pos is None:
+        return ""
+    try:
+        with open(av_state.SERVER_LOG, "rb") as f:
+            f.seek(pos)
+            tail = f.read().decode("utf-8", "replace")
+    except (OSError, TypeError):
+        return ""
+    hits = [ln.strip() for ln in tail.splitlines()
+            if re.match(r"^[\w.]*(Error|Exception)\b", ln.strip())]
+    return hits[-1][:300] if hits else ""
+
 def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True, verify=None,
                  asr_model=None, **overrides):
     if engine_kind() == ENGINE_INDEX:
@@ -298,7 +371,8 @@ def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True, verify=None,
         "text": text,
         "text_lang": "ja",
         "ref_audio_path": v["ref"],
-        "aux_ref_audio_paths": v.get("aux") or [],
+        "aux_ref_audio_paths": ([] if v.get("name") in _NO_AUX
+                                else v.get("aux") or []),
         "prompt_text": v.get("prompt_text", ""),
         "prompt_lang": v.get("prompt_lang", "ja"),
         "text_split_method": split_method_for(text),
@@ -329,7 +403,17 @@ def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True, verify=None,
         except Exception as e:
             return None, str(e)
 
-    blob, err = post("ogg")
+    global _OGG_UNSUPPORTED
+    log_pos = _server_log_size()
+    if _OGG_UNSUPPORTED:
+        blob, err = None, None          # этот сервер ogg не умеет — сразу wav
+    else:
+        blob, err = post("ogg")
+        if blob is None and err and "not supported" in err and "ogg" in err:
+            # старые api_v2 (до v2Pro) отдают ogg только потоком: запоминаем,
+            # чтобы не тратить лишний запрос на каждую фразу
+            _OGG_UNSUPPORTED = True
+            err = None
     _b = _e = _i = None
     if blob is None and _oom_retry and err and \
             ("out of memory" in err or "CUDA" in err):
@@ -355,6 +439,31 @@ def _synth_once(v, text, seed=42, speed=1.0, _oom_retry=True, verify=None,
         blob, err = post("wav")             # ogg может не поддерживаться
     if blob is None:
         raise SystemExit("сервер отказал: %s" % (err or "нет ответа")[:300])
+    if _engine_placeholder(blob):
+        why = _server_error_since(log_pos)
+        oom = "out of memory" in why.lower()
+        if oom and payload["aux_ref_audio_paths"]:
+            # отпечаток голоса (v2Pro) считается по каждой доп. записи заново
+            # на каждой фразе: длинные записи съедают сотни МБ видеопамяти
+            _NO_AUX.add(v.get("name"))
+            print("  Движку не хватило видеопамяти на дополнительные записи "
+                  "голоса «%s» — дальше в этом прогоне без них." % v.get("name"))
+            return _synth_once(v, text, seed=seed, speed=speed,
+                               _oom_retry=_oom_retry, **overrides)
+        if oom and _oom_retry:
+            print("Не хватает видеопамяти — перезапускаю сервер и повторяю...")
+            restart_server(_tts_start_config())
+            ensure_voice(v, force=True)
+            return _synth_once(v, text, seed=seed, speed=speed,
+                               _oom_retry=False, **overrides)
+        if oom:
+            raise SystemExit(
+                "движку не хватило видеопамяти (CUDA out of memory). Закрой "
+                "программы, которые занимают видеокарту (игры, браузер с видео, "
+                "второй синтез), или выключи проверку произношения — её модель "
+                "тоже живёт в видеопамяти. Лог: %s" % av_state.SERVER_LOG)
+        raise SystemExit("движок выдал ошибку вместо звука: %s. Лог: %s"
+                         % (why or "причина не записана", av_state.SERVER_LOG))
     if len(blob) < 1024:
         # сервер ответил почти пустым телом (обрыв/уступка памяти на GPU) —
         # такое нельзя сохранять как «озвучено»: перезапуск сервера даёт
@@ -462,8 +571,7 @@ COVER_SUSPECT_ABS = 0.80
 
 
 def baseline_path():
-    return os.path.join(os.environ.get("APPDATA") or "",
-                        "AnkiVoice", BASELINE_FILE)
+    return os.path.join(oscompat.app_dir(), BASELINE_FILE)
 
 
 def load_baselines():
@@ -630,8 +738,9 @@ def synth(v, text, seed=42, speed=1.0, _oom_retry=True, src=None,
         if best[2] is not None:
             print("  [%s] лучший кусок по содержанию (покрытие %.2f) - вернём его"
                   % (text[:24], best[2]))
-        return best[0], best[1], {"suspect": bool(best[3]), "coverage": best[2],
-                                   "signals": best[3], "heard": ""}
+        blob, ext = to_ogg(best[0], best[1])
+        return blob, ext, {"suspect": bool(best[3]), "coverage": best[2],
+                           "signals": best[3], "heard": ""}
     raise SystemExit("после %d попыток синтез даёт брак — карточка пропущена"
                      % tried)
 

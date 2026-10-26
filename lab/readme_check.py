@@ -210,7 +210,7 @@ def main():
         else:
             ok("README не обещает метку av_suspect")
 
-    print("\n\u043f\u0440\u043e\u0432\u0435\u0440\u043e\u043a: %d, \u043f\u0440\u043e\u0432\u0435\u0440\u043e\u043a: %d" % (CHECKED[0], len(FAILURES)))
+    print("\nпроверок: %d, ошибок: %d" % (CHECKED[0], len(FAILURES)))
     for f in FAILURES:
         print("  FAIL " + f)
     return 1 if FAILURES else 0

@@ -114,6 +114,30 @@ def main():
     else:
         ok("пустых переводов нет")
 
+    # --- 3. остальные языки: модуль грузится, покрытие, подстановки ---
+    sys.path.insert(0, os.path.join(ROOT, "lab"))
+    import build_locales
+    import locales
+    for code in locales.CODES:
+        if code in ("ru", "en"):
+            continue
+        t = locales.table(code)
+        own = sum(1 for k, v in t.items() if i18n.get(k) != v)
+        if own < 0.95 * len(i18n):
+            fail("%s: переведено мало (%d из %d)" % (code, own, len(i18n)))
+        # префиксный ключ («Голосов: ») обязан остаться префиксом
+        for k, v in t.items():
+            if k.endswith(":") and i18n.get(k, "").endswith(":") and not v.rstrip().endswith((":", "：")):
+                fail("%s: потеряно двоеточие: %r" % (code, v[:60]))
+    ok("языки интерфейса: %d" % len(locales.CODES))
+    norm = {"zh_TW.UTF-8": "zh-TW", "zh-Hant-HK": "zh-HK", "pt_PT": "pt-BR",
+            "de_DE.UTF-8": "de", "yue-HK": "yue", "zh": "zh-CN", "xx": ""}
+    for raw, want in norm.items():
+        if locales.normalize(raw) != want:
+            fail("normalize(%r) = %r, а нужно %r" % (raw, locales.normalize(raw), want))
+    ok("коды языков системы распознаются")
+    del build_locales
+
     print("\nпроверок: %d, замечаний: %d" % (CHECKED[0], len(FAILURES)))
     for f in FAILURES:
         print("  FAIL " + f)

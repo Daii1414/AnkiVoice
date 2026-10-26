@@ -17,11 +17,17 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-def sub(path, old, new, label):
+def sub(path, pattern, new, label):
+    """Заменить первое совпадение регулярки (версия в файле — любая).
+
+    Раньше искалась строка с жёстко вписанной «1.9.2»: после первого же
+    подъёма версии скрипт падал с «НЕ НАЙДЕНО».
+    """
     s = io.open(path, encoding="utf-8").read()
-    if old not in s:
-        raise SystemExit("НЕ НАЙДЕНО в %s: %r (%s)" % (path, old, label))
-    io.open(path, "w", encoding="utf-8", newline="").write(s.replace(old, new, 1))
+    s2, n = re.subn(pattern, lambda _m: new, s, count=1)
+    if not n:
+        raise SystemExit("НЕ НАЙДЕНО в %s: %r (%s)" % (path, pattern, label))
+    io.open(path, "w", encoding="utf-8", newline="").write(s2)
     print("  %s: %s" % (path, label))
 
 
@@ -31,12 +37,12 @@ def main():
     ver = sys.argv[1]
 
     sub(os.path.join(ROOT, "app", "anki_gui.py"),
-        'APP_VERSION = "1.9.2"', 'APP_VERSION = "%s"' % ver, "APP_VERSION")
+        r'APP_VERSION = "[^"]*"', 'APP_VERSION = "%s"' % ver, "APP_VERSION")
     sub(os.path.join(ROOT, "AnkiVoice.iss"),
-        '#define MyAppVersion "1.9.2"', '#define MyAppVersion "%s"' % ver,
+        r'#define MyAppVersion "[^"]*"', '#define MyAppVersion "%s"' % ver,
         "MyAppVersion")
     sub(os.path.join(ROOT, "AnkiVoice.iss"),
-        "OutputBaseFilename=AnkiVoice-Setup-1.9.2",
+        r"OutputBaseFilename=AnkiVoice-Setup-[0-9A-Za-z._-]+",
         "OutputBaseFilename=AnkiVoice-Setup-%s" % ver, "OutputBaseFilename")
 
     p = os.path.join(ROOT, "CHANGELOG.md")

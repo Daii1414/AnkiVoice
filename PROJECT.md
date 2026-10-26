@@ -26,7 +26,17 @@ Anki японскими голосами GPT-SoVITS. Код живёт в люб
 
 Путь к движку резолвится по приоритету: env `GPT_SOVITS_ROOT` →
 `gptsovits_path.txt` рядом с программой → `%APPDATA%\AnkiVoice\config.json`
-(пишет exe) → собственная папка инструмента.
+(пишет exe; на Linux — `~/.config/AnkiVoice/config.json`, пишет `install.sh`)
+→ собственная папка инструмента.
+
+**Linux.** Windows-рантайм движка (`runtime\python.exe`) там не запустить,
+поэтому Python движка ищется отдельно (`oscompat.engine_python`):
+`GPT_SOVITS_PYTHON` → venv внутри самого движка → ключ `gptsovits_python`
+в config.json → `~/.local/share/AnkiVoice/gsv-venv`. Его собирает `install.sh`
+(Python 3.10, torch под CUDA 12 или CPU, версии остальных библиотек
+`linux/engine_constraints.py` берёт из Windows-пакета движка, если он есть).
+`pyruntime/` на Linux — обычный venv на Python 3.12 (тот же
+`requirements.txt`), а не распакованный `pyruntime.zip`.
 
 Пустые поля допустимы: нет аудио-поля — будет создано при озвучке; нет
 референса — голос показывается с ✗, synth его не пустит (но пустой
@@ -43,6 +53,8 @@ Anki японскими голосами GPT-SoVITS. Код живёт в люб
 | `anki_web_page.py` | HTML/CSS/JS страницы одним модулем; работает офлайн, без CDN и внешних библиотек |
 | `AnkiVoice.exe` | сборка `anki_gui.py` через PyInstaller (onefile/windowed); весит мало, потому что torch не входит в сборку |
 | `voice_pipeline.py` | фасад пайплайна + CLI (`pipeline.bat` вызывает его): cmd_*, selftest, menu; все имена модулей ниже переэкспортируются, внешние потребители делают `from voice_pipeline import kanaize` |
+| `oscompat.py` | платформенный слой: папка настроек, Python движка, ffmpeg, PID на порту (`/proc` на Linux), блокировка (`fcntl`/`msvcrt`), открытие файлов, автопоиск движка и медиатеки Anki |
+| `install.sh` / `pipeline.sh` / `linux/engine_constraints.py` | установка на Linux одной командой, консольная точка входа (аналог `pipeline.bat`), версии библиотек для окружения движка |
 | `paths.py` / `av_state.py` | пути (CODE/ROOT/lab/bundled) и общее состояние движка (ENGINE/PYTHON) — единственное место, где оно живёт |
 | `anki_api.py` | AnkiConnect: `ac()`, `notes_info()`, `plain()` — единственная точка общения с Anki |
 | `engines.py` | выбор GPT-SoVITS/IndexTTS, поиск папки, сервер, переключение весов, indextts-сервис |
