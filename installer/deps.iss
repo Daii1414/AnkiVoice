@@ -106,7 +106,9 @@ var
   I: Integer;
 begin
   Result := '';
-  if LoadStringFromFile(ExpandConstant('{app}\app\gptsovits_path.txt'), D) then
+  // {app} при создании страниц ещё не определена (ExpandConstant прервал бы
+  // установщик) — берём папку из мастера: там стоит прошлая установка
+  if LoadStringFromFile(AddBackslash(WizardDirValue) + 'app\gptsovits_path.txt', D) then
     if DirFits(DEP_ENGINE, String(D)) then
     begin
       Result := Trim(String(D));
