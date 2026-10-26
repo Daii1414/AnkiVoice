@@ -501,10 +501,20 @@ def _read_last_run():
         return {}
 
 
+_VOICES_LOCK = threading.Lock()
+
+
 def write_voices_file(cfg):
+    # под замком и атомарно (как config.json): два одновременных запроса
+    # раньше могли перемешать содержимое и потерять правки
     p = os.path.join(ag.code_dir(), "voices.json")
-    with open(p, "w", encoding="utf-8") as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
+    tmp = p + ".tmp"
+    with _VOICES_LOCK:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, ensure_ascii=False, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, p)
 
 
 def _history_dir():
@@ -822,9 +832,17 @@ def release_info(force=False):
         if digest.startswith("sha256:"):
             sha = digest[7:]
     if not sha:
-        m = re.search(r"SHA256[^\n:]*[:\s]+([0-9a-fA-F]{64})", body)
-        if m:
-            sha = m.group(1)
+        # фолбэк: хэш принимаем только в окне из 3 строк вокруг упоминания
+        # установщика (чужой SHA256 в changelog не должен подменить наш)
+        lines = body.splitlines()
+        for idx, line in enumerate(lines):
+            if "AnkiVoice-Setup" not in line and "certutil" not in line:
+                continue
+            m = re.search(r"\b([0-9a-fA-F]{64})\b",
+                          "\n".join(lines[idx:idx + 3]))
+            if m:
+                sha = m.group(1)
+                break
     data = {
         "ok": True,
         "current": ag.APP_VERSION,
@@ -1014,6 +1032,17 @@ def fs_list(path, kind, exts):
 
 
 # ================================================================== HTTP-обработчик
+def _validated_speed(raw):
+    """Скорость теста синтеза: число 0.1..5.0 или понятная ошибка."""
+    try:
+        speed = float(raw or 1.0)
+    except (TypeError, ValueError):
+        raise ValueError("Скорость должна быть числом")
+    if not (0.1 <= speed <= 5.0):
+        raise ValueError("Скорость — число от 0.1 до 5.0")
+    return speed
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -1679,7 +1708,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._err("Сначала выбери голос")
             args = ["test", "--voice", voice,
                     "--text", (b.get("text") or "既存建築物の改修では、耐火性能と耐震性能の確認が重要です。"),
-                    "--speed", "%.2f" % float(b.get("speed") or 1.0),
+                    "--speed", "%.2f" % _validated_speed(b.get("speed")),
                     "--seed", str(int(b.get("seed") or 42))]
             title = "Тест синтеза «%s»" % voice
         elif kind == "verify":

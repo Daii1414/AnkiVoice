@@ -17,6 +17,8 @@ pipeline.bat voice --voice madara --deck "Architecture" --mode both
   one command;
 * `--changed` — "Rebuild **only changed**": text and voice match the last
   run - the card is skipped (checked against `voiced_manifest.json`);
+  changing `--voice`/`--voices` counts as a change - such cards are
+  re-voiced;
   mutually exclusive with `--force`;
 * `--retry` — re-run the **failed** operations of the previous run
   (from `last_run.json`); already voiced fields are skipped;
