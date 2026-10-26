@@ -26,10 +26,11 @@
 #define EngineDirName "GPT-SoVITS-v2pro-20250604"
 #define NvidiaUrl "https://www.nvidia.com/Download/index.aspx"
 ; Языки установщика (21) и тексты страницы зависимостей СГЕНЕРИРОВАНЫ
-; lab/build_locales.py в installer\messages.iss. Китайский и тайский —
-; официальные языки Inno Setup с версии 6.4.
+; lab/build_locales.py в installer\messages.iss. Китайский, индонезийский,
+; вьетнамский и хинди в Inno 6.x неофициальные — их файлы лежат в
+; installer\languages; тайский официален с 6.4.
 #if Ver < EncodeVer(6,4,0)
-  #error Inno Setup 6.4+ is required (official Chinese and Thai messages)
+  #error Inno Setup 6.4+ is required (official Thai messages)
 #endif
 
 [Setup]

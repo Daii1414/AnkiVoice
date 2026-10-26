@@ -29,12 +29,14 @@ from locales import CODES  # noqa: E402
 # код языка -> модуль app/locales (zh-SG берёт zh_cn + поправки SG)
 MODULES = {c: c.lower().replace("-", "_") for c in CODES if c not in ("ru", "en", "zh-SG")}
 
-# код языка -> язык установщика Inno Setup (файл .isl)
+# код языка -> язык установщика Inno Setup (файл .isl). Китайский, индонезийский,
+# вьетнамский и хинди в Inno 6.x неофициальные — лежат в installer/languages
+# (взяты из тега is-6_7_1, под ту версию, что ставит CI)
 INNO = {
     "ru": ("russian", "compiler:Languages\\Russian.isl"),
     "en": ("english", "compiler:Default.isl"),
-    "zh-CN": ("chinesesimp", "compiler:Languages\\ChineseSimplified.isl"),
-    "zh-TW": ("chinesetrad", "compiler:Languages\\ChineseTraditional.isl"),
+    "zh-CN": ("chinesesimp", "installer\\languages\\ChineseSimplified.isl"),
+    "zh-TW": ("chinesetrad", "installer\\languages\\ChineseTraditional.isl"),
     "ja": ("japanese", "compiler:Languages\\Japanese.isl"),
     "ko": ("korean", "compiler:Languages\\Korean.isl"),
     "es": ("spanish", "compiler:Languages\\Spanish.isl"),

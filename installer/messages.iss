@@ -3,8 +3,8 @@
 [Languages]
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
-Name: "chinesesimp"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
-Name: "chinesetrad"; MessagesFile: "compiler:Languages\ChineseTraditional.isl"
+Name: "chinesesimp"; MessagesFile: "installer\languages\ChineseSimplified.isl"
+Name: "chinesetrad"; MessagesFile: "installer\languages\ChineseTraditional.isl"
 Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
 Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
