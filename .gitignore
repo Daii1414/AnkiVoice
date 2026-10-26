@@ -50,3 +50,7 @@ lab/quality_v2_report.json
 lab/silence_report.json
 lab/test_domain_dict.json
 lab/*.txt
+
+# --- Выбор установщика (Windows/Linux): у каждого свой ---
+app/default_lang.txt
+app/anki2_dir.txt

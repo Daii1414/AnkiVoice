@@ -36,10 +36,10 @@ jobs:
           python -m pip install -r requirements.txt ruff
 
       - name: "Lint (ruff: syntax errors, undefined names, unused imports)"
-        run: python -m ruff check app lab --select E9,F63,F7,F82,F401
+        run: python -m ruff check app lab linux --select E9,F63,F7,F82,F401
 
       - name: Compile Python
-        run: python -m compileall -q app lab
+        run: python -m compileall -q app lab linux
 
       - name: Unit and integration checks
         run: |
@@ -52,6 +52,13 @@ jobs:
           python lab/readme_check.py
           python lab/fmt_check.py
           python lab/i18n_check.py
+          python lab/test_oscompat.py
+
+      - name: Linux installer scripts (syntax)
+        run: |
+          bash -n install.sh
+          bash -n pipeline.sh
+          bash -n run.sh
 
       # батарея чтений: на Linux pyruntime недоступен, kanaize работает
       # через in-process Haqumei (g2p_core.reads) — тот же движок, что и в
@@ -79,7 +86,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyinstaller numpy==2.4.6 haqumei==0.12.2 e2k
           # exe — артефакт сборки, в репозитории его нет: собираем здесь
-          python -m PyInstaller --noconfirm --onefile --windowed --name AnkiVoice `
+          python -m PyInstaller --noconfirm --onefile --windowed --name AnkiVoice --collect-submodules locales `
             --distpath . --workpath "$env:TEMP\pyi" --specpath "$env:TEMP" app/anki_gui.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 

@@ -12,10 +12,10 @@ import json
 import os
 import random
 import re
-import re
 import time
 
 import av_state
+import oscompat
 from anki_api import _chunks, ac, notes_info, plain
 from engines import ensure_voice, require_engine
 from fields_config import DEFAULT_FIELDS, audio_fields
@@ -26,8 +26,7 @@ from voices import get_voice
 # ------------------------------------------------- итог последнего прогона
 # last_run.json — мост между прогоном и «Перепробовать неудашиеся» / CLI
 # voice --retry: сюда падают счётчики и список неудавшихся карточек.
-LAST_RUN_FILE = os.path.join(os.environ.get("APPDATA") or "",
-                             "AnkiVoice", "last_run.json")
+LAST_RUN_FILE = os.path.join(oscompat.app_dir(), "last_run.json")
 
 
 def _write_last_run(info):
@@ -56,8 +55,7 @@ def read_last_run():
 # {nid: {поле: хэш(голос, seed, speed, итоговый текст)}}. Пишется после
 # каждого успешного прогона; по нему работает voice --changed: перезапись
 # трогает только карточки, чей текст или голос изменились с прошлого раза.
-VOICED_MANIFEST_FILE = os.path.join(os.environ.get("APPDATA") or "",
-                                    "AnkiVoice", "voiced_manifest.json")
+VOICED_MANIFEST_FILE = os.path.join(oscompat.app_dir(), "voiced_manifest.json")
 
 
 def load_voiced_manifest():
@@ -89,7 +87,7 @@ def _audio_hash(voice_name, seed, speed, text):
 
 
 def _filter_changed_jobs(jobs, notes, fields, manifest, voice_by_nid,
-                         seed=42, speed=1.0):
+                         seed=42, speed=1.0, params=None):
     """«Пересобрать только изменённые»: оставить операции, чей звук изменился.
 
     Операция пропускается, если хэш (голос, seed, speed, итоговый текст)
@@ -105,7 +103,8 @@ def _filter_changed_jobs(jobs, notes, fields, manifest, voice_by_nid,
     kept, skipped = [], 0
     for nid, field, text, src in jobs:
         vname = voice_by_nid.get(nid) or ""
-        h = _audio_hash(vname, seed, speed, text)
+        vseed, vspeed = (params or {}).get(vname, (seed, speed))
+        h = _audio_hash(vname, vseed, vspeed, text)
         m = manifest.get(str(nid)) or {}
         if m.get(field) == h and has_audio.get((nid, field)):
             skipped += 1
@@ -188,7 +187,24 @@ def _field_title(field, fields):
     return field
 
 
-def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
+def _voice_params(v, seed=None, speed=None):
+    """(seed, speed) операции: явное значение CLI, иначе настройка голоса.
+
+    Редактор голоса сохраняет speed/seed в voices.json, но озвучка колоды
+    раньше всегда брала дефолты CLI 1.0/42 — настройка работала только в
+    «Тесте». Теперь явный --seed/--speed побеждает, а без него берётся голос.
+    """
+    def num(val, cast, default):
+        try:
+            return cast(val)
+        except (TypeError, ValueError):
+            return default
+    s = seed if seed is not None else num(v.get("seed"), int, 42)
+    sp = speed if speed is not None else num(v.get("speed"), float, 1.0)
+    return s, sp
+
+
+def voice_notes(ids, voice_name, mode="both", force=False, seed=None, speed=None,
                 fields=None, verify=None, asr_model=None, extra_voices=None,
                 only_changed=False):
     """Озвучить карточки.
@@ -206,16 +222,27 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
     """
     # extra_voices — ПУЛ (с повторами по весу из parse_ensemble):
     # ["sakura", "sakura", "madara"] = пропорция 2:1
+    extra = [n.strip() for n in (extra_voices or []) if (n or "").strip()]
+    if not (voice_name or "").strip() and not extra:
+        voice_name = get_voice(None)["name"]      # голос по умолчанию
     names = []
-    for n in [voice_name] + list(extra_voices or []):
+    for n in [voice_name] + extra:
         n = (n or "").strip()
         if n and n not in names:
             names.append(n)
     voices = {n: get_voice(n) for n in names}
-    pool = [n.strip() for n in ([voice_name] + list(extra_voices or []))
-            if (n or "").strip()]
+    vparams = {n: _voice_params(voices[n], seed, speed) for n in names}
+    # пул с весами: если основной голос уже входит в ансамбль (интерфейс
+    # шлёт --voice main --voices main,B), второй раз его не добавляем —
+    # иначе «main + B» делилось 2:1 вместо 1:1
+    if (voice_name or "").strip() and voice_name.strip() not in extra:
+        pool = [voice_name.strip()] + extra
+    else:
+        pool = extra or [names[0]]
     notes = notes_info(ids)
-    jobs = build_jobs(notes, mode, force, fields=fields)
+    # «только изменённые» обязаны видеть и уже озвученные поля: решение
+    # «пересобирать или нет» принимает манифест (_filter_changed_jobs)
+    jobs = build_jobs(notes, mode, force or only_changed, fields=fields)
     if not jobs:
         print("Озвучивать нечего: у выбранных карточек уже есть звук "
               "(или пустой текст). Переозвучивай ключом --force "
@@ -230,7 +257,8 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
                     prior[i] = n
             except Exception:
                 pass
-        assign = assign_voices({j[0] for j in jobs}, pool, seed=seed,
+        assign = assign_voices({j[0] for j in jobs}, pool,
+                               seed=42 if seed is None else seed,
                                prior=prior)
         print("Ансамбль: %s. Карточки распределены случайно, озвучка "
               "партиями — веса переключатся %d %s."
@@ -246,7 +274,7 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
     if only_changed:
         jobs, skipped_same = _filter_changed_jobs(
             jobs, notes, fields, load_voiced_manifest(), assign,
-            seed=seed, speed=speed)
+            params=vparams)
         if skipped_same:
             print("Без изменений с прошлой озвучки: %d %s — пропускаю."
                   % (skipped_same, _plural(skipped_same, "операция",
@@ -289,13 +317,14 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
         print("Карточка %d из %d%s — %s: %s"
               % (i, total, eta, _field_title(field, fields), text[:40]))
         try:
-            key = (name, text, seed, speed)
+            vseed, vspeed = vparams[name]
+            key = (name, text, vseed, vspeed)
             if key not in cache:
                 # содержание сверяем только у предложения: изолированное
                 # слово распознаётся ненадёжно (см. замер на 300 словах)
                 content_check = bool(verify) and (
                     field == fields.get("sentence_audio"))
-                cache[key] = synth(v, text, seed=seed, speed=speed,
+                cache[key] = synth(v, text, seed=vseed, speed=vspeed,
                                    src=src_text, verify=content_check,
                                    asr_model=asr_model)
                 time.sleep(0.2)
@@ -369,13 +398,13 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
         if field not in voiced_fields.get(nid, ()):
             continue
         m = manifest.setdefault(str(nid), {})
-        m[field] = _audio_hash(assign.get(nid) or names[0], seed, speed, text)
+        vname = assign.get(nid) or names[0]
+        m[field] = _audio_hash(vname, *vparams.get(vname, (42, 1.0)), text)
     save_voiced_manifest(manifest)
 
     # человекочитаемый отчёт прогона
     try:
-        rep_dir = os.path.join(os.environ.get("APPDATA") or "",
-                               "AnkiVoice", "reports")
+        rep_dir = os.path.join(oscompat.app_dir(), "reports")
         os.makedirs(rep_dir, exist_ok=True)
         rp = os.path.join(rep_dir, "run_%s.md" % time.strftime("%Y%m%d_%H%M%S"))
         with open(rp, "w", encoding="utf-8") as f:
@@ -389,8 +418,8 @@ def voice_notes(ids, voice_name, mode="both", force=False, seed=42, speed=1.0,
                 f.write("| %d | %d | %s | %s | %s | %s | %s |\n"
                         % (i, r["nid"], _field_title(r["field"], fields),
                            r["voice"], r["status"],
-                           (r["text"] or "").replace("|", "\|")[:60],
-                           (r.get("error") or "").replace("|", "\|")[:80]))
+                           (r["text"] or "").replace("|", "\\|")[:60],
+                           (r.get("error") or "").replace("|", "\\|")[:80]))
         print("Отчёт: %s" % rp)
     except Exception as e:
         print("  (отчёт сохранить не удалось: %r)" % (e,))
@@ -481,13 +510,19 @@ def acquire_lock():
     получает понятную ошибку вместо тихой порчи звука. Блокировка снимается
     сама при выходе процесса (закрытие файла)."""
     global _LOCK_HANDLE
-    require_engine()
-    lockp = os.path.join(av_state.av_state.ENGINE, "logs", "pipeline.lock")
+    # у IndexTTS папки GPT-SoVITS может не быть вовсе — тогда блокировка
+    # живёт в папке настроек приложения
+    from engines import ENGINE_INDEX, engine_kind
+    if engine_kind() != ENGINE_INDEX:
+        require_engine()
+    if av_state.ENGINE:
+        lockp = os.path.join(av_state.ENGINE, "logs", "pipeline.lock")
+    else:
+        lockp = os.path.join(oscompat.app_dir(), "pipeline.lock")
     os.makedirs(os.path.dirname(lockp), exist_ok=True)
     f = open(lockp, "a+")
     try:
-        import msvcrt
-        msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+        oscompat.try_lock(f)
     except OSError:
         f.close()
         raise SystemExit(

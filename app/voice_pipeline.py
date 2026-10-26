@@ -69,6 +69,7 @@ from fields_config import (  # noqa: F401 — фасад
     DEFAULT_FIELDS, audio_fields, resolve_fields,
 )
 import av_state
+import oscompat
 import engines
 
 # ------------------------------------------------- движки (app/engines.py),
@@ -347,17 +348,38 @@ def cmd_add(args):
     cfg = load_voices()
     if args.name in cfg["voices"] and not args.force:
         raise SystemExit("Голос '%s' уже есть. --force — перезаписать." % args.name)
-    for path, what in ((args.gpt, "GPT-веса"), (args.sovits, "SoVITS-веса"), (args.ref, "референс")):
-        if not os.path.exists(path):
+    eng = av_state.ENGINE or ""
+
+    def _locate(path, what):
+        """Путь к файлу: как указан, иначе — от папки движка.
+
+        В voices.json относительные пути считаются от движка, поэтому и
+        здесь «GPT_weights_v2/x.ckpt» ищем там, а не в текущей папке.
+        """
+        p = os.path.expanduser(path)
+        if not os.path.exists(p) and eng and not os.path.isabs(p):
+            p = os.path.join(eng, p)
+        if not os.path.exists(p):
             raise SystemExit("Не найден файл %s: %s" % (what, path))
-    dur = ref_duration(args.ref)
+        return os.path.abspath(p)
+
+    def _store(p):
+        """Внутри движка — относительный путь (переносимо), иначе абсолютный."""
+        if eng and os.path.commonpath([p, os.path.abspath(eng)]) == os.path.abspath(eng):
+            return os.path.relpath(p, eng)
+        return p
+
+    gpt = _locate(args.gpt, "GPT-веса")
+    sovits = _locate(args.sovits, "SoVITS-веса")
+    ref = _locate(args.ref, "референс")
+    dur = ref_duration(ref)
     if dur is not None and not (3.0 <= dur <= 10.0):
         raise SystemExit("Референс %.1f с — API требует 3–10 с. Вырежи другой кусок." % dur)
     cfg["voices"][args.name] = {
         "display": args.display or args.name,
-        "gpt": os.path.relpath(args.gpt, av_state.ENGINE) if os.path.abspath(args.gpt).startswith(av_state.ENGINE) else args.gpt,
-        "sovits": os.path.relpath(args.sovits, av_state.ENGINE) if os.path.abspath(args.sovits).startswith(av_state.ENGINE) else args.sovits,
-        "ref": os.path.relpath(args.ref, av_state.ENGINE) if os.path.abspath(args.ref).startswith(av_state.ENGINE) else args.ref,
+        "gpt": _store(gpt),
+        "sovits": _store(sovits),
+        "ref": _store(ref),
         "aux": args.aux or [],
         "prompt_text": args.prompt_text,
         "prompt_lang": args.prompt_lang,
@@ -387,8 +409,10 @@ def cmd_test(args):
     v = get_voice(args.voice)
     ensure_voice(v)
     text = kanaize(args.text)
-    print("Текст: %s\nКиана: %s" % (args.text, text))
-    blob, ext, _sinfo = synth(v, text, seed=args.seed, speed=args.speed)
+    print("Текст: %s\nКана: %s" % (args.text, text))
+    from voicing import _voice_params
+    vseed, vspeed = _voice_params(v, args.seed, args.speed)
+    blob, ext, _sinfo = synth(v, text, seed=vseed, speed=vspeed)
     out = os.path.join(CODE, "test_%s.%s" % (v["name"], ext))
     with open(out, "wb") as f:
         f.write(blob)
@@ -513,17 +537,19 @@ def _select_note_ids(args, fields):
         if not ids:
             raise SystemExit("Колода '%s' пуста." % args.deck)
         if args.limit:
-            if args.force:
+            if args.force or getattr(args, "changed", False):
                 # «Пересобрать всё заново» + лимит: берём первые N карточек
                 # колоды и переозвучиваем их. Раньше лимит отбрасывал уже
                 # озвученные карточки, и пересборка не работала вовсе.
+                # То же для «только изменённых»: изменённая карточка уже
+                # озвучена, среди «ждущих звука» её нет.
                 ids = ids[:args.limit]
             else:
                 ids = _pending_notes(ids, args.limit, fields, mode=args.mode)
     elif tag:
         ids = ac("findNotes", query='tag:"%s"' % tag)
         if args.limit:
-            if args.force:
+            if args.force or getattr(args, "changed", False):
                 ids = ids[:args.limit]
             else:
                 ids = _pending_notes(ids, args.limit, fields, mode=args.mode)
@@ -626,6 +652,93 @@ def cmd_cleanup_media(args):
     print("Удалено: %d из %d." % (n, len(orphans)))
 
 
+def cmd_compress_media(args):
+    """Пережать уже записанный звук tts_*.wav в .ogg и поправить ссылки.
+
+    Новые движки отдают только WAV, и до 1.10 он шёл в колоду как есть —
+    в 10 раз тяжелее ogg. Для каждой карточки с [sound:tts_*.wav]: файл
+    сжимается в OGG Vorbis (имя то же, расширение .ogg), ссылки в полях
+    заменяются, старый WAV удаляется из медиа (Anki кладёт удалённое в
+    корзину медиа; --keep — оставить).
+    """
+    from tts import to_ogg
+    query = 'deck:"%s"' % args.deck if args.deck else ""
+    ids = ac("findNotes", query=query)
+    inner = re.compile(r"\[(?:sound|audio):(tts_[^\]]+\.wav)\]", re.IGNORECASE)
+    uses = {}                      # wav -> [(nid, поле)]
+    for chunk in _chunks(ids, 400):
+        for n in notes_info(chunk):
+            for fname, f in (n.get("fields") or {}).items():
+                for m in inner.finditer(f.get("value", "") or ""):
+                    uses.setdefault(m.group(1), []).append((n["noteId"], fname))
+    if not uses:
+        print("WAV-озвучек в карточках нет — сжимать нечего.")
+        return
+    print("WAV-озвучек: %d — сжимаю в ogg..." % len(uses))
+    renamed, before, after, failed = {}, 0, 0, 0
+    for i, wav in enumerate(sorted(uses), 1):
+        try:
+            data = ac("retrieveMediaFile", filename=wav)
+            if not data:
+                print("  нет файла в медиа: %s" % wav)
+                failed += 1
+                continue
+            blob = base64.b64decode(data)
+            ogg_blob, ext = to_ogg(blob, "wav")
+            if ext != "ogg":
+                raise RuntimeError("ffmpeg не сжал файл")
+            new = wav[:-4] + ".ogg"
+            ac("storeMediaFile", filename=new, overwrite=True,
+               data=base64.b64encode(ogg_blob).decode("ascii"))
+            renamed[wav] = new
+            before += len(blob)
+            after += len(ogg_blob)
+        except Exception as e:
+            print("  не удалось: %s — %s" % (wav, e))
+            failed += 1
+        if i % 20 == 0:
+            print("  %d / %d" % (i, len(uses)))
+    # ссылки: одна правка на поле, даже если в нём несколько файлов
+    edits = {}
+    for wav, new in renamed.items():
+        for nid, fname in uses[wav]:
+            edits.setdefault(nid, set()).add(fname)
+    fixed = 0
+    for chunk in _chunks(sorted(edits), 400):
+        for n in notes_info(chunk):
+            upd = {}
+            for fname in edits[n["noteId"]]:
+                val = n["fields"][fname]["value"]
+                for wav, new in renamed.items():
+                    val = val.replace(wav, new)
+                upd[fname] = val
+            try:
+                ac("updateNoteFields", note={"id": n["noteId"], "fields": upd})
+                fixed += 1
+            except Exception as e:
+                print("  карточка %s не обновлена: %s" % (n["noteId"], e))
+                # ссылка осталась на wav — его не трогаем
+                for wav in list(renamed):
+                    if any(nid == n["noteId"] for nid, _f in uses[wav]):
+                        renamed.pop(wav)
+    removed = 0
+    if not args.keep:
+        for wav in renamed:
+            try:
+                ac("deleteMediaFile", filename=wav)
+                removed += 1
+            except Exception as e:
+                print("  не удалось удалить %s: %s" % (wav, e))
+    print("Готово: %d файлов сжато, карточек обновлено: %d, ошибок: %d."
+          % (len(renamed), fixed, failed))
+    if before:
+        print("Размер: %.1f МБ -> %.1f МБ (в %.0f раз меньше)."
+              % (before / 1048576.0, after / 1048576.0, before / max(after, 1)))
+    if removed:
+        print("Старые WAV удалены из медиа (%d) — Anki держит их в корзине "
+              "медиа до «Проверки медиа»." % removed)
+
+
 def _preview_report(jobs, fields, rmode_by_nid, src_by_nid=None):
     """Строки предпросмотра + сводка. Чистая функция: без Anki и движка.
 
@@ -683,7 +796,9 @@ def cmd_preview(args):
     if not ids:
         return
     notes = notes_info(ids)
-    jobs = build_jobs(notes, args.mode, args.force, fields=fields)
+    jobs = build_jobs(notes, args.mode,
+                      args.force or getattr(args, "changed", False),
+                      fields=fields)
     skipped = len({n["noteId"] for n in notes}) - len({j[0] for j in jobs})
     rmode_by_nid = {n["noteId"]: reading_mode(fields, n,
                                               fields.get("reading", ""))
@@ -704,6 +819,11 @@ def cmd_preview(args):
     for n in ([args.voice] if args.voice else []) + extra:
         if n and n not in names:
             names.append(n)
+    # тот же пул с весами, что и в voice_notes
+    if args.voice and args.voice not in extra:
+        pool = [args.voice] + extra
+    else:
+        pool = extra or names
     if len(names) > 1:
         prior = {}
         for n in names:
@@ -712,7 +832,7 @@ def cmd_preview(args):
                     prior[i] = n
             except Exception:
                 pass
-        voice_by_nid = assign_voices({j[0] for j in jobs}, names,
+        voice_by_nid = assign_voices({j[0] for j in jobs}, pool,
                                      seed=args.seed, prior=prior)
         print("Ансамбль: %s" % ", ".join(names))
     # сырые поля предложений: база сравнения для подстановки
@@ -899,18 +1019,21 @@ def cmd_verify(args):
     nvar = int(getattr(args, "variants", 0) or 0)
     if nvar and bad:
         print("\nДелаю по %d вариантов на каждое подозрительное..." % nvar)
-        v = get_voice("narrator")
+        try:
+            v = get_voice(None)          # голос по умолчанию из voices.json
+        except SystemExit:
+            v = None
         for row in report:
             if not row.get("verdict", "").startswith(("пропущено", "не то",
                                                       "подозрительно")):
                 continue
-            voice = row.get("voice") or "narrator"
+            voice = row.get("voice") or (v["name"] if v else None)
             try:
                 vv = get_voice(voice)
-            except Exception:
+            except (Exception, SystemExit):   # get_voice бросает SystemExit
                 vv = v
             text = row.get("expected") or ""
-            if not text:
+            if not text or vv is None:
                 continue
             # произнесённый текст — ровно то, что сверяли
             for k in range(1, nvar + 1):
@@ -1051,7 +1174,9 @@ def cmd_qc_deck(args):
     # колоду нельзя — только переписать)
     existing = {}
     try:
-        ids = ac("findCards", query='deck:"%s"' % deck) or []
+        # notesInfo ждёт id ЗАМЕТОК: findCards давал id карточек, и уже
+        # созданные карточки брака не находились никогда
+        ids = ac("findNotes", query='deck:"%s"' % deck) or []
         for n in notes_info(ids):
             fld = (n.get("fields") or {})
             val = ((fld.get(front) or {}).get("value") or "").strip()
@@ -1177,8 +1302,7 @@ def cmd_verdicts(args):
     # istoriya verdiktov iz proshlyh raundov (koloda peresbiraetsya,
     # a otmetki ostayutsia zdes)
     history = []
-    hist_path = os.path.join(os.environ.get("APPDATA") or "", "AnkiVoice",
-                           "verdicts_history.json")
+    hist_path = os.path.join(oscompat.app_dir(), "verdicts_history.json")
     try:
         with open(hist_path, encoding="utf-8") as f:
             history = json.load(f) or []
@@ -1233,14 +1357,16 @@ def cmd_verdicts(args):
             continue
         cov = None
         for k, v in f.items():
-            m = re.search(r"Файл:\s*(\S+)", v.get("value") or "")
+            # qc-deck пишет звук как [sound:имя]; «Файл:» — старый формат
+            m = re.search(r"\[sound:([^\]]+)\]|Файл:\s*(\S+)",
+                          v.get("value") or "")
             if m:
-                rec = index.get(m.group(1))
+                rec = index.get(m.group(1) or m.group(2))
                 if rec:
                     cov = rec.get("coverage")
         low = verdict.lower()
         item = (cov, n["noteId"])
-        if "ложн" in low or "нет" in low or "ok" in low:
+        if any(w in low for w in ("хорош", "норм", "ложн", "нет", "ok")):
             false_alarm.append(item)
         elif "верно" in low or "да" in low or "плох" in low:
             true_bad.append(item)
@@ -1257,7 +1383,7 @@ def cmd_verdicts(args):
             continue
         low0 = v0.lower()
         item0 = (cov0, f0)
-        if "ложн" in low0 or "нет" in low0 or "ok" in low0:
+        if any(w in low0 for w in ("хорош", "норм", "ложн", "нет", "ok")):
             false_alarm.append(item0)
         elif "верно" in low0 or "да" in low0 or "плох" in low0:
             true_bad.append(item0)
@@ -1293,6 +1419,23 @@ def cmd_check(args):
                       verify_files=not getattr(args, "fast", False))
 
 
+def cmd_fetch_asr(args):
+    """Скачать модель faster-whisper для проверки произношения (один раз).
+
+    Качает в общий кэш HuggingFace — там её и ищет pron_check. Работает в
+    Python движка: huggingface_hub там уже стоит (его тянет transformers).
+    """
+    model = args.model or "Systran/faster-whisper-medium"
+    try:
+        from huggingface_hub import snapshot_download
+    except ImportError:
+        raise SystemExit("В Python движка нет huggingface_hub — модель скачать нечем.")
+    print("Скачиваю %s (около 1,5 ГБ, один раз)..." % model)
+    path = snapshot_download(repo_id=model)
+    print("Готово: %s" % path)
+    print("Проверка произношения теперь доступна — включи её в «Дополнительных настройках».")
+
+
 def cmd_selftest(args):
     """Проверка всей цепочки без записи в Anki и без синтеза."""
     bad = 0
@@ -1312,9 +1455,9 @@ def cmd_selftest(args):
     else:
         fail("папка GPT-SoVITS не найдена (env GPT_SOVITS_ROOT / gptsovits_path.txt / конфиг AnkiVoice.exe)")
     if av_state.PYTHON and os.path.exists(av_state.PYTHON):
-        ok("runtime\\python.exe на месте")
+        ok("%s на месте: %s" % (oscompat.engine_python_label(), av_state.PYTHON))
     else:
-        fail("нет runtime\\python.exe: %s" % av_state.PYTHON)
+        fail("нет %s: %s" % (oscompat.engine_python_label(), av_state.PYTHON))
 
     cfg = load_voices()
     voices = cfg.get("voices", {})
@@ -1620,8 +1763,10 @@ def main():
     p = sub.add_parser("test", help="синтез одного текста в файл")
     p.add_argument("--voice")
     p.add_argument("--text", required=True)
-    p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--speed", type=float, default=1.0)
+    p.add_argument("--seed", type=int, default=None,
+                   help="по умолчанию — seed голоса из voices.json (иначе 42)")
+    p.add_argument("--speed", type=float, default=None,
+                   help="по умолчанию — скорость голоса (иначе 1.0)")
 
     p = sub.add_parser("clone", help="клонировать карточки в новую колоду")
     p.add_argument("--voice", required=True)
@@ -1664,8 +1809,10 @@ def main():
                         "читается по ней, нет — кандзи), mix — всегда по "
                         "фуригане, asis — только кандзи")
     p.add_argument("--force", action="store_true")
-    p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--speed", type=float, default=1.0)
+    p.add_argument("--seed", type=int, default=None,
+                   help="по умолчанию — seed каждого голоса из voices.json")
+    p.add_argument("--speed", type=float, default=None,
+                   help="по умолчанию — скорость каждого голоса из voices.json")
     p.add_argument("--tag", default=None,
                    help="озвучить только карточки с этим тегом (например "
                         "av_suspect — те, где мы не уверены в произношении)")
@@ -1721,8 +1868,10 @@ def main():
                         "фуригане, asis — только кандзи")
     p.add_argument("--tag", default=None)
     p.add_argument("--force", action="store_true")
-    p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--speed", type=float, default=1.0)
+    p.add_argument("--seed", type=int, default=None,
+                   help="по умолчанию — seed каждого голоса из voices.json")
+    p.add_argument("--speed", type=float, default=None,
+                   help="по умолчанию — скорость каждого голоса из voices.json")
 
     p = sub.add_parser("check", help="проверить колоду")
     p.add_argument("--deck", required=True)
@@ -1737,6 +1886,9 @@ def main():
     p.add_argument("--json", action="store_true", help="машинночитаемый вывод (для GUI)")
 
     sub.add_parser("selftest", help="проверить файлы/референсы/Anki/сервер")
+    p = sub.add_parser("fetch-asr", help="скачать модель faster-whisper для проверки произношения")
+    p.add_argument("--model", default=None,
+                   help="репозиторий HuggingFace (по умолчанию Systran/faster-whisper-medium)")
 
     p = sub.add_parser("qc-deck", help="собрать отбракованный синтез в колоду Anki "
                                        "(чтобы послушать и оценить детектор)")
@@ -1753,6 +1905,14 @@ def main():
                         "— со всей коллекцией)")
     p.add_argument("--apply", action="store_true",
                    help="удалить найденный мусор (без флага — только отчёт)")
+
+    p = sub.add_parser("compress-media",
+                       help="пережать записанный звук tts_*.wav в .ogg "
+                            "и поправить ссылки в карточках")
+    p.add_argument("--deck", default=None,
+                   help="только эта колода (по умолчанию — вся коллекция)")
+    p.add_argument("--keep", action="store_true",
+                   help="не удалять старые WAV из медиа")
 
     p = sub.add_parser("preview",
                        help="предпросмотр озвучки без синтеза: что уйдёт в "
@@ -1776,6 +1936,8 @@ def main():
     p.add_argument("--furigana-src", default=None)
     p.add_argument("--reading", default="")
     p.add_argument("--force", action="store_true")
+    p.add_argument("--changed", action="store_true",
+                   help="как у voice: смотреть и уже озвученные карточки")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--tag", default=None)
 
@@ -1793,7 +1955,9 @@ def main():
               "check": cmd_check, "scan": cmd_scan, "qc-deck": cmd_qc_deck,
               "verify": cmd_verify, "verdicts": cmd_verdicts,
               "selftest": cmd_selftest,
+              "fetch-asr": cmd_fetch_asr,
               "cleanup-media": cmd_cleanup_media,
+              "compress-media": cmd_compress_media,
               "preview": cmd_preview}[args.cmd](args)
     if args.cmd == "check" and result is False:
         sys.exit(1)

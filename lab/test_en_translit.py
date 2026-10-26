@@ -21,6 +21,7 @@ def test_translit():
         ("AI技術", "エーアイ技術"),
         ("IEC規格", "アイイーシー規格"),
         ("I形グルーブ", "アイ形グルーブ"),
+        ("iOS", "アイオーエス"),           # буква-приставка + аббревиатура
     ]
     for src, expected in cases:
         got = transliterate_en(src)
@@ -34,6 +35,9 @@ def test_translit():
             ("community", "コミュニティー"),
             ("coffee", "コーヒー"),
             ("community bus", "コミュニティー バス"),
+            # буква-приставка: не «イフォン» одним словом
+            ("iPhone", "アイフォン"),
+            ("iPad", "アイパッド"),
         ]
         for src, expected in word_cases:
             got = transliterate_en(src)

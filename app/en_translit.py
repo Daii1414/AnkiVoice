@@ -106,6 +106,7 @@ ACRONYMS = {
     "IEC": "アイイーシー",
     "ISO": "アイエスオー",
     "JIS": "ジス",
+    "MACOS": "マックオーエス",
 
     # Архитектура / ГИС / 3D
     "BIM": "ビム",
@@ -190,12 +191,21 @@ def transliterate_en(text):
 
     # 3. Чистые английские слова и аббревиатуры
     def _repl_word(m):
-        raw = m.group(0)
+        return _word(m.group(0))
+
+    def _word(raw):
         u = raw.upper()
 
         # Словарная аббревиатура/термин
         if u in ACRONYMS:
             return ACRONYMS[u]
+
+        # Строчная буква-приставка перед Словом: iPhone, iPad, iOS, eBay.
+        # Целиком e2k читал их как одно слово («iphone» -> イフォン); буква
+        # произносится по алфавиту, остальное — как обычное слово.
+        m_pre = re.match(r"^([a-z])([A-Z][A-Za-z]*)$", raw)
+        if m_pre:
+            return LATIN[m_pre.group(1).upper()] + _word(m_pre.group(2))
 
         # Одиночные буквы (например 'I形' -> 'アイ形')
         if len(raw) == 1:

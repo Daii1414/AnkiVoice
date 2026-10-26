@@ -10,11 +10,28 @@
 ; а в Program Files обычный пользователь писать не может.
 
 #define MyAppName "AnkiVoice"
-#define MyAppVersion "1.9.4"
+#define MyAppVersion "1.10.0"
 #define MyAppPublisher "Daii1414"
 #define MyAppURL "https://github.com/Daii1414/AnkiVoice"
 ; Исходники берём из каталога этого скрипта ({src}) — сборка одинаково
 ; работает локально и в CI, без жёстких путей.
+;
+; Зависимости (страница «Что нужно для работы», installer\deps.iss):
+; установщик проверяет Anki, AnkiConnect, движок GPT-SoVITS и драйвер NVIDIA
+; и ДО загрузки спрашивает, что скачать, — или папку, если оно уже стоит в
+; другом месте (на другом диске). Ссылки — проверенные версии.
+#define AnkiUrl "https://github.com/ankitects/anki/releases/download/26.09.3/anki-26.09.3-win-x64.msi"
+#define AnkiConnectUrl "https://ankiweb.net/shared/download/2055492159?v=2.1&p=260900"
+#define EngineUrl "https://huggingface.co/lj1995/GPT-SoVITS-windows-package/resolve/main/GPT-SoVITS-v2pro-20250604.7z"
+#define EngineDirName "GPT-SoVITS-v2pro-20250604"
+#define NvidiaUrl "https://www.nvidia.com/Download/index.aspx"
+; Языки установщика (21) и тексты страницы зависимостей СГЕНЕРИРОВАНЫ
+; lab/build_locales.py в installer\messages.iss. Китайский, индонезийский,
+; вьетнамский и хинди в Inno 6.x неофициальные — их файлы лежат в
+; installer\languages; тайский официален с 6.4.
+#if Ver < EncodeVer(6,4,0)
+  #error Inno Setup 6.4+ is required (official Thai messages)
+#endif
 
 [Setup]
 AppId={{6D8C4A52-73E1-4E49-9C2F-0B1E2A9C7D31}
@@ -28,22 +45,22 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=dist
-OutputBaseFilename=AnkiVoice-Setup-1.9.3
+OutputBaseFilename=AnkiVoice-Setup-1.10.0
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+ShowLanguageDialog=yes
 SetupLogging=yes
 UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\AnkiVoice.exe
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
-[Languages]
-Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
+#include "installer\messages.iss"
 
 [Tasks]
-Name: "desktopicon"; Description: "Создать значок на рабочем столе"; \
-  GroupDescription: "Дополнительные значки:"
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; \
+  GroupDescription: "{cm:AdditionalIcons}"
 
 [Files]
 ; сама программа и её памятки
@@ -59,6 +76,9 @@ Source: "app\voice_pipeline.py";  DestDir: "{app}\app"; Flags: ignoreversion
 ; модули пайплайна (разбивка 1.9.2): фасад импортирует их при старте
 Source: "app\paths.py";           DestDir: "{app}\app"; Flags: ignoreversion
 Source: "app\av_state.py";        DestDir: "{app}\app"; Flags: ignoreversion
+Source: "app\oscompat.py";        DestDir: "{app}\app"; Flags: ignoreversion
+; студия обучения: подкладка для Python движка (studio.py вшит в exe)
+Source: "app\studio_shim\sitecustomize.py"; DestDir: "{app}\app\studio_shim"; Flags: ignoreversion
 Source: "app\fields_config.py";   DestDir: "{app}\app"; Flags: ignoreversion
 Source: "app\anki_api.py";        DestDir: "{app}\app"; Flags: ignoreversion
 Source: "app\engines.py";         DestDir: "{app}\app"; Flags: ignoreversion
@@ -90,12 +110,12 @@ Source: "bundled\sudachidict.zip"; DestDir: "{app}\bundled"; Flags: ignoreversio
 
 [Icons]
 Name: "{userstartmenu}\{#MyAppName}"; Filename: "{app}\AnkiVoice.exe"
-Name: "{userstartmenu}\Удалить {#MyAppName}"; Filename: "{uninstallexe}"
+Name: "{userstartmenu}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\AnkiVoice.exe"; \
   Tasks: desktopicon
 
 [Run]
-Filename: "{app}\AnkiVoice.exe"; Description: "Запустить {#MyAppName}"; \
+Filename: "{app}\AnkiVoice.exe"; Description: "{cm:LaunchProgram,{#MyAppName}}"; \
   Flags: nowait postinstall skipifsilent
 
 [InstallDelete]
@@ -113,6 +133,24 @@ Type: files; Name: "{app}\pyruntime.zip"
 Type: files; Name: "{app}\sudachidict.zip"
 
 [Code]
+#include "installer\deps.iss"
+
+procedure InitializeWizard;
+begin
+  DepInit;
+end;
+
+// страница зависимостей — план и подтверждение; «Установить» на последней
+// странице — загрузка выбранного (страница загрузки Inno живёт только здесь)
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  Result := True;
+  if (DepPage <> nil) and (CurPageID = DepPage.ID) then
+    Result := DepPageNext
+  else if CurPageID = wpReady then
+    DepPrepare;
+end;
+
 // Обновление с 1.8: реестр голосов жил в {app}\voices.json, теперь живёт в
 // {app}\app\voices.json. Копируем старый на новое место до установки файлов
 // (ssInstall срабатывает раньше [InstallDelete] и [Files]), только если
@@ -121,6 +159,8 @@ procedure CurStepChanged(CurStep: TSetupStep);
 var
   OldVoices, NewVoices: String;
 begin
+  if CurStep = ssPostInstall then
+    DepSaveChoices;
   if CurStep = ssInstall then
   begin
     OldVoices := ExpandConstant('{app}\voices.json');
@@ -176,3 +216,5 @@ Type: filesandordirs; Name: "{app}\logs"
 Type: filesandordirs; Name: "{app}\lab"
 Type: filesandordirs; Name: "{app}\bundled"
 Type: files; Name: "{app}\gptsovits_path.txt"
+Type: files; Name: "{app}\app\anki2_dir.txt"
+Type: files; Name: "{app}\app\default_lang.txt"

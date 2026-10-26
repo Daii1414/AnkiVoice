@@ -116,8 +116,8 @@ def load():
 def _ffmpeg():
     """ffmpeg движка: им декодируем звук в 16 кГц моно."""
     eng = os.environ.get("GPT_SOVITS_ROOT") or ""
-    for p in (os.path.join(eng, "runtime", "ffmpeg.exe"),
-              os.path.join(eng, "runtime", "ffmpeg"),
+    exe = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
+    for p in (os.path.join(eng, "runtime", exe),
               "ffmpeg"):
         if p and (os.path.isfile(p) or p == "ffmpeg"):
             return p

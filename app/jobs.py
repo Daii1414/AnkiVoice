@@ -126,15 +126,17 @@ def build_jobs(notes, mode, force, fields=None):
                     # а термин читается ровно по фуригане
                     text = inject_reading_lenient(
                         text, n,
-                        reading_field=fields.get("furigana_src", "ExpressionFurigana"))
+                        reading_field=fields.get("furigana_src", "ExpressionFurigana"),
+                        word_field=fields.get("word_src", "Expression"))
                 else:
                     # «только кандзи»: текст остаётся кандзи,
                     # движок читает сам в контексте
                     pass
                 src_text = text          # исходный текст: во что будет прознесено
-                if not _speakable(text):        # только пунктуация и медиа
-                    continue
-                jobs.append((n["noteId"], fields["sentence_audio"], text, src_text))
+                # только пунктуация и медиа — предложение пропускаем, но НЕ
+                # всю карточку (раньше continue терял и задание на слово)
+                if _speakable(text):
+                    jobs.append((n["noteId"], fields["sentence_audio"], text, src_text))
         if mode in ("expression", "both"):
             asis = rmode == "asis"
             text = word_text(n, fields["word_src"],

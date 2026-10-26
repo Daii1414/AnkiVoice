@@ -15,7 +15,7 @@ EXPECTED = [
     "AnkiVoice.exe", "pipeline.bat", "README.md", "LICENSE",
     "app\\voice_pipeline.py", "app\\kana_reading.py", "app\\tts.py",
     "app\\jobs.py", "app\\voicing.py", "app\\engines.py", "app\\voices.py",
-    "app\\anki_api.py", "app\\av_state.py", "app\\paths.py",
+    "app\\anki_api.py", "app\\av_state.py", "app\\paths.py", "app\\oscompat.py",
     "app\\fields_config.py", "app\\g2p_core.py", "app\\sudachi_g2p.py",
     "app\\en_translit.py", "app\\kana_stress.py",
     "lab\\quality_v2.py", "lab\\pron_check.py",

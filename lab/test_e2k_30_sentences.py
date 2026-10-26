@@ -44,7 +44,7 @@ TEST_SENTENCES = [
 ]
 
 def main():
-    from kana_reading import _translit_en_local, en_translit
+    from kana_reading import en_translit
     print("e2k доступен:", en_translit is not None and en_translit.has_e2k())
     print("=" * 70)
     fails = 0

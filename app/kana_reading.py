@@ -17,6 +17,7 @@ import unicodedata
 import zipfile
 
 import av_state
+import oscompat
 from anki_api import plain
 from fields_config import DEFAULT_FIELDS
 from paths import CODE, ROOT, bundled
@@ -204,7 +205,7 @@ _KEEP_KATA = ("コンニチハ", "コンバンハ")
 # скриптом): долгоживущий помощник sudachi_g2p.py отвечает на JSON-строки.
 # Пользователю ставить ничего не нужно — всё лежит в репозитории.
 PYRUNTIME_DIR = os.path.join(ROOT, "pyruntime")
-PYRUNTIME_PY = os.path.join(PYRUNTIME_DIR, "python.exe")
+PYRUNTIME_PY = oscompat.pyruntime_python(ROOT)
 SUDACHI_HELPER = os.path.join(CODE, "sudachi_g2p.py")
 PYRUNTIME_ZIP = bundled("pyruntime.zip")
 
@@ -216,9 +217,10 @@ def _ensure_pyruntime():
     """Развернуть встроенный Python из pyruntime.zip, если его ещё нет."""
     if os.path.isfile(PYRUNTIME_PY):
         return True
-    if os.name != "nt":
-        # pyruntime — Windows-сборка (python.exe): на других ОС его нет и
-        # не будет, чтение делает in-process Haqumei (см. _core_local)
+    if not oscompat.IS_WIN:
+        # pyruntime.zip — Windows-сборка (python.exe). На Linux pyruntime —
+        # обычный venv, его создаёт install.sh; если его нет, чтение делает
+        # in-process Haqumei (см. _core_local) или запасная цепочка
         return False
     if not os.path.isfile(PYRUNTIME_ZIP):
         return False
@@ -302,8 +304,11 @@ def sudachi_client():
         if not _sudachi_warned:
             print("-- Встроенный Sudachi недоступен — иероглифы читает "
                   "pyopenjtalk (словарь постарее).")
-            print("   Проверь, что рядом со скриптом лежат pyruntime.zip "
-                  "и sudachidict.zip.")
+            if oscompat.IS_WIN:
+                print("   Проверь, что рядом со скриптом лежат pyruntime.zip "
+                      "и sudachidict.zip.")
+            else:
+                print("   Нет %s — запусти install.sh ещё раз." % PYRUNTIME_PY)
             _sudachi_warned = True
         return None
     return _SUDACHI_PROC
@@ -489,7 +494,7 @@ def _pyopenjtalk_g2p(text):
         if not _g2p_warned:
             print("!! pyopenjtalk недоступен (%s) — иероглифы останутся как есть." % e)
             print("   Установи в интерпретатор движка: %s -m pip install pyopenjtalk"
-                  % (av_state.PYTHON or r"runtime\python.exe"))
+                  % (av_state.PYTHON or oscompat.engine_python_label()))
             _g2p_warned = True
         return text
 
@@ -945,7 +950,7 @@ def furiga_pair(text):
     return "".join(surf), "".join(read).replace("\u30fb", "")
 
 
-def expression_inject_pair(note, reading_field):
+def expression_inject_pair(note, reading_field, word_field="Expression"):
     """(написание_слова, полное_чтение) — для подстановки в предложение.
 
     Написание — как слово стоит в предложении («相欠き継ぎ»), чтение —
@@ -963,7 +968,8 @@ def expression_inject_pair(note, reading_field):
     def fld(name):
         return plain(f.get(name, {}).get("value", ""))
 
-    surface = re.sub(r"\[[^\[\]]*\]", "", fld("Expression")).strip()
+    # поле слова — настраиваемое (word_src): у колод оно бывает Word/Слово
+    surface = re.sub(r"\[[^\[\]]*\]", "", fld(word_field)).strip()
     if not surface or not KANJI_RE.search(surface):
         return None, None                    # иероглифов нет — нечего подставлять
     reading = fld(reading_field).strip()
@@ -1016,7 +1022,7 @@ def replace_term(text, surface, repl):
     return pat.sub(lambda _m: repl, text)
 
 
-def inject_reading_lenient(sentence, note, reading_field):
+def inject_reading_lenient(sentence, note, reading_field, word_field="Expression"):
     """Подставить чтение из поля в предложение без ограничения.
 
     Обычный вариант inject_reading требует, чтобы поверхность термина содержит кандзи
@@ -1031,7 +1037,7 @@ def inject_reading_lenient(sentence, note, reading_field):
     reading = fld(reading_field).strip()
     if not reading:
         return sentence
-    surface = fld("Expression").strip()
+    surface = re.sub(r"\[[^\[\]]*\]", "", fld(word_field)).strip()
     if "[" in reading:
         fur_surf, fur_read = furiga_pair(reading)
         if fur_surf is None:
@@ -1057,7 +1063,7 @@ def inject_reading_lenient(sentence, note, reading_field):
     return replace_term(sentence, surface, repl)
 
 
-def inject_reading(sentence, note, reading=""):
+def inject_reading(sentence, note, reading="", word_field="Expression"):
     """Вставить проверенное чтение в предложение вместо иероглифов.
 
     Идея: карточка уже содержит ПРАВИЛЬНОЕ чтение сложного слова, а API
@@ -1073,7 +1079,8 @@ def inject_reading(sentence, note, reading=""):
     """
     if not reading or reading == "off":
         return sentence
-    kanji, rd = expression_inject_pair(note, reading_field=reading)
+    kanji, rd = expression_inject_pair(note, reading_field=reading,
+                                       word_field=word_field)
     if not kanji or not rd:
         return sentence
     if kanji not in sentence:

@@ -15,11 +15,13 @@ import socket
 import subprocess
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import av_state
+import oscompat
 from anki_api import _NO_PROXY
-from paths import CODE, lab_dir
+from paths import CODE, ENGINE_LOCAL_FILE, lab_dir
 
 TTS_HOST, TTS_PORT = "127.0.0.1", 9880
 TTS_URL = "http://%s:%d" % (TTS_HOST, TTS_PORT)
@@ -63,14 +65,15 @@ def indextts_dir(cfg=None):
 # --------------------------------------------------- поиск папки GPT-SoVITS
 def _is_engine(p):
     """Папка похожа на установку GPT-SoVITS: есть интерпретатор и api_v2.py."""
-    return bool(p) and os.path.isfile(os.path.join(p, "runtime", "python.exe")) \
-        and os.path.isfile(os.path.join(p, "api_v2.py"))
+    return bool(p) and os.path.isfile(os.path.join(p, "api_v2.py")) \
+        and bool(oscompat.engine_python(p))
 
 
 def _read_engine_local_file():
     try:
-        from voices import ENGINE_LOCAL_FILE  # лениво: voices -> engines
-        with open(ENGINE_LOCAL_FILE, encoding="utf-8") as f:
+        # из paths, а не из voices: voices импортирует engines, и прямой
+        # `import voices` падал на цикле (partially initialized module)
+        with open(ENGINE_LOCAL_FILE, encoding="utf-8-sig") as f:
             s = f.read().strip().strip('"').strip("'")
         return s or None
     except OSError:
@@ -78,17 +81,8 @@ def _read_engine_local_file():
 
 
 def _read_app_config():
-    """Конфиг приложения (%APPDATA%\\AnkiVoice\\config.json) целиком."""
-    for name in ("AnkiVoice", "AnkiTTS"):
-        cfgp = os.path.join(os.environ.get("APPDATA") or "", name, "config.json")
-        try:
-            with open(cfgp, encoding="utf-8") as f:
-                cfg = json.load(f) or {}
-            if cfg:
-                return cfg
-        except Exception:
-            continue
-    return {}
+    """Конфиг приложения (%APPDATA%\\AnkiVoice или ~/.config/AnkiVoice) целиком."""
+    return oscompat.read_app_config()
 
 
 def _read_engine_gui_config():
@@ -120,13 +114,23 @@ _BAD_ENGINES = []       # указанные, но не похожие на GPT-
 
 def require_engine():
     if not av_state.ENGINE:
-        msg = ("Не найдена папка GPT-SoVITS. Укажи её одним из способов:\n"
-               "  * переменная окружения  GPT_SOVITS_ROOT=C:\\...\\GPT-SoVITS\n"
-               "  * файл gptsovits_path.txt рядом с voice_pipeline.py (одна строка — путь)\n"
-               "  * запусти AnkiVoice.exe и выбери папку в окне (сохранится в конфиг)\n"
-               "В папке должны быть runtime\\python.exe и файл api_v2.py.")
+        if oscompat.IS_WIN:
+            msg = ("Не найдена папка GPT-SoVITS. Укажи её одним из способов:\n"
+                   "  * переменная окружения  GPT_SOVITS_ROOT=C:\\...\\GPT-SoVITS\n"
+                   "  * файл gptsovits_path.txt рядом с voice_pipeline.py (одна строка — путь)\n"
+                   "  * запусти AnkiVoice.exe и выбери папку в окне (сохранится в конфиг)\n"
+                   "В папке должны быть runtime\\python.exe и файл api_v2.py.")
+        else:
+            msg = ("Не найдена папка GPT-SoVITS. Укажи её одним из способов:\n"
+                   "  * переменная окружения  GPT_SOVITS_ROOT=~/GPT-SoVITS\n"
+                   "  * файл gptsovits_path.txt рядом с voice_pipeline.py (одна строка — путь)\n"
+                   "  * запусти ankivoice и выбери папку во вкладке «Приложение»\n"
+                   "В папке должен быть api_v2.py, а Python движка ставит\n"
+                   "install.sh (~/.local/share/AnkiVoice/gsv-venv) или задаётся\n"
+                   "переменной GPT_SOVITS_PYTHON.")
         if _BAD_ENGINES:
-            msg += ("\n\nУказанные пути НЕ подошли (нет runtime\\python.exe или api_v2.py):"
+            msg += ("\n\nУказанные пути НЕ подошли (нет api_v2.py или %s):"
+                    % oscompat.engine_python_label()
                     + "".join("\n  * %s" % p for p in _BAD_ENGINES))
         raise SystemExit(msg)
     return av_state.ENGINE
@@ -165,26 +169,12 @@ def wait_port(want_up, timeout=300, what="порт"):
 
 
 def port_pid(port):
-    """PID процесса, слушающего порт (Windows/netstat), либо None."""
-    try:
-        out = subprocess.run(["netstat", "-ano"], capture_output=True,
-                             text=True, timeout=20)
-        for line in out.stdout.splitlines():
-            if "LISTENING" in line and (":%d " % port) in line:
-                return line.split()[-1]
-    except Exception:
-        pass
-    return None
+    """PID процесса, слушающего порт, либо None."""
+    return oscompat.port_pid(port)
 
 
 def port_process_name(pid):
-    try:
-        out = subprocess.run(["tasklist", "/FI", "PID eq %s" % pid, "/FO", "CSV", "/NH"],
-                             capture_output=True, text=True, timeout=20)
-        line = out.stdout.strip().splitlines()[0]
-        return line.split('","')[0].strip('"')
-    except Exception:
-        return "?"
+    return oscompat.process_name(pid)
 
 
 def start_server(start_config, wait=600):
@@ -197,15 +187,44 @@ def start_server(start_config, wait=600):
             raise SystemExit(
                 "Порт %d занят программой '%s' (PID %s) — это не GPT-SoVITS.\n"
                 "Закрой эту программу и повтори." % (TTS_PORT, name, pid))
-        return
+        # сервер другого движка (папку движка сменили, а старый api_v2 ещё
+        # жив): веса нового голоса он не загрузит, а перезапуск через
+        # /control поднял бы его же — останавливаем и запускаем свой
+        cwd = oscompat.process_cwd(pid) if pid else None
+        if not cwd or os.path.realpath(cwd) == os.path.realpath(av_state.ENGINE):
+            return
+        print("На порту %d работает сервер другого движка (%s) — "
+              "перезапускаю с текущим (%s)." % (TTS_PORT, cwd, av_state.ENGINE))
+        try:
+            oscompat.kill_pid(pid)
+        except OSError as e:
+            raise SystemExit("Не удалось остановить старый сервер (PID %s): %s"
+                             % (pid, e))
+        if not wait_port(False, 60):
+            raise SystemExit("Старый сервер не освободил порт %d." % TTS_PORT)
+        set_active_voice("")         # веса в новом сервере ещё не загружены
     os.makedirs(os.path.dirname(av_state.SERVER_LOG), exist_ok=True)
     env = dict(os.environ, PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+    if not oscompat.IS_WIN:
+        # без этого PyTorch держит гигабайт «зарезервированной, но
+        # свободной» видеопамяти кусками и падает с CUDA OOM на запросе
+        # в 470 МБ, хотя суммарно памяти хватает (в Windows не поддерживается)
+        env.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
     log = open(av_state.SERVER_LOG, "a", encoding="utf-8")
     subprocess.Popen(
         [av_state.PYTHON, "-u", "api_v2.py", "-a", TTS_HOST, "-p", str(TTS_PORT),
          "-c", os.path.relpath(start_config, av_state.ENGINE)],
         cwd=av_state.ENGINE, env=env, stdout=log, stderr=subprocess.STDOUT,
+        stdin=subprocess.DEVNULL,
+        # сервер переживает пайплайн (следующий прогон его переиспользует):
+        # на Linux отвязываем его от группы процессов, чтобы Ctrl+C или
+        # «Стоп» в интерфейсе не роняли загруженную модель
+        **({} if oscompat.IS_WIN else {"start_new_session": True})
     )
+    # свежий сервер стартует с весами из tts_infer.yaml, а не с голосом
+    # прошлого сервера: отметку сбрасываем, иначе ensure_voice решит, что
+    # нужный голос уже загружен, и не переключит веса
+    set_active_voice("")
     print("Запускаю GPT-SoVITS, ждём до %d с..." % wait)
     if not wait_port(True, wait):
         raise SystemExit("Сервер не поднялся за %d с, см. %s" % (wait, av_state.SERVER_LOG))
@@ -230,8 +249,7 @@ def restart_server(start_config, wait=600):
                 "Закрой её сам и повтори." % (TTS_PORT, name, pid))
         try:
             if pid:
-                subprocess.run(["taskkill", "/PID", pid, "/F"],
-                               capture_output=True, timeout=20)
+                oscompat.kill_pid(pid)
         except Exception as e:
             print("не удалось остановить старый процесс:", e)
         wait_port(False, 60)
@@ -267,8 +285,8 @@ def ensure_voice(v, force=False):
     from voices import load_voices  # лениво: voices -> engines
     cfg = load_voices()
     start_config = os.path.join(av_state.ENGINE, cfg.get("start_config") or DEFAULT_START_CONFIG)
-    if not tts_ready():
-        start_server(start_config)
+    # start_server сам проверит, что на порту сервер именно этого движка
+    start_server(start_config)
     if not force and active_voice() == v["name"]:
         return
     print("Переключаю веса на '%s'..." % v["name"])
@@ -307,9 +325,7 @@ def _start_indextts_service(wait=240):
         return
     # .venv — уже готовое окружение IndexTTS; uv оставляем запасным путём
     # (он может уйти в сеть и зависнуть на проверке зависимостей).
-    venv_py = os.path.join(root, ".venv", "Scripts", "python.exe")
-    if not os.path.isfile(venv_py):
-        venv_py = os.path.join(root, ".venv", "bin", "python")
+    venv_py = oscompat._venv_python(os.path.join(root, ".venv")) or ""
     uv = shutil.which("uv")
     if os.path.isfile(venv_py):
         cmd = [venv_py, "-u", script, "--model-dir", model_dir,
@@ -324,7 +340,8 @@ def _start_indextts_service(wait=240):
     log_path = os.path.join(CODE, "indextts_service.log")
     log = open(log_path, "a", encoding="utf-8")
     subprocess.Popen(cmd, cwd=root, env=env, stdout=log,
-                     stderr=subprocess.STDOUT)
+                     stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
+                     **({} if oscompat.IS_WIN else {"start_new_session": True}))
     print("Запускаю IndexTTS, ждём до %d c (модель грузится долго)..." % wait)
     if not _wait_indextts(url, wait):
         raise SystemExit("Сервис IndexTTS не поднялся за %d c, см. %s"
@@ -371,7 +388,7 @@ def _wait_indextts(url, timeout):
 def apply_engine(path):
     """Заполнить av_state по найденной папке движка."""
     av_state.ENGINE = path
-    av_state.PYTHON = os.path.join(path, "runtime", "python.exe")
+    av_state.PYTHON = oscompat.engine_python(path)
     av_state.ACTIVE_VOICE_FILE = os.path.join(path, "logs", "active_voice.txt")
     av_state.SERVER_LOG = os.path.join(path, "logs", "api_v2_pipeline.log")
 

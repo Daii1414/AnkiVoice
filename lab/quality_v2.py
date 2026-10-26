@@ -28,7 +28,8 @@ WIN = 0.02
 
 
 def ffmpeg_exe(engine: str) -> str:
-    if engine:
+    # Windows-пакет движка везёт свой ffmpeg.exe; на Linux — системный
+    if engine and os.name == "nt":
         p = os.path.join(engine, "runtime", "ffmpeg.exe")
         if os.path.exists(p):
             return p

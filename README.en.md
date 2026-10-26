@@ -9,67 +9,80 @@
   <a href="https://github.com/Daii1414/AnkiVoice/blob/main/LICENSE">
     <img alt="AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-4F46E5.svg">
   </a>
+  <img alt="Windows · Linux" src="https://img.shields.io/badge/Windows%20%C2%B7%20Linux-0EA5E9.svg">
+  <img alt="24 interface languages" src="https://img.shields.io/badge/interface-24%20languages-10B981.svg">
 </p>
 
 <p align="center"><b>Japanese audio for your Anki cards</b><br>
-A GPT-SoVITS or IndexTTS 2.5 voice - entirely on your own computer. The engine
-reads the kanji itself, connected, in the context of the sentence, while the
-reading of the main term comes from the card's furigana. Finished .ogg files land
-straight in the Anki fields.</p>
+A GPT-SoVITS or IndexTTS 2.5 voice, entirely on your own computer. The engine reads
+the kanji itself, fluently, in the context of the sentence, while the reading of the
+main word comes from the card's furigana. The finished audio (.ogg) goes straight
+into the Anki fields.</p>
 
 <p align="center">
   <a href="https://github.com/Daii1414/AnkiVoice/releases/latest">
-    <img alt="Download AnkiVoice for Windows" src="https://img.shields.io/badge/%E2%96%A8%20Download%20AnkiVoice%20%E2%80%94%20125%20MB-4F46E5">
+    <img alt="Download AnkiVoice for Windows" src="https://img.shields.io/badge/%E2%96%A8%20Windows%20%E2%80%94%20installer-4F46E5">
+  </a>
+  &nbsp;
+  <a href="#installing-on-linux">
+    <img alt="Linux — one command" src="https://img.shields.io/badge/%E2%96%B6%20Linux%20%E2%80%94%20one%20command-0EA5E9">
   </a>
   &nbsp;&nbsp;
-  <a href="#what-you-need-before-installing">What you need before installing →</a>
+  <a href="#what-you-need">What you need →</a>
 </p>
 
 <p align="center">
-  <img src="doc/shots/hero.en.png" alt="How AnkiVoice voices an Anki card: a neural speech model reads the kanji, the reading of the term comes from the card furigana, the sound lands in the card field" width="1000">
+  <img src="doc/shots/hero.en.png" alt="How AnkiVoice voices an Anki card: a neural speech model reads the kanji, the term's reading comes from the furigana, the audio lands in the card's field" width="1000">
 </p>
 
 <p align="center">
   <a href="#how-it-works">How it works</a> •
-  <a href="#your-first-sound">Install</a> •
-  <a href="#interface-four-tabs">Interface</a> •
-  <a href="#how-kanji-are-read">Reading</a> •
-  <a href="#troubleshooting">If it does not work</a> •
-  <a href="#documentation">Documentation</a>
+  <a href="#installing-on-windows">Windows</a> •
+  <a href="#installing-on-linux">Linux</a> •
+  <a href="#the-interface">Interface</a> •
+  <a href="#your-own-voice">Your own voice</a> •
+  <a href="#how-kanji-are-read">Kanji reading</a> •
+  <a href="#troubleshooting">Troubleshooting</a>
 </p>
 
-<p align="center"><img src="doc/shots/voice-dark.png" alt="The AnkiVoice interface: engine choice, deck, voice and the Start dubbing button" width="820"></p>
+<p align="center"><img src="doc/shots/main.en.png" alt="AnkiVoice main screen: readiness, deck, voice, what to voice and the “Start dubbing” button" width="860"></p>
 
 [Русский](README.md) | **English**
 
 ---
 
-## What this is and who it is for
+## What it is and who it is for
 
-| Who you are | What you get | Read next |
+| You are | You get | Read on |
 |---|---|---|
-| I learn Japanese with Anki cards | ready `.ogg` files in the card fields, all local | [Your first sound](#your-first-sound) |
-| I want a specific voice | a 3-10 s reference plus the engine weights | [Which engine to pick](#a-second-engine-indextts-25) |
-| I want the terms read exactly | the reading comes from the card's furigana | [How kanji are read](#how-kanji-are-read) |
-| I am looking for a TTS HTTP API | not this one: it is an Anki app, not a service | — |
+| Learning Japanese with Anki | sentence and word audio right in the card's fields, all local | [First sound](#first-sound) |
+| After a specific voice | your own voice from a single recording — or one trained on a few minutes of speech | [Your own voice](#your-own-voice) |
+| After variety | an ensemble: cards are shared between several voices | [Voice ensembles](#voice-ensembles) |
+| Want terms read exactly | the reading comes from the card's furigana | [How kanji are read](#how-kanji-are-read) |
+| Looking for a TTS HTTP API | not this: it is an Anki app, not a service | — |
 
-![One card before and after: AnkiVoice does not change the card text and adds sound to two fields](doc/shots/before-after.en.png)
+![One card before and after: AnkiVoice does not touch the card's text and adds audio to two fields](doc/shots/before-after.en.png)
 
-
-## Table of contents
+## Contents
 
 - [Features](#features)
 - [How it works](#how-it-works)
-- [What you need before installing](#what-you-need-before-installing)
-- [Your first sound](#your-first-sound)
-- [Interface (four tabs)](#interface-four-tabs)
+- [What you need](#what-you-need)
+- [Installing on Windows](#installing-on-windows)
+- [Installing on Linux](#installing-on-linux)
+- [First sound](#first-sound)
+- [The interface](#the-interface)
+- [Voice ensembles](#voice-ensembles)
+- [Your own voice](#your-own-voice)
+- [Appearance and languages](#appearance-and-languages)
+- [Audio format and size](#audio-format-and-size)
 - [Pronunciation check](#pronunciation-check)
-- [A second engine: IndexTTS 2.5](#a-second-engine-indextts-25)
+- [Second engine: IndexTTS 2.5](#second-engine-indextts-25)
 - [How kanji are read](#how-kanji-are-read)
 - [Documentation](#documentation)
-- [Updates](#updates)
+- [Updates and uninstalling](#updates-and-uninstalling)
+- [What gets overwritten, what goes online](#what-gets-overwritten-what-goes-online)
 - [Troubleshooting](#troubleshooting)
-- [What gets overwritten, what goes over the network](#what-gets-overwritten-what-goes-over-the-network)
 - [Contributing](#contributing)
 - [License](#license)
 - [Credits](#credits)
@@ -80,382 +93,442 @@ straight in the Anki fields.</p>
 
 | | |
 |---|---|
-| 🎧 **Deck dubbing** | Writes `<audio>` with the sentence and the word straight into Anki fields. GPT-SoVITS clones the voice itself. |
-| 📖 **Two reading modes** | The engine reads the kanji itself - connected, in context - while the main term keeps the reading from the card's furigana. No furigana - it reads the kanji itself. |
-| 🧩 **Per-deck settings** | Fields and reading mode belong to a deck: switch decks and its settings come with them. |
-| 🎭 **Voice ensemble** | Pick several voices — cards are split between them at random and voiced in parts: maximum variety, weights switch once per voice, not per card. |
-| ♻ **Only changed** | "Rebuild" silently skips cards whose text and voice did not change since the last run (manifest check): fixed 5 of 500 - rebuilds 5. |
-| 🧹 **Media junk** | Finds tts_*.ogg files in Anki media that no card references anymore (report; deletion via CLI). |
-| 👁 **Preview** | No synthesis, no engine needed: shows exactly what text will be voiced, each card's reading mode and whether the furigana substitution worked - misses included. |
-| ✚ **New cards and retry** | "Voice new cards" takes only the cards added since the last run (the av_voiced tag); "Retry failed" re-runs only the operations that ended in an error. |
-| 🧪 **Quality control** | QC v2 measures several independent signals (silence, speech gaps, duplicate speech, clipping, level, speed) and re-synthesizes rejects on its own. |
-| 🎙 **Pronunciation check** | The app listens to its own audio and compares it with the text, showing where the sentence diverged. Advice, not a verdict - you decide. |
-| 🧙 **First-run wizard** | Five steps: pick the engine, the engine folder, AnkiConnect, server, test phrase. It tells you what to download, where to put it and what to click. |
-| 🔄 **In-app updates** | "Check for updates": changelog, installer download and a mandatory SHA256 check. |
-| 🌐 **Two languages** | The whole interface in English and Russian - switch with the EN button in the header. |
-| 🔒 **Fully local** | The page works offline, without a CDN. The only outbound request is the update check. |
-| 🧩 **Transparent** | No telemetry, no accounts. AGPL-3.0 - the sources are open. |
-> **Hear what it sounds like:** [demo clip](doc/gptsovits/gpt-sovits-demo.mp4) —
-> Japanese sentences voiced by a model (the synthesis runs offline on your machine).
+| 🎧 **Card dubbing** | Puts sentence and word audio straight into Anki fields. GPT-SoVITS (or IndexTTS 2.5) clones the voice. |
+| 📖 **Accurate reading** | The engine reads the kanji itself — fluently, in context; the main word's reading comes from the card's furigana. No furigana — the engine reads the kanji on its own. |
+| 🔤 **English words** | The [e2k](https://github.com/Patchethium/e2k) network turns them into katakana (bus→バス), abbreviations are spelled out (USB→ユーエスビー), mixed tokens come from a dictionary (3D→スリーディー). |
+| 🎭 **Voice ensembles** | An “Ensemble” entry in the voice list: tick voices and their shares — cards are split between them, each voiced entirely by one voice. |
+| 🎙 **Your own voice** | The “New voice” tab: a voice from one recording in a minute, connecting ready weights, or step-by-step training in the GPT-SoVITS studio. |
+| 🗜 **Light decks** | Audio is compressed to .ogg (Vorbis) — ~50 KB per phrase instead of ~300 KB as .wav; old .wav audio is re-encoded with one button. |
+| 🧪 **Quality control** | Several independent signals (silence, gaps, duplicates, clipping, level, tempo) — bad takes are redone automatically; engine failures (out of video memory) are detected separately. |
+| 🔍 **Pronunciation check** | The app listens to its own audio and compares it with the text. Advice, not a verdict — the decision is yours. |
+| ♻ **Only what is needed** | Already voiced cards are skipped; “Update changed” re-voices only cards whose text or voice changed; “Retry failed” — only errors. |
+| 🧩 **Per-deck settings** | Fields, reading mode and ensemble make-up are remembered per deck. |
+| 👁 **Preview** | Without synthesis shows what text will be voiced and whether the furigana substitution worked. |
+| 🎨 **Fragile design** | Three interface types (sharp, classic, glass), 19 colour themes, your own accent, density; smooth animations that respect “reduce motion”. |
+| 🌐 **24 languages** | Russian, English, Chinese in every variant (Simplified — China and Singapore; Traditional — Taiwan and Hong Kong; Cantonese), Japanese, Korean and 15 more. |
+| 🧙 **Installers that ask** | On Windows and Linux they check what is missing (Anki, AnkiConnect, the engine, ffmpeg…) and ask before any download: install it, or point to the folder where it already is. |
+| 🔒 **Fully local** | The page works offline, no CDN, no telemetry, no accounts. AGPL-3.0. |
+
+> **Hear how it sounds:** [demo clip](doc/gptsovits/gpt-sovits-demo.mp4) —
+> Japanese sentences voiced by the model (synthesis runs offline on your machine).
 
 ## How it works
 
-![What happens to a card: furigana from the card → the model reads the kanji → sound in the card field](doc/shots/how-it-works.en.png)
+![What happens to a card: furigana from the card → the model reads the kanji → audio in the card's field](doc/shots/how-it-works.en.png)
 
 AnkiVoice does not copy the engine's code: [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS)
-runs as an ordinary local server, the app sends it text and takes the sound back.
-So the engine's own web interface and any of its voices keep working next to it.
-## What you need before installing
+runs as an ordinary local server (`127.0.0.1`), the app sends it text and takes the
+audio back. Cards are read and written through the
+[AnkiConnect](https://ankiweb.net/shared/info/2055492159) add-on. The interface is a
+local web page the app opens in your browser.
 
-| What | Where to get it | Size | Required | Why |
+## What you need
+
+| What | Where | Size | Required | Why |
 |---|---|---|---|---|
-| **AnkiVoice** (the app) | [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) → `AnkiVoice-Setup-x.y.exe` | 125 MB, ~1 GB on disk | yes | the window, the local server, the reading dictionary |
-| **Anki + AnkiConnect** | Anki → Add-ons → code `2055492159` | ~0 MB | yes | the bridge to your decks and fields |
-| **An engine** (one of two) | [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS/releases) or [IndexTTS 2.5](https://github.com/index-tts/index-tts) | 6-10 GB or ~5 GB | yes, one | speech synthesis |
-| **A voice** | with the engine or from the community | weights + a 3-10 s reference | yes | timbre and speech character |
-| **The recognition model** | HuggingFace cache (`faster-whisper`) | ~1.5 GB | no | the pronunciation check only |
-| **GPU and NVIDIA driver** | NVIDIA driver, CUDA 12.8+ | from 6 GB VRAM | yes | synthesis on the GPU |
+| **AnkiVoice** | Windows — [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) → `AnkiVoice-Setup-x.y.exe`; Linux — [one command](#installing-on-linux) | ~160 MB (Windows) | yes | interface, local server, reading dictionary, e2k |
+| **Anki + AnkiConnect** | [apps.ankiweb.net](https://apps.ankiweb.net); add-on `2055492159` | ~200 MB | yes | decks and fields |
+| **Engine** (one of two) | [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS/releases) or [IndexTTS 2.5](https://github.com/index-tts/index-tts) | 6–10 GB or ~5 GB | yes, one | speech synthesis |
+| **Voice** | your own (“New voice” tab), in the engine or from the community | weights + 3–10 s recording | yes | timbre and speaking style |
+| **NVIDIA GPU** | NVIDIA driver, CUDA 12.4+ | 6 GB VRAM or more | recommended | without it synthesis runs on the CPU, many times slower |
+| **Recognition model** | downloaded with a button in the app (`faster-whisper`) | ~1.5 GB | no | pronunciation check only |
 
-The internet is only needed to download - the dubbing itself runs fully offline.
+The installers check all of this themselves and ask what to download. The internet
+is only needed to download — dubbing itself runs offline.
 
-### The app and the engine are two separate installations
+> [!NOTE]
+> Voice weights must match the engine version: **v2Pro / v2ProPlus** weights load
+> only in engine `20250606v2pro` or newer. An older package (e.g. `v3lora-20250228`)
+> understands only v1/v2/v3.
 
-| Question | AnkiVoice (the app) | The engine | Hint |
-|---|---|---|---|
-| Where it comes from | GitHub Releases, one file | the engine's own release | the engine is downloaded separately |
-| Size | 125 MB, ~1 GB on disk | 6-10 GB / ~5 GB | five to ten times heavier |
-| What's inside | the UI, the server, the reading dictionary | the model and the voice weights | the engine makes the sound |
-| If it's missing | the app runs, there is no synthesis | dubbing is impossible | install the engine first |
+## Installing on Windows
 
-Nothing else has to be installed: the reading dictionary and the bundled Python
-are already inside the installer (`pyruntime.zip`, `sudachidict.zip`) and
-unpack themselves.
-
-## Your first sound
-
-The speech engine is a separate download - that is the slow part of the setup (6-10 GB, once). With the engine in place it takes about a minute from picking the deck to the first sound: choose the deck, choose the voice, press "Start dubbing".
-
-![The setup wizard: engine, folder, AnkiConnect, test phrase](doc/shots/wizard-dark.png)
-
-1. Download the installer **`AnkiVoice-Setup-x.y.exe`** from the
-   [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) page — one
-   file with everything inside, **125 MB**. The checksum is in the release
-   notes; check it with
-   `certutil -hashfile AnkiVoice-Setup-x.y.exe SHA256`.
-   (The **Code → Download ZIP** button gives you the sources, not the installer —
-   you do not need to unpack and run those by hand.)
-2. Run it: **“Далее” → “Установить” → “Завершить”** (Next → Install → Finish;
-   the “Launch AnkiVoice” checkbox is on, so the app opens by itself).
+1. Download **`AnkiVoice-Setup-x.y.exe`** from
+   [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest). The checksum is
+   in the release notes (`certutil -hashfile AnkiVoice-Setup-x.y.exe SHA256`).
+   **Code → Download ZIP** gives the sources, not the installer.
+2. Run it and pick the installer language (21 languages; it also becomes the app's
+   language).
    > [!IMPORTANT]
-   > The installer is not digitally signed, so Windows shows a blue SmartScreen
-   > window. Click **“More info” → “Run anyway”** - the usual warning for files
-   > downloaded outside the store.
-3. The setup wizard walks you through the steps: pick the engine → engine folder
-   → AnkiConnect → server → test phrase. It opens by itself on every launch
-   until the setup is finished.
+   > The installer is not signed — Windows shows a SmartScreen window. Click
+   > **“More info” → “Run anyway”**.
+3. The **“What AnkiVoice needs”** page checks Anki, AnkiConnect, the GPT-SoVITS
+   engine and the NVIDIA driver. For each missing item — **“Download and install”**
+   or **“Already installed — folder”** (e.g. the engine on drive D: — setup checks
+   that the folder really contains it). Before downloading it shows the plan and
+   asks for confirmation. It can download:
+   - Anki 26.09.3 (MSI);
+   - AnkiConnect — straight into Anki's add-on folder;
+   - the GPT-SoVITS v2pro-20250604 engine (~8 GB, extracted with `tar.exe`; if that
+     fails it tells you to extract the archive with 7-Zip).
+4. “Install” → “Finish” — the app opens by itself.
 
-   ![Setup wizard](doc/shots/wizard-dark.png)
+It installs into `%LOCALAPPDATA%\Programs\AnkiVoice`, no administrator rights.
 
-4. Then: the **“Голос”** (Voice) tab to pick a voice, the **“Поля колоды”**
-   (Deck fields) tab to pick a deck and fields, and the **“Озвучка”** (Dubbing)
-   tab to press **“Начать озвучку”** (Start dubbing).
+## Installing on Linux
 
-The **AnkiConnect** add-on code is `2055492159` (Anki → Tools → Add-ons → Get
-Add-ons). Restart Anki after installing the add-on.
+One command first checks the system and asks what to install, then downloads the
+app, builds both Python environments, finds (or downloads) the GPT-SoVITS engine
+and creates the `ankivoice` command:
 
-The app starts a local server and opens a page in your browser — that is
-normal, nothing else needs to be installed. The server only accepts its own
-requests: another site open in the same browser cannot start dubbing or close
-the app.
+```bash
+curl -fsSL https://raw.githubusercontent.com/Daii1414/AnkiVoice/main/install.sh | bash
+```
 
-The **EN** button in the header switches the interface to English (and back). It installs into your user profile
-(`%LOCALAPPDATA%\Programs\AnkiVoice`) and does not ask for administrator
-rights. To uninstall: Start menu → “Удалить AnkiVoice” (settings and voices
-are kept).
+Supported: Arch (and Manjaro, EndeavourOS, CachyOS), Debian/Ubuntu (Mint, Pop!_OS),
+Fedora (and RHEL-likes), openSUSE, Void, Solus and Gentoo; NixOS and Alpine with
+caveats (the installer names them). It works in three stages:
 
-> [!TIP]
-> No engine yet? The wizard links to the official
-> [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS/releases) releases and
-> shows which files must be in the folder. It does not download the engine for
-> you.
+1. **Check** — what is already there: git, curl, ffmpeg, compiler and cmake, uv,
+   NVIDIA GPU, disk space, Anki, AnkiConnect, the GPT-SoVITS engine.
+2. **Questions before any download** — for every missing item: install it (distro
+   package, Flathub or download), **point to the folder where it is already
+   installed** (e.g. on another drive — it goes into the PATH of the `ankivoice`
+   command), or skip it if it is optional. Low on space — it offers to put the
+   environments and the engine on another drive.
+3. **Plan and confirmation**, then the installation. AnkiConnect is added by the
+   installer itself (from AnkiWeb, into Anki's add-on folder).
 
-## Interface (four tabs)
+Questions appear in `whiptail` dialogs (if available) or as text, in Russian or
+English. From a downloaded folder it is the same: `./install.sh`. Flags:
 
-The shell is a local web page (`anki_web.py`): the server listens only on
-`127.0.0.1`, nothing goes outside. The old tkinter window is still available
-via the `--classic` flag.
+| Flag | What it does |
+|---|---|
+| `--check` | only show what is there and what is missing |
+| `--dry-run` | go through the questions and show the plan without changing anything |
+| `--engine DIR` | use your own GPT-SoVITS folder (an unpacked Windows package works too: `api_v2.py`, weights and library versions are taken from it) |
+| `--download-engine` | download GPT-SoVITS `20250606v2pro` and its models (~6 GB) |
+| `--no-engine` | set the engine up later |
+| `--data-dir DIR` | where to put the environments and the engine (~8 GB), e.g. another drive |
+| `--cpu` | CPU-only torch (no NVIDIA GPU) |
+| `--yes` | no questions: missing items are installed, optional ones skipped |
+| `--no-tui` | text questions instead of `whiptail` dialogs |
+| `--lang ru\|en` | installer language (default: the system's) |
+| `--uninstall` | remove (asks whether to delete environments and settings) |
 
-### “Озвучка” (Dubbing) — the main screen
+Where things live:
 
-![Dubbing tab](doc/shots/voice-dark.png)
+| What | Where |
+|---|---|
+| the app and `pyruntime/` (Python 3.12: Haqumei, SudachiPy, web UI) | install folder (default `~/.local/share/AnkiVoice/app`) |
+| engine Python (3.10, torch, GPT-SoVITS dependencies) | `~/.local/share/AnkiVoice/gsv-venv` or `.venv` inside a downloaded engine |
+| settings, run summaries, reports | `~/.config/AnkiVoice/` |
+| launcher | `~/.local/bin/ankivoice` + an “AnkiVoice” menu entry |
 
-* **Synthesis engine — two big cards at the top.** GPT-SoVITS or IndexTTS 2.5,
-  each with a one-line description. You can switch while working, no restart:
-  the engine folder, the server address and the voice list all follow. Under
-  the cards — how many voices are ready and where the server lives.
-* **Deck** and **Voice** — lists pulled from Anki and `voices.json`.
-* **What to voice** — “word + sentence” (the usual choice), sentence only or
-  word only; a card limit (0 = all); “rebuild everything” re-records the
-  audio, “only changed” re-records just the cards whose text or voice changed
-  since the last run.
-* **The limit is an amount of work**, not a position in the deck: “voice 20
-  cards” takes the 20 cards that have no audio yet, not the first twenty.
-* **Ensemble (optional)** — Ctrl-pick 2+ voices: cards are split between them
-  at random, each card is voiced entirely by one voice, parts run one after
-  another. The cast is remembered per deck.
-* **Buttons**: “Start dubbing” — the main one; “Voice new cards” — only the
-  cards added since the last run; “Retry failed” — only the operations that
-  ended in an error; “Preview” — show what would be voiced, without any
-  synthesis; next to them “Stop”, “Check deck”, “Media: junk” and
-  “Self-test”.
-* **Progress bar** — an exact “N / total” counter and the error count.
-* **Log** — a live SSE stream with color coding: green = done, red = error,
-  yellow = rejected and QC retries.
+Run `ankivoice` (opens the page in your browser); without PATH — `./run.sh` from the
+app folder. Console: `ankivoice pipeline selftest`,
+`ankivoice pipeline voice --voice NAME --deck "Deck"`. Diagnostics —
+`ankivoice doctor`, update — `ankivoice update`, uninstall — `ankivoice uninstall`.
 
-### “Поля колоды” (Deck fields) — what to read from where
+## First sound
 
-![Deck fields tab](doc/shots/anki-dark.png)
+1. Open Anki (with AnkiConnect) and start AnkiVoice.
+2. If something is missing, the **setup wizard** opens by itself: engine → Anki
+   connection → engine start → voice test. Each step shows what is wrong and what
+   to click.
 
-* **Deck** + the **“Поля выбранной колоды”** (Fields of the selected deck)
-  button — fills the role table automatically from the template
-  (Sentence / Expression / \*Audio / Furigana). The fields also fill
-  themselves in: pick a deck and the app reads its fields and matches the
-  roles; you can still change them by hand on the “Поля колоды” tab.
-* Table rows: sentence text, sentence audio, main word, word audio,
-  **word furigana ← field** and the reading source.
-* An empty choice in the “→” column means “do not write audio”. Empty
-  furigana means the word is read automatically.
+   ![Setup wizard: engine, Anki connection, engine start, voice test](doc/shots/wizard.en.png)
 
-### “Голос” (Voice) — reference and speech character
+3. On the main screen: **1** — deck, **2** — voice, **3** — what to voice (word +
+   sentence, sentence only or word only) and how many cards per run.
+4. **“Start dubbing”**. The first run loads the model for 1–2 minutes, then it is
+   seconds per phrase. If every card is already voiced, the button says so: “All
+   cards are already voiced”.
 
-![Voice tab](doc/shots/sound-dark.png)
+The app picks which fields to read and where to write audio from the field names;
+adjust them on the “Deck fields” tab.
 
-* **Voice cards** — every voice from `voices.json`; ✅/✗ shows whether the
-  gpt/sovits/ref files were found.
-* **Reference (3–10 s)** — the voice sample: file, its text and language. Do
-  not use a long aux reference — the API will run out of memory.
-* **Speech character** — `temperature`/`top_p`/`top_k`/`speed` sliders and a
-  `seed` field: lower values give more even, calmer speech (defaults from the
-  official web UI: 0.6 / 0.6 / 20).
-* **“Прослушать тест”** (Play test) — a quick voice check; the file plays
-  right on the page. **“Обновить веса в движке”** (Refresh engine weights) —
-  scans for new weights.
+## The interface
 
-### “Приложение” (App) — wizard, updates, diagnostics
+Five tabs on the left; in the header — Anki and engine status, “Appearance” and the
+language. The server listens only on `127.0.0.1` and accepts only its own requests:
+another site open in the same browser cannot start dubbing.
 
-![App tab](doc/shots/app-dark.png)
+### “Dubbing” — the main screen
 
-* **Setup wizard** — four steps: engine, AnkiConnect, server, test phrase. It
-  shows the status of each step and what to do when one is red. The first step
-  picks the engine (two cards) and its folder.
-* **Updates** — the “Check for updates” button shows the latest changelog,
-  downloads the installer and verifies its SHA256.
-* **Diagnostics** — everything at once: tool, config, path, Anki, server, voice
-  list. Look here first if something does not work.
-* **Run history** — when the deck was voiced, by which voices and with which
-  errors; click a run to open its full report (a markdown table per operation).
-* **Where the files live** — program folder and config.
+![The “Dubbing” tab](doc/shots/main.en.png)
 
-Status chips in the header: **Anki** (connected?), **Server** (GPT-SoVITS is
-running), the version and a running-operation indicator. The theme is toggled
-on the right.
+* **Readiness** — four badges (engine, Anki, voice, deck) and one “do this now” line
+  with a button when something is off.
+* **Synthesis engine** — GPT-SoVITS or IndexTTS 2.5 as two cards plus the engine
+  folder with a check. Switches on the fly.
+* **Steps 1–3** — deck, voice (or [ensemble](#voice-ensembles)), what to voice and
+  the per-run limit. The limit is an amount of work: “27 cards” means 27 cards
+  without audio, not the first 27 in the deck.
+* **Summary** above the button — how many cards lack audio, how many will be voiced,
+  which voice and mode.
+* **“Start dubbing”**, **“Retry failed”**, **“Stop”**; a progress bar with a “≈ left”
+  estimate.
+* **Advanced settings** — what to do with cards that already have audio (skip /
+  update changed / re-voice all) and the pronunciation check.
+* **Tools and checks** — preview, “Voice new cards”, check audio in cards, find
+  unused audio files, **“Compress the deck's audio to .ogg”** and the step-by-step
+  quality check (the “Брак” deck, verdicts, summary).
+* **Log** — a live, colour-coded log: green — done, red — error, yellow — bad takes
+  and retries.
 
-Light theme — the same tabs: [Dubbing](doc/shots/voice-light.png),
-[Deck fields](doc/shots/anki-light.png), [Voice](doc/shots/sound-light.png),
-[App](doc/shots/app-light.png). A full-page snapshot:
-[voice-dark-full.png](doc/shots/voice-dark-full.png).
+### “Deck fields” — what to read from where
 
-## A second engine: IndexTTS 2.5
+![The “Deck fields” tab](doc/shots/fields.en.png)
 
-Besides GPT-SoVITS you can run **IndexTTS 2.5**, a zero-shot engine that
-needs only one reference clip. The switch lives **on the main screen**, at the
-top, as two large cards. The choice is remembered and applies to the whole app.
+Rows phrased as questions: where to take the sentence from, where to write its
+audio, where to take the word from, where to write the word's audio, the furigana
+field and how to read the word. Values are filled in from the field names; an empty
+“where to write audio” means that audio is not written. Settings are saved per deck.
 
-| | GPT-SoVITS | IndexTTS 2.5 |
-|---|---|---|
-| a voice | `.ckpt` + `.pth` files + a reference | **one reference** (3-10 s) |
-| weights | per voice | shared by the model |
-| install | unpacked archive | `git clone` + `uv sync --extra webui` + weights in `checkpoints` |
-| size on disk | 6-10 GB (weights separate) | ~5 GB of model weights |
-| Japanese reading | the engine's g2p | its own Japanese g2p (`ja_g2p`) |
-| pronunciation check | yes (faster-whisper in the environment) | no, acoustic QC only |
-| manual sound settings | seed, temperature, top_p, top_k | none, the UI hides them |
-| who it is for | I want quality and control | I want as little fuss as possible: one reference |
+### “Voice” — voices and their settings
 
-You switch between them with two large cards on the main screen.
+![The “Voice” tab](doc/shots/voice.en.png)
 
-The details - installation, the bridge and what is missing in this mode - are
-in [doc/engines.en.md](doc/engines.en.md).
+* **Voice cards** — every voice from `voices.json`; incomplete ones show which file
+  is missing.
+* **Editor** — the voice's files (GPT weights, SoVITS weights, reference recording)
+  with ✓/✗ marks, the 3–10 s reference and its text, language, **extra recordings
+  for the timbre** (several short ones, up to 10 s, beat one long one).
+* **Fine-tuning the speaking style** — seed, “liveliness” (temperature), top_p,
+  top_k, speed; “Reset to defaults”.
+* **“Listen”** — synthesizes a test phrase and plays it right away.
+
+### “New voice”
+
+![The “New voice” tab](doc/shots/new-voice.en.png)
+
+Three ways to get a voice — see [Your own voice](#your-own-voice).
+
+### “App”
+
+![The “App” tab](doc/shots/app.en.png)
+
+[Appearance](#appearance-and-languages), the setup wizard, updates, checks (“Check” —
+quick, “Detailed check” — everything at once), where files live, dubbing history
+(click for the full per-operation report) and “Close AnkiVoice”.
+
+## Voice ensembles
+
+![Ensemble in step 2: ticked voices and their shares](doc/shots/ensemble.en.png)
+
+The voice list in step 2 has an **“Ensemble — several voices mixed”** entry. Voices
+appear below it: tick at least two and set their shares (2 and 1 — the first sounds
+twice as often). The ensemble is remembered per deck.
+
+How cards are assigned:
+
+* **Up front, before synthesis.** Each card gets a voice at random, weighted by the
+  shares; the generator uses a fixed seed — the same set of cards is split the same
+  way.
+* **Already voiced cards keep their voice** (tag `av_voice::name`): re-voicing part
+  of a deck does not change the voice of the rest.
+* **Dubbing in batches** — first all cards of one voice, then the next: each voice's
+  weights load once per run.
+* Shares hold **on average**: on a small deck the actual count can differ noticeably
+  from the percentages.
+
+## Your own voice
+
+The **“New voice”** tab offers three ways, from fastest to most accurate:
+
+| Way | What you need | Time | Likeness |
+|---|---|---|---|
+| **From one recording** | a 3–10 s recording and its text | a minute | close, not perfect |
+| **Ready voice files** | `.ckpt` and `.pth` weights + a reference recording | a minute | as good as the weights |
+| **Train your own voice** | 1–10 minutes of clean speech by one person | 20–60 minutes of GPU time | the closest |
+
+* **From one recording** — the voice is built on the engine's base weights and
+  takes the timbre from the recording. Right after creation the voice is selected
+  and plays a sample. The recording's length is checked on the spot (the engine
+  accepts only 3–10 s).
+* **Ready files** — “Find voices in the engine folder” picks up weights from
+  `GPT_weights_*` and `SoVITS_weights_*`, or point to the files by hand. No internal
+  voice name to invent.
+* **Train your own voice** — a button opens the GPT-SoVITS training studio (its own
+  interface) in the browser; the tab lists the steps: prepare recordings (0b
+  slicing, 0c text recognition), 1A data preparation, 1B training SoVITS and GPT,
+  then “Find trained voices”. The first start downloads ~250 MB of training files
+  once. The studio listens only on this computer (`127.0.0.1`), not the whole local
+  network.
+
+## Appearance and languages
+
+<p align="center">
+  <img src="doc/shots/design-sharp.png" alt="Sharp design" width="32%">
+  <img src="doc/shots/design-classic.png" alt="Classic design" width="32%">
+  <img src="doc/shots/design-glass.png" alt="Glass design" width="32%">
+</p>
+
+“Appearance” (header button or the “App” tab):
+
+* **Design type** — sharp (square corners, clear borders), classic (soft rounding)
+  or glass (translucent panels; whatever scrolls under the header is blurred and
+  darkened).
+* **19 built-in themes** plus standard dark, light and system, **your own accent
+  colour**, density (compact / regular / comfortable), “Reduce transparency”.
+* Animations — theme change as a wave from the cursor, a “lens” under the active
+  item, cards appearing one after another; they switch off with the system “reduce
+  motion” setting.
+
+Light theme — [example](doc/shots/main-light.png).
+
+<p align="center"><img src="doc/shots/languages.png" alt="Interface language picker: 24 languages in a searchable list" width="760"></p>
+
+**Language** — a searchable dropdown in the header: Russian, English, Chinese
+(Simplified — China and Singapore; Traditional — Taiwan and Hong Kong; Cantonese),
+Japanese, Korean, Spanish, Portuguese (Brazil), French, German, Italian, Dutch,
+Polish, Czech, Ukrainian, Turkish, Swedish, Indonesian, Vietnamese, Thai, Hindi.
+Switches on the fly. Without a choice, the Windows installer's language or the
+system language is used. Translations were made automatically — spotted a mistake?
+[Tell us](https://github.com/Daii1414/AnkiVoice/issues).
+
+## Audio format and size
+
+* Decks get **OGG Vorbis** — ~50 KB per phrase instead of ~300 KB as WAV. Newer
+  engines only return WAV, so the app compresses the audio itself (ffmpeg).
+* Audio already recorded as `.wav` is re-encoded by **“Tools and checks” →
+  “Compress the deck's audio to .ogg”** (console: `pipeline compress-media --deck
+  "Deck"`): card links are replaced, old `.wav` files go to Anki's media trash.
+* **“Find unused audio files”** — a report of `tts_*` files no card references any
+  more (deletion from the console, `cleanup-media --apply`).
 
 ## Pronunciation check
 
-GPT-SoVITS sometimes **loses a chunk of a sentence or invents extra**: the
-duration looks normal, the sound is speech, but the content is wrong. A
-"silence / length / duplicate" check cannot see that.
+GPT-SoVITS sometimes **drops part of a phrase or invents something extra**: the
+length is fine, it is speech, but the content is wrong. The silence / length /
+duplicate checks cannot see that.
 
-On the "Dubbing" tab, **"Check pronunciation"**: the app recognizes its own
-audio (faster-whisper) and compares it with the text it was asked to say. The
-divergence is reported to a fraction of a second - you see right away where the
-sentence went apart.
+“Advanced settings” → **“Check during dubbing”**: the app recognizes its own audio
+(faster-whisper) and compares it with the text. The recognition model (~1.5 GB) is
+downloaded with a button in the same place.
 
-**This is advice, not a verdict.** Measured on 27 labeled cards: 2 confirmed
-failures against 25 false alarms - the recognizer mangles domain terms
-("だいくはこうさぶ" → "ないくはこうさぶん"), and by text alone they cannot be
-told apart from a real mistake. So the check
+**It is advice, not a verdict.** Measured on 27 labelled cards there were 2
+confirmed bad takes and 25 false alarms: the recognizer garbles domain terms, and
+from text alone they look like real errors. So the check
 
-* does not reject a card and does not tag it;
-* prints the coverage, the error rate and the diverging span in the log;
-* collects the doubtful pieces into a **"Брак" (Rejects) deck**, three
-  variants each. Listen and write down "верно" or "ложное срабатывание".
+* never rejects or tags a card;
+* prints coverage, error rate and the mismatched span to the log;
+* goes step by step under “Tools”: check voiced cards → build the **“Брак”** deck
+  with variants → listen and mark the “Вердикт” field → summary (how often the check
+  was right).
 
-Three buttons on the "Dubbing" tab:
+### What the app checks by itself
 
-* **"Check pronunciation"** - recognizes the cards you have already voiced;
-* **"Build the “Брак” deck"** - collects the doubtful pieces with variants;
-* **"Verdict summary"** - counts your labels and shows where our thresholds
-  sit too low.
-
-### What the app checks on its own
-
-| What it checks | How | Result |
+| Check | How | Result |
 |---|---|---|
-| Silence, clipping, duplicates | QC v2 over several signals | rejects are re-generated automatically |
-| Breaks inside the speech | a pause longer than 4 s inside a phrase | the piece is re-synthesized |
-| Level and speed | too quiet or too fast | re-synthesis at another speed |
-| Pronunciation (optional) | ASR listens to its own audio and compares it with the text | a hint, the decision is yours |
+| Silence, clipping, duplicates | several independent signals | bad takes are redone automatically |
+| Gaps in speech | a pause over 4 s inside a phrase | the piece is rebuilt |
+| Level and tempo | inaudible or too fast | rebuilt |
+| Engine failure | 1 s of silence instead of audio (e.g. out of video memory) | a clear reason from the log, no 9 identical retries |
+| Pronunciation (optional) | recognition and comparison with the text | a hint; your call |
 
-**We check sentences, not words.** An isolated word is transcribed
-unreliably: the zones "real failure" and "false alarm" overlap completely. The
-word is guarded by the acoustic QC (silence, tempo, length).
+Thresholds are per voice: the app learns the norm from accepted takes.
 
-**Thresholds are per voice.** One voice may sit at 0.95 coverage, another at
-0.85. The app measures the norm from the accepted pieces and compares against
-it, not against one global number.
+## Second engine: IndexTTS 2.5
 
-What it needs: `faster-whisper` in the GPT-SoVITS python and one downloaded
-model (in the HuggingFace cache). Without them the check simply does not run
-and dubbing goes on as usual. One piece takes about 0.5 s on a GPU.
+Besides GPT-SoVITS you can use **IndexTTS 2.5** — a zero-shot engine that needs a
+single recording. The switch is in the “Synthesis engine” block on the main screen.
+
+| | GPT-SoVITS | IndexTTS 2.5 |
+|---|---|---|
+| voice | `.ckpt` + `.pth` files + a reference | **one recording** (3–10 s) |
+| weights | per voice | shared by the model |
+| how it is installed | an unpacked archive or `install.sh` | `git clone` + `uv sync --extra webui` + weights in `checkpoints` |
+| disk size | 6–10 GB | ~5 GB |
+| pronunciation check | yes | no, acoustic checks only |
+| manual sound settings | seed, temperature, top_p, top_k | none |
+| for whom | quality and control | minimum fuss |
+
+Details — [doc/engines.en.md](doc/engines.en.md).
+
 ## How kanji are read
 
-GPT-SoVITS can read kanji on its own - but on rare terms it picks its own
-reading. So the reading mode is switched in "Deck fields" → "Reading source":
+GPT-SoVITS reads kanji by itself — but rare terms its own way. The reading mode is
+chosen on the “Deck fields” tab → “How to read the word”:
 
-| Mode | What the engine gets | When to pick it |
+| Mode | What goes to the engine | When |
 |---|---|---|
-| **Auto (default)** | If the furigana field has something in it - the whole text in kanji, except the main term, whose reading is substituted from the furigana. If the field is missing or empty - the whole text in kanji | Universal: exact reading where there is a furigana, ordinary reading where there is none |
-| **Kanji only (the engine reads it)** | The whole text in kanji, nothing substituted | Decks with ordinary words: the sound is the most connected |
+| **Auto (default)** | the whole kanji text except the main word, whose reading is substituted from the furigana; no furigana — all kanji | general purpose |
+| **Kanji only** | the whole kanji text, no substitutions | decks with everyday words: the most natural sound |
 
-The mode is a **per-deck setting**: it is stored in the deck profile together
-with the fields. In the "auto" mode the decision is made **for every card**: an
-empty furigana field means "read the kanji yourself", and there is nothing to
-substitute.
+“Clean” versus “accurate” reading (measured on 150 phrases plus a blind comparison
+on 10): pure kanji wins on sound quality — 7 votes out of 10, but in 12 of 150
+phrases the model read the term differently from the card; in the mixed mode — 2 of
+150.
 
-What "exact" and "plain" cost, measured on 150 sentences and a blind A/B on 10
-of them:
-
-* in sound, plain kanji wins - 7 votes out of 10;
-* but in 12 sentences out of 150 the model read the term differently from the
-  card (`麻院[あさすさ]` → "アサイン"). In the mixed mode it is 2 out of 150.
-
-The card's furigana is the source of truth for the main term: the
-`ExpressionFurigana` field (or another one, if the deck names it
-differently). Substitution rules: clean kana only, only when the term is
-found in the sentence as a whole, otherwise the card is left as it is.
-
-Two exceptions, both measured on cards with katakana terms:
-
-* a reading that covers the whole word ("点群データ[てんぐんでーた]") is taken
-  as it is - otherwise the okurigana ("データ") would be added a second time and
-  the word would be heard twice. As a safety net, the finished text is checked:
-  if the okurigana would be heard twice, the term is left as it is and the
-  engine reads it itself;
-* terms with latin letters or digits ("3D", "PLATEAU", "BIM/CIM", "2.0") are
-  left alone: the engine reads them better on its own, and our own
-  transcription ("3D" -> "すりーでぃー") sends the model into a loop - measured
-  96 seconds and coverage 0.89 against 4 seconds and 1.00.
-
-In the console this is the `--reading ""|mix|asis` flag (empty = auto).
-
-How exactly the text becomes hiragana, step by step - in
-[doc/reading.en.md](doc/reading.en.md).
 | Case | What the app does | Why |
 |---|---|---|
-| A term with furigana | substitutes the reading from the furigana field | the card knows it better than the engine |
-| Okurigana (データ) | leaves the word as it is | otherwise it would sound twice |
-| Latin letters and digits (3D, PLATEAU) | does not convert to kana | the engine reads it better: 4 s against 96 s |
-| The word is not found in the text | the card stays as it is | you cannot substitute a foreign reading |
+| Term with furigana | substitutes the reading from the furigana field | the card knows better than the engine |
+| Okurigana (データ) | leaves the word as is | otherwise it would sound twice |
+| Ordinary English word (bus, coffee) | e2k → katakana | バス, コーヒー |
+| Abbreviation (USB, CPU, HTML) | spelled out | ユーエスビー, シーピーユー |
+| Mixed token (3D, Wi-Fi) | fixed dictionary | スリーディー, ワイファイ |
+| Lower-case letter before a word (iPhone, iOS) | letter + word | アイフォン, アイオーエス |
+| Word not found in the text | the card stays as is | a foreign reading must not be substituted |
+
+The engine reads numbers (`2.0`, `12`) itself. How text becomes hiragana step by
+step — [doc/reading.en.md](doc/reading.en.md). In the console the mode is the
+`--reading ""|mix|asis` flag.
 
 ## Documentation
 
-| Document | What it covers |
+| Document | About |
 |---|---|
-| [doc/reading.en.md](doc/reading.en.md) | how text becomes hiragana: the reading pipeline, latin, digits, g2p |
-| [doc/fields.en.md](doc/fields.en.md) | card fields: where the text comes from and where the sound goes |
-| [doc/cli.en.md](doc/cli.en.md) | the console: every `pipeline.bat` and `AnkiVoice.exe` command |
-| [doc/engines.en.md](doc/engines.en.md) | the second engine, IndexTTS 2.5: installation, bridge, limits |
-| [CONTRIBUTING.en.md](CONTRIBUTING.en.md) | development: build, checks, repository layout |
+| [doc/reading.en.md](doc/reading.en.md) | how text becomes hiragana: the reading pipeline, Latin, numbers |
+| [doc/fields.en.md](doc/fields.en.md) | card fields: where text comes from and where audio goes |
+| [doc/cli.en.md](doc/cli.en.md) | console: every pipeline command |
+| [doc/engines.en.md](doc/engines.en.md) | the second engine, IndexTTS 2.5 |
+| [CHANGELOG.md](CHANGELOG.md) | what is new in each version |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | development: building, checks, layout, translations |
 
-## Updates
+## Updates and uninstalling
 
-* **From the app**: the “Приложение” tab → **“Проверить обновления”**. The
-  app shows the changelog, downloads the installer and verifies the SHA256 —
-  without that check the download is not started. Then press “Запустить
-  установщик” (Launch installer).
-* **Manually**: download the new installer from
-  [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) and run it
-  over the old version — the engine path and the settings are kept.
-* **Uninstall**: Start menu → “Удалить AnkiVoice” (settings are kept and are
-  picked up again on the next install).
+* **Windows**: “App” tab → **“Check for updates”** — changelog, installer download
+  and a mandatory SHA256 check. Or run a newer installer from
+  [Releases](https://github.com/Daii1414/AnkiVoice/releases/latest) over the old one
+  — settings and voices are kept. Uninstall: Start → “Uninstall AnkiVoice” (settings
+  and `voices.json` stay).
+* **Linux**: `ankivoice update` (git pull + environment check), uninstall —
+  `ankivoice uninstall`.
 
-## What gets overwritten, what goes over the network
-
-The boundaries of the app - honestly, without hedging.
+## What gets overwritten, what goes online
 
 | Action | What happens to the card |
 |---|---|
-| Dubbing | a new file is written into the sound field; the old one stays in the media folder, and the link to it is lost |
-| The card text | never changes |
-| The "Брак" deck | creates a new deck with copies of the cards; the originals are not touched |
-| The pronunciation check | writes nothing - it only listens and advises |
+| Dubbing | a new file is written into the audio field; the old one stays in Anki's media, the link to it is lost |
+| Card text | never changes |
+| “Compress audio to .ogg” | `.wav` link → `.ogg`, the old `.wav` goes to Anki's media trash |
+| “Брак” deck | a new deck with copies of cards; originals untouched |
+| Pronunciation check | writes nothing — only listens and advises |
 
-| What goes over the network | When |
+| What goes online | When |
 |---|---|
-| A request to `api.github.com` | only when you press "Check for updates" |
-| Downloading the installer | from the update button (with a SHA256 check) |
-| Your cards and texts | **never** - everything is computed locally |
-| Telemetry, accounts | **none** |
-
-The internet is needed once: to download the installer and the engine. The
-dubbing itself, the pronunciation check and the update of your cards all run
-fully offline.
+| `api.github.com` | only via “Check for updates” |
+| installer downloads (Anki, AnkiConnect, engine, packages, uv) | only during installation, after you confirm |
+| HuggingFace | engine, recognition and training models — only via a button or the installer |
+| your cards and texts | **never** — everything is computed locally |
+| telemetry, accounts | **none** |
 
 ## Troubleshooting
 
-| Message | Why | What to do |
+| What happens | Why | What to do |
 |---|---|---|
-| `GPT-SoVITS folder not found` | the path is not set or points nowhere | Set the path: `gptsovits_path.txt`, the `GPT_SOVITS_ROOT` environment variable, or the "Browse…" button in the app |
-| `AnkiConnect unavailable` | Anki is closed or the add-on is missing | Open Anki; Tools → Add-ons → Get Add-ons, code `2055492159`, then restart Anki |
-| The wizard asks for an engine folder | the engine is a separate download | install the engine and point to its folder |
-| Ready voices: 0 of 5 | the weights or the reference are not in the engine folder | "Refresh engine weights" or fix the path |
-| `Reference X s - the API wants 3-10 s` | the clip is out of range | Trim the clip to 3-10 seconds |
-| `Could not switch... Restarting` | not enough video memory | Normal: the pipeline restarts the server and retries |
-| `The server returned an empty sound` | VRAM is occupied by a browser or a game | Close heavy programs or restart the server: `pipeline.bat serve --voice <voice>` |
-| `The pipeline is already running` | another job is in progress | Wait for it to finish (protection against double work) |
-| The first sound takes minutes | the pronunciation check is on | turn off "Check pronunciation" - without it the sound takes seconds |
-| The sound is old, I want it again | the limit only takes cards without sound | "Rebuild everything" - it will ask for confirmation |
-| Windows: "Your PC has been protected" | the exe is not signed | "More info" → "Run anyway" |
+| GPT-SoVITS folder not found | the path is missing or wrong | “Synthesis engine” → “Browse…” or `./install.sh --engine DIR` |
+| “Anki is not responding” | Anki is closed or AnkiConnect is missing | open Anki; add-on `2055492159`, restart Anki |
+| A voice shows ✗ “no files” | weights or recording are elsewhere | the “Voice” tab shows which file is missing |
+| “The reference recording is N s long” | the engine accepts only 3–10 s | cut a piece with one phrase |
+| “The engine ran out of video memory” | other programs or the pronunciation check hold the GPU | close heavy programs, turn the check off; replace long extra recordings with short ones |
+| Audio is heavy | old audio is `.wav` | “Compress the deck's audio to .ogg” |
+| “All cards are already voiced” | the audio is already there | “Advanced settings” → “Re-voice all” or another deck |
+| The first sound takes minutes | model loading or the pronunciation check | wait for the first run; turn the check off |
+| “The pipeline is already running” | another job is running | wait for it to finish |
+| Windows: “Windows protected your PC” | the installer is not signed | “More info” → “Run anyway” |
 
-Useful: `selftest` prints exactly what it sees (engine, voices, reading
-dictionary, reading modules, QC v2, AnkiConnect, server) — 90% of problems are
-visible immediately.
+Handy: “App” → “Detailed check” (or `ankivoice doctor`) prints exactly what the app
+sees — engine, voices, reading dictionary, AnkiConnect, server.
 
 ## Contributing
 
-* Patches and ideas — via [issues](https://github.com/Daii1414/AnkiVoice/issues)
-  and pull requests. Templates live in `.github/ISSUE_TEMPLATE`.
-* Development rules, build, commit style — in
-  [CONTRIBUTING.md](CONTRIBUTING.md).
-* Vulnerabilities — follow the instructions in [SECURITY.md](SECURITY.md).
+* Fixes and ideas — via [issues](https://github.com/Daii1414/AnkiVoice/issues) and
+  pull requests.
+* Development rules, building, checks and translations — in
+  [CONTRIBUTING.md](CONTRIBUTING.md); vulnerabilities — per [SECURITY.md](SECURITY.md).
 
 <p align="center">
   <a href="https://github.com/Daii1414/AnkiVoice/actions/workflows/checks.yml">
@@ -465,19 +538,16 @@ visible immediately.
 
 ## License
 
-**AGPL-3.0** (text in [LICENSE](LICENSE)): whoever modifies and distributes
-this tool is obliged to publish the sources of their changes, including when
-it is used over a network.
+**AGPL-3.0** (text in [LICENSE](LICENSE)): anyone who modifies and distributes this
+tool must publish the source of their changes, including use over a network.
 
 ## Credits
 
-* [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) — the synthesis engine
-  (MIT).
-* [Haqumei](https://github.com/o24s/haqumei) — context-aware kanji readings
-  (the main core).
-* [Sudachi](https://github.com/WorksApplications/SudachiPy) and the UniDic
-  dictionary — fallback and reading checks.
-* [gradio](https://github.com/gradio-app/gradio) — the Voice tab is styled
-  after their web UI.
-* [AnkiConnect](https://ankiweb.net/shared/info/2055492159) — the bridge to
-  Anki.
+* [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS) — the synthesis engine (MIT).
+* [IndexTTS](https://github.com/index-tts/index-tts) — the second engine.
+* [e2k](https://github.com/Patchethium/e2k) — English words into katakana (MIT).
+* [Haqumei](https://github.com/o24s/haqumei) — contextual kanji reading.
+* [Sudachi](https://github.com/WorksApplications/SudachiPy) and UniDic — fallback and reading checks.
+* [faster-whisper](https://github.com/SYSTRAN/faster-whisper) — the pronunciation check.
+* [AnkiConnect](https://ankiweb.net/shared/info/2055492159) — the bridge to Anki.
+* [Inno Setup](https://jrsoftware.org/isinfo.php) — the Windows installer.
