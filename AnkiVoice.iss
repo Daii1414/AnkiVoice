@@ -10,7 +10,7 @@
 ; а в Program Files обычный пользователь писать не может.
 
 #define MyAppName "AnkiVoice"
-#define MyAppVersion "1.10.0"
+#define MyAppVersion "1.10.1"
 #define MyAppPublisher "Daii1414"
 #define MyAppURL "https://github.com/Daii1414/AnkiVoice"
 ; Исходники берём из каталога этого скрипта ({src}) — сборка одинаково
@@ -45,7 +45,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=dist
-OutputBaseFilename=AnkiVoice-Setup-1.10.0
+OutputBaseFilename=AnkiVoice-Setup-1.10.1
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
