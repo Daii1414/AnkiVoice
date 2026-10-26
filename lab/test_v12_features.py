@@ -64,7 +64,11 @@ class _Resp:
 
 
 def test_release_parse():
-    body = "## Что нового\n- мастер\n\nSHA256: " + "a" * 64
+    # фолбэк-хэш принимается только в окне 3 строк вокруг упоминания
+    # установщика: чужой SHA256 в changelog не подменяет наш
+    body = ("## Что нового\n- мастер\n\n"
+            "certutil -hashfile AnkiVoice-Setup-9.9.exe SHA256\n"
+            "SHA256: " + "a" * 64)
     fake = {
         "tag_name": "v9.9",
         "name": "AnkiVoice 9.9",

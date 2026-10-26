@@ -33,11 +33,6 @@ def bundled(name):
     return os.path.join(CODE, name)
 
 
-ENGINE = None             # заполняется resolve_engine() ниже
-PYTHON = None             # ENGINE\runtime\python.exe
-ACTIVE_VOICE_FILE = None  # ENGINE\logs\active_voice.txt
-SERVER_LOG = None         # ENGINE\logs\api_v2_pipeline.log
-
 TTS_HOST, TTS_PORT = "127.0.0.1", 9880
 TTS_URL = "http://%s:%d" % (TTS_HOST, TTS_PORT)
 DEFAULT_START_CONFIG = os.path.join("GPT_SoVITS", "configs", "tts_infer.yaml")

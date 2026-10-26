@@ -389,9 +389,27 @@ def tts_status():
     try:
         s = socket.create_connection((TTS_HOST, TTS_PORT), timeout=2)
         s.close()
-        return True
     except OSError:
         return False
+    # порт может занимать чужая программа: считаем сервером только python
+    # (runtime\python.exe движка). Не смогли определить PID — не мешаем.
+    try:
+        out = subprocess.run(["netstat", "-ano"], capture_output=True,
+                             text=True, timeout=20)
+        pid = None
+        for line in out.stdout.splitlines():
+            if "LISTENING" in line and (":%d " % TTS_PORT) in line:
+                pid = line.split()[-1]
+                break
+        if pid:
+            tl = subprocess.run(["tasklist", "/FI", "PID eq %s" % pid,
+                                 "/FO", "CSV", "/NH"],
+                                capture_output=True, text=True, timeout=20)
+            name = tl.stdout.strip().splitlines()[0].split('","')[0].strip('"')
+            return "python" in (name or "").lower()
+    except Exception:
+        pass
+    return True
 
 
 def list_decks():
