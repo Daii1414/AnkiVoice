@@ -103,7 +103,7 @@ end;
 function FindEngine: String;
 var
   D: AnsiString;
-  Drive: Char;
+  I: Integer;
 begin
   Result := '';
   if LoadStringFromFile(ExpandConstant('{app}\app\gptsovits_path.txt'), D) then
@@ -112,10 +112,11 @@ begin
       Result := Trim(String(D));
       Exit;
     end;
-  for Drive := 'C' to 'H' do
-    if DirExists(Drive + ':\') then
+  // буквы дисков C..H — числовым циклом: for по Char Pascal Script не умеет
+  for I := Ord('C') to Ord('H') do
+    if DirExists(Chr(I) + ':\') then
     begin
-      Result := FindEngineIn(Drive + ':');
+      Result := FindEngineIn(Chr(I) + ':');
       if Result <> '' then Exit;
     end;
   Result := FindEngineIn(ExpandConstant('{userdesktop}'));
@@ -414,6 +415,17 @@ begin
     SetupMessage(msgPreparingDesc), @OnDepDownloadProgress);
 end;
 
+// файл с одной строкой в UTF-8: запись в ANSI испортила бы кириллицу в пути
+// к движку; программа читает такие файлы как utf-8-sig
+procedure SaveUtf8(const FileName, Text: String);
+var
+  Lines: TArrayOfString;
+begin
+  SetArrayLength(Lines, 1);
+  Lines[0] := Text;
+  SaveStringsToUTF8File(FileName, Lines, False);
+end;
+
 // после копирования файлов: язык интерфейса и выбранные папки — программе
 procedure DepSaveChoices;
 var
@@ -421,14 +433,14 @@ var
 begin
   AppDir := ExpandConstant('{app}\app');
   ForceDirectories(AppDir);
-  SaveStringToFile(AppDir + '\default_lang.txt', CustomMessage('AppLang'), False);
+  SaveUtf8(AppDir + '\default_lang.txt', CustomMessage('AppLang'));
   Eng := '';
   if DepHave[DEP_ENGINE].Checked and DirFits(DEP_ENGINE, DepDir[DEP_ENGINE].Text) then
     Eng := Trim(DepDir[DEP_ENGINE].Text)
   else if DirFits(DEP_ENGINE, DepFound[DEP_ENGINE]) then
     Eng := DepFound[DEP_ENGINE];
   if Eng <> '' then
-    SaveStringToFile(AppDir + '\gptsovits_path.txt', Eng, False);
+    SaveUtf8(AppDir + '\gptsovits_path.txt', Eng);
   if DepHave[DEP_CONNECT].Checked and DirFits(DEP_CONNECT, DepDir[DEP_CONNECT].Text) then
-    SaveStringToFile(AppDir + '\anki2_dir.txt', Trim(DepDir[DEP_CONNECT].Text), False);
+    SaveUtf8(AppDir + '\anki2_dir.txt', Trim(DepDir[DEP_CONNECT].Text));
 end;

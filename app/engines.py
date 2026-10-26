@@ -73,7 +73,7 @@ def _read_engine_local_file():
     try:
         # из paths, а не из voices: voices импортирует engines, и прямой
         # `import voices` падал на цикле (partially initialized module)
-        with open(ENGINE_LOCAL_FILE, encoding="utf-8") as f:
+        with open(ENGINE_LOCAL_FILE, encoding="utf-8-sig") as f:
             s = f.read().strip().strip('"').strip("'")
         return s or None
     except OSError:

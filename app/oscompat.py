@@ -238,7 +238,7 @@ def _custom_anki2():
         here = os.path.dirname(os.path.abspath(__file__))
         if getattr(sys, "frozen", False):
             here = os.path.join(os.path.dirname(os.path.abspath(sys.executable)), "app")
-        with open(os.path.join(here, "anki2_dir.txt"), encoding="utf-8") as f:
+        with open(os.path.join(here, "anki2_dir.txt"), encoding="utf-8-sig") as f:
             v = f.read().strip()
         if v:
             out.append(v)

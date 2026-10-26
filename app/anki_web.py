@@ -100,7 +100,7 @@ def ui_lang(cfg=None):
     try:
         # пишет установщик Windows: язык, выбранный при установке
         with open(os.path.join(ag.code_dir(), "default_lang.txt"),
-                  encoding="utf-8") as f:
+                  encoding="utf-8-sig") as f:
             code = locales.normalize(f.read().strip())
     except OSError:
         code = ""
