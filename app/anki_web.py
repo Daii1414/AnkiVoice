@@ -1174,57 +1174,62 @@ class Handler(BaseHTTPRequestHandler):
             return []
 
     def api_state(self):
-        cfg = ag.load_config()
-        kind = ag.engine_kind(cfg)
-        # Папка движка — по ВЫБРАННОМУ движку: от неё зависят и пути голосов.
-        # Раньше считалась папка GPT-SoVITS, и при IndexTTS голоса выглядели
-        # готовыми, хотя референс искался не там.
-        if kind == ag.ENGINE_INDEX:
-            path = (cfg.get("indextts_path") or "").strip() or \
-                (ag.find_indextts_automatic() or "")
-            problems = ag.validate_indextts(path) if path else ["Папка IndexTTS не указана"]
-            auto = ""
-        else:
-            path = (cfg.get("gptsovits_path") or "").strip() or \
-                (ag.find_gptsovits_automatic() or "")
-            problems = ag.validate_gptsovits(path) if path else ["Папка GPT-SoVITS не указана"]
-            auto = ""
-            if not (cfg.get("gptsovits_path") or "").strip():
-                auto = ag.find_gptsovits_automatic() or ""
+        try:
+            cfg = ag.load_config()
+            kind = ag.engine_kind(cfg)
+            # Папка движка — по ВЫБРАННОМУ движку: от неё зависят и пути голосов.
+            # Раньше считалась папка GPT-SoVITS, и при IndexTTS голоса выглядели
+            # готовыми, хотя референс искался не там.
+            if kind == ag.ENGINE_INDEX:
+                path = (cfg.get("indextts_path") or "").strip() or \
+                    (ag.find_indextts_automatic() or "")
+                problems = ag.validate_indextts(path) if path else ["Папка IndexTTS не указана"]
+                auto = ""
+            else:
+                path = (cfg.get("gptsovits_path") or "").strip() or \
+                    (ag.find_gptsovits_automatic() or "")
+                problems = ag.validate_gptsovits(path) if path else ["Папка GPT-SoVITS не указана"]
+                auto = ""
+                if not (cfg.get("gptsovits_path") or "").strip():
+                    auto = ag.find_gptsovits_automatic() or ""
 
-        vfile = read_voices_file()
-        voices = vfile.get("voices", {})
-        eng = path
-        view = {}
-        for name, v in voices.items():
-            d = dict(v)
-            d["ok"] = voice_files_ok(v, eng)
-            view[name] = d
+            vfile = read_voices_file()
+            voices = vfile.get("voices", {})
+            eng = path
+            view = {}
+            for name, v in voices.items():
+                d = dict(v)
+                d["ok"] = voice_files_ok(v, eng)
+                view[name] = d
 
-        run = current_run()
-        return {
-            "cfg": cfg,
-            "engine": kind,
-            "version": ag.APP_VERSION,
-            "pron": dict(zip(("ok", "msg"), pron_status())),
-            "setup_done": bool(cfg.get("setup_done")),
-            "path": path,
-            "auto": auto,
-            "problems": problems,
-            "voices": view,
-            "default_voice": vfile.get("default_voice"),
-            "anki": ag.anki_status(),
-            "tts": ag.tts_status(),
-            "code_dir": ag.code_dir(),
-            "config_file": ag.CONFIG_FILE,
-            "anki_media": ag.anki_media_folder(),
-            "log_file": ag.CRASH_LOG,
-            "run": run.snapshot() if run else None,
-            "last": (LAST_RUN.snapshot() if LAST_RUN and not LAST_RUN.running
-                     else None),
-            "last_run": _read_last_run(),
-            "reading_off": READING_OFF,
-        }
+            run = current_run()
+            return {
+                "cfg": cfg,
+                "engine": kind,
+                "version": ag.APP_VERSION,
+                "pron": dict(zip(("ok", "msg"), pron_status())),
+                "setup_done": bool(cfg.get("setup_done")),
+                "path": path,
+                "auto": auto,
+                "problems": problems,
+                "voices": view,
+                "default_voice": vfile.get("default_voice"),
+                "anki": ag.anki_status(),
+                "tts": ag.tts_status(),
+                "code_dir": ag.code_dir(),
+                "config_file": ag.CONFIG_FILE,
+                "anki_media": ag.anki_media_folder(),
+                "log_file": ag.CRASH_LOG,
+                "run": run.snapshot() if run else None,
+                "last": (LAST_RUN.snapshot() if LAST_RUN and not LAST_RUN.running
+                         else None),
+                "last_run": _read_last_run(),
+                "reading_off": READING_OFF,
+            }
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return {"error": "api_state error: %s" % (repr(e)[:200],)}
 
     def _doctor(self):
         cfg = ag.load_config()
@@ -1587,7 +1592,10 @@ def serve(open_browser=True, port=0):
             print(prob)
         return 1
 
-    print("AnkiVoice — веб-интерфейс: %s" % url)
+    try:
+        print("AnkiVoice — веб-интерфейс: %s" % url)
+    except UnicodeEncodeError:
+        print("AnkiVoice — веб-интерфейс: [путь содержит символы, неотображаемые в консоли]")
     if open_browser:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:

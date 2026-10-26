@@ -35,6 +35,20 @@ import threading
 import traceback
 import urllib.request
 
+# Защита от UnicodeEncodeError в консоли Windows (cp1252) при выводе путей
+# с кириллицей (папка проекта содержит русские символы). Делаем это ДО любого
+# print, чтобы перехватить все последующие вызовы.
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 APP_NAME = "AnkiVoice"
 APP_VERSION = "1.9.3"
 LEGACY_APP_NAME = "AnkiTTS"   # старое имя (до переименования) — конфиг переносим
@@ -2081,6 +2095,13 @@ def run_gui(open_tab=None):
 
 # ==================================================================== точка входа
 def main():
+    # Защита от UnicodeEncodeError в консоли Windows (cp1252) при выводе
+    # путей с кириллицей (путь к проекту содержит русские символы).
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     ap = argparse.ArgumentParser(description=APP_NAME)
     ap.add_argument("--tab", default=None, choices=["voice", "anki", "final"],
                     help="открыть окно сразу на указанной вкладке (только --classic)")

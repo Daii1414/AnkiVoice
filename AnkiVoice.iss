@@ -10,7 +10,7 @@
 ; а в Program Files обычный пользователь писать не может.
 
 #define MyAppName "AnkiVoice"
-#define MyAppVersion "1.9.3"
+#define MyAppVersion "1.9.4"
 #define MyAppPublisher "Daii1414"
 #define MyAppURL "https://github.com/Daii1414/AnkiVoice"
 ; Исходники берём из каталога этого скрипта ({src}) — сборка одинаково
