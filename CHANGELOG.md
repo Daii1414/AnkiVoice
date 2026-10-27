@@ -3,6 +3,23 @@
 Все значимые изменения AnkiVoice. Формат — [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/),
 версии — [Semantic Versioning](https://semver.org/lang/ru/).
 
+## [1.11.0] — 2026-10-27
+
+Установщик: `AnkiVoice-Setup-1.11.0.exe`
+
+**Коротко.** Починена озвучка на пакетном Python GPT-SoVITS: раньше пайплайн
+падал с `ModuleNotFoundError: No module named 'paths'`.
+
+**Исправлено.**
+
+- `voice_pipeline.py` больше не падает с `ModuleNotFoundError: No module named
+  'paths'`. Пакетный `python.exe` из GPT-SoVITS жёстко задаёт `sys.path` через
+  `python39._pth`, и папка скрипта туда не попадала — теперь она добавляется
+  в `sys.path` принудительно.
+- Установщик собирается из свежего кода: `AnkiVoice.exe` пересобирается
+  PyInstaller'ом до запуска ISCC, поэтому версия в GUI и в API больше не
+  отстаёт от релиза.
+
 ## [1.10.0] — 2026-10-26
 
 Установщик: `AnkiVoice-Setup-1.10.0.exe`
