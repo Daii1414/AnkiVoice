@@ -219,7 +219,8 @@ def start_server(start_config, wait=600):
         # сервер переживает пайплайн (следующий прогон его переиспользует):
         # на Linux отвязываем его от группы процессов, чтобы Ctrl+C или
         # «Стоп» в интерфейсе не роняли загруженную модель
-        **({} if oscompat.IS_WIN else {"start_new_session": True})
+        **({"creationflags": oscompat.NO_WINDOW} if oscompat.IS_WIN
+          else {"start_new_session": True})
     )
     # свежий сервер стартует с весами из tts_infer.yaml, а не с голосом
     # прошлого сервера: отметку сбрасываем, иначе ensure_voice решит, что
@@ -341,7 +342,8 @@ def _start_indextts_service(wait=240):
     log = open(log_path, "a", encoding="utf-8")
     subprocess.Popen(cmd, cwd=root, env=env, stdout=log,
                      stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
-                     **({} if oscompat.IS_WIN else {"start_new_session": True}))
+                     **({"creationflags": oscompat.NO_WINDOW} if oscompat.IS_WIN
+          else {"start_new_session": True}))
     print("Запускаю IndexTTS, ждём до %d c (модель грузится долго)..." % wait)
     if not _wait_indextts(url, wait):
         raise SystemExit("Сервис IndexTTS не поднялся за %d c, см. %s"

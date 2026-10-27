@@ -960,7 +960,8 @@ def run_gui(open_tab=None):
                 cmd.append(sys.argv[0])
             cmd += sys.argv[1:]
             try:
-                subprocess.Popen(cmd, cwd=code_dir())
+                subprocess.Popen(cmd, cwd=code_dir(),
+                                 creationflags=CREATE_NO_WINDOW)
             except OSError:
                 pass
             self.destroy()
