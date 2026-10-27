@@ -54,6 +54,14 @@ try:
 except Exception:
     pass
 
+# ------------------------------------------------- sys.path для пакетного Python
+# Python из пакета GPT-SoVITS жёстко задаёт sys.path через python39._pth:
+# папка этого скрипта туда не попадает, и «from paths import ...» падает с
+# ModuleNotFoundError. Гарантируем свою папку первым элементом sys.path.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
+
 # ------------------------------------------------------------------ константы
 # CODE  — папка самого инструмента (этот скрипт, voices.json).
 # ROOT  — корень репозитория (на уровень выше): там lab/ и bundled/.
