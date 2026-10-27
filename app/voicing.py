@@ -147,17 +147,9 @@ def parse_ensemble(spec):
     for _n, w in pairs:
         g = math.gcd(g, w)
     g = g or 1
-    counts = [w // g for _n, w in pairs]
-    # потолок пула: огромные взаимно простые веса ("a:9999999999,b:5000000000")
-    # иначе строят миллиарды элементов; пропорции сохраняем делением пополам
-    while sum(counts) > 200:
-        nxt = [(c + 1) // 2 for c in counts]
-        if nxt == counts:
-            break                        # все по 1 — меньше не сделать
-        counts = nxt
     pool = []
-    for (name, _w), c in zip(pairs, counts):
-        pool.extend([name] * c)
+    for name, w in pairs:
+        pool.extend([name] * (w // g))
     return pool
 
 

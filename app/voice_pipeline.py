@@ -54,15 +54,6 @@ try:
 except Exception:
     pass
 
-# бутстрап: pyruntime собран с safe_path=True и папку скрипта в sys.path
-# сам не добавляет — добавляем явно, до первых локальных импортов фасада
-# (иначе ModuleNotFoundError: No module named 'paths' при запуске из exe)
-import os as _os
-import sys as _sys
-_here = _os.path.dirname(_os.path.abspath(__file__))
-if _here not in _sys.path:
-    _sys.path.insert(0, _here)
-
 # ------------------------------------------------------------------ константы
 # CODE  — папка самого инструмента (этот скрипт, voices.json).
 # ROOT  — корень репозитория (на уровень выше): там lab/ и bundled/.
